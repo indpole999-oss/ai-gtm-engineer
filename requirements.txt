@@ -1,0 +1,27 @@
+# AI GTM Engineer - Python Dependencies
+openai>=1.0.0
+fastapi>=0.110.0
+uvicorn>=0.29.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+supabase>=2.0.0
+pgvector>=0.2.0
+resend>=0.7.0
+hubspot-api-client>=8.0.0
+google-api-python-client>=2.0.0
+playwright>=1.43.0
+browser-use>=0.1.0
+langchain>=0.1.0
+langchain-community>=0.0.30
+serper>=0.1.0
+pinecone-client>=3.0.0
+aiohttp>=3.9.0
+celery>=5.3.0
+redis>=5.0.0
+pytest>=8.0.0
+pandas>=2.0.0
+PyPDF2>=3.0.0
+openpyxl>=3.1.0
+python-jose>=3.3.0
+passlib>=1.7.4
+python-multipart>=0.0.9
