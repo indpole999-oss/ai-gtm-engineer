@@ -1,0 +1,2 @@
+-- AI GTM Engineer Database Schema (Step 26)
+-- Tables: users, companies, contacts, emails, activities, workflows, conversations, logs
