@@ -1,27 +1,77 @@
-# AI GTM Engineer - Python Dependencies
-openai>=1.0.0
-fastapi>=0.110.0
-uvicorn>=0.29.0
-pydantic>=2.0.0
-python-dotenv>=1.0.0
-supabase>=2.0.0
-pgvector>=0.2.0
-resend>=0.7.0
-hubspot-api-client>=8.0.0
-google-api-python-client>=2.0.0
-playwright>=1.43.0
-browser-use>=0.1.0
-langchain>=0.1.0
-langchain-community>=0.0.30
-serper>=0.1.0
-pinecone-client>=3.0.0
-aiohttp>=3.9.0
-celery>=5.3.0
-redis>=5.0.0
-pytest>=8.0.0
-pandas>=2.0.0
-PyPDF2>=3.0.0
-openpyxl>=3.1.0
-python-jose>=3.3.0
-passlib>=1.7.4
+# =============================================================
+# AI GTM ENGINEER - Python Dependencies
+# Stack: OpenAI + Serper + Resend + Apollo + HubSpot + Supabase
+# Install: pip install -r requirements.txt
+# =============================================================
+
+
+# --- Web Framework ---
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
+
+
+# --- Data Validation ---
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+
+
+# --- Environment ---
+python-dotenv>=1.0.1
+
+
+# --- HTTP Client (used by all agents) ---
+httpx>=0.27.0
+
+
+# --- Database - Supabase + PostgreSQL ---
+supabase>=2.4.0
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.30
+alembic>=1.13.1
+
+
+# --- Authentication ---
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+
+# --- LLM - OpenAI ---
+openai>=1.30.0
+
+
+# --- Email - Resend ---
+resend>=2.0.0
+
+
+# --- CRM - HubSpot ---
+hubspot-api-client>=8.2.0
+
+
+# --- Browser Automation - Playwright ---
+playwright>=1.44.0
+
+
+# --- Vector Memory - ChromaDB ---
+chromadb>=0.5.0
+
+
+# --- Async Utilities ---
+anyio>=4.4.0
+asyncio-mqtt>=0.16.0
+
+
+# --- Data Processing ---
+pandas>=2.2.0
+openpyxl>=3.1.2
+python-docx>=1.1.0
+pypdf2>=3.0.1
+
+
+# --- Logging & Monitoring ---
+loguru>=0.7.2
+
+
+# --- Utilities ---
+python-slugify>=8.0.4
+arrowhead>=0.3.0
