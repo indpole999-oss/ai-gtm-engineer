@@ -76,4 +76,3 @@ loguru>=0.7.2
 
 # --- Utilities ---
 python-slugify>=8.0.4
-arrowhead>=0.3.0
