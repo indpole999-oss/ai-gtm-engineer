@@ -1,3 +1,4 @@
+
 # =============================================================
 # AI GTM ENGINEER - Python Dependencies
 # Stack: OpenAI + Serper + Resend + Apollo + HubSpot + Supabase
@@ -12,7 +13,7 @@ python-multipart>=0.0.9
 
 
 # --- Data Validation ---
-pydantic>=2.7.0
+pydantic[email]>=2.7.0
 pydantic-settings>=2.2.0
 
 
@@ -24,11 +25,12 @@ python-dotenv>=1.0.1
 httpx>=0.27.0
 
 
-# --- Database - Supabase + PostgreSQL ---
+# --- Database - Supabase + PostgreSQL + Local SQLite ---
 supabase>=2.4.0
 psycopg2-binary>=2.9.9
 sqlalchemy>=2.0.30
 alembic>=1.13.1
+aiosqlite>=0.20.0
 
 
 # --- Authentication ---

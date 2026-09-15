@@ -1,5 +1,10 @@
-"""Routers package - all FastAPI route modules"""
-
-from backend.routers import auth, companies, contacts, leads, emails, crm, calendar, agents, workflows, health
-
-__all__ = ["auth", "companies", "contacts", "leads", "emails", "crm", "calendar", "agents", "workflows", "health"]
+from . import auth
+from . import companies
+from . import contacts
+from . import leads
+from . import emails
+from . import crm
+from . import calendar
+from . import agents
+from . import workflows
+from . import health

@@ -1,115 +1,283 @@
+
 """
-Manager Agent - Orchestrates all GTM sub-agents via NVIDIA NIM
-Steps 17-25: Task routing, agent coordination, decision making
+Manager Agent - Main GTM Agent Orchestrator
+
+Routes tasks to specialist agents.
+
+Stage 9 Compatible
 """
 
-import httpx
-import json
 import logging
 from typing import Optional, Dict, Any
-import os
+
+from agents.research_agent import ResearchAgent
+from agents.enrichment_agent import EnrichmentAgent
+from agents.email_agent import EmailAgent
+from agents.crm_agent import CRMAgent
+from agents.calendar_agent import CalendarAgent
+
 
 logger = logging.getLogger(__name__)
 
 
-NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
-NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
-
-
-AGENT_ROUTING_PROMPT = """
-You are the Manager Agent for an AI GTM (Go-To-Market) Engineer system.
-Your job is to analyze incoming tasks and route them to the correct specialist agent.
-
-Available agents:
-- research: Researches companies, industries, news, funding, tech stack using web search
-- enrichment: Enriches lead/contact data with emails, phones, titles from Apollo.io
-- email: Writes personalized cold outreach emails based on research and context
-- crm: Updates HubSpot CRM with deal stages, notes, contacts, activities
-- calendar: Books discovery call meetings via Google Calendar
-- manager: Handles complex multi-step tasks requiring coordination of multiple agents
-
-Given the task description, respond with ONLY a JSON object:
-{"agent": "agent_name", "reasoning": "why this agent", "subtasks": []}
-"""
-
-
 class ManagerAgent:
-      """Orchestrator agent that routes tasks to specialist agents using NVIDIA NIM"""
+    """
+    Main AI GTM Orchestrator.
+
+    Responsibilities:
+    - Receive GTM tasks
+    - Route tasks
+    - Execute specialist agents
+    - Manage workflow execution
+    """
 
     def __init__(self):
-              self.model = NVIDIA_MODEL
-              self.api_key = NVIDIA_API_KEY
-              self.base_url = NVIDIA_BASE_URL
 
-    async def call_nvidia_nim(self, messages: list, temperature: float = 0.2) -> str:
-              """Call NVIDIA NIM API for LLM inference"""
-              headers = {
-                  "Authorization": f"Bearer {self.api_key}",
-                  "Content-Type": "application/json"
-              }
-              payload = {
-                  "model": self.model,
-                  "messages": messages,
-                  "temperature": temperature,
-                  "max_tokens": 1024,
-                  "stream": False
-              }
-              async with httpx.AsyncClient(timeout=60) as client:
-                            response = await client.post(
-                                              f"{self.base_url}/chat/completions",
-                                              headers=headers,
-                                              json=payload
-                                          )
-                            response.raise_for_status()
-                            data = response.json()
-                            return data["choices"][0]["message"]["content"]
+        self.agents = {
+            "research": ResearchAgent(),
+            "enrichment": EnrichmentAgent(),
+            "email": EmailAgent(),
+            "crm": CRMAgent(),
+            "calendar": CalendarAgent(),
+        }
 
-          async def route_task(self, task: str) -> Dict[str, Any]:
-                    """Determine which agent should handle the task"""
-                    messages = [
-                        {"role": "system", "content": AGENT_ROUTING_PROMPT},
-                        {"role": "user", "content": f"Task: {task}"}
-                    ]
-                    try:
-                                  response = await self.call_nvidia_nim(messages)
-                                  return json.loads(response)
-                              except Exception as e:
-                                            logger.error(f"Routing failed: {e}")
-                                            return {"agent": "research", "reasoning": "Default fallback", "subtasks": []}
+    # ========================================================
+    # Main Agent Entry Point
+    # ========================================================
 
-                async def run(self, task: str, target_agent: Optional[str] = None, context: Optional[Dict] = None) -> Dict[str, Any]:
-                          """Main entry point - route and execute task"""
-                          logger.info(f"Manager Agent received task: {task}")
+    async def run(
+        self,
+        task: str,
+        target_agent: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
 
-        # Determine routing
-        if target_agent:
-                      routing = {"agent": target_agent, "reasoning": "Explicitly specified", "subtasks": []}
-                  else:
-            routing = await self.route_task(task)
+        logger.info(
+            "Manager received task: %s",
+            task,
+        )
 
-                            agent_name = routing.get("agent", "research")
-        logger.info(f"Routing to {agent_name} agent: {routing.get('reasoning')}")
+        context = context or {}
 
-        # Execute with correct agent
-        if agent_name == "research":
-                      from agents.research_agent import ResearchAgent
-                      agent = ResearchAgent()
-                      result = await agent.run(task=task, context=context or {})
-                  elif agent_name == "enrichment":
-                                from agents.enrichment_agent import EnrichmentAgent
-                                agent = EnrichmentAgent()
-                                result = await agent.run(task=task, context=context or {})
-                            elif agent_name == "email":
-                                          from agents.email_agent import EmailAgent
-                                          agent = EmailAgent()
-                                          result = await agent.run(task=task, context=context or {})
-                                      else:
-            result = {"message": f"Agent '{agent_name}' received task", "task": task, "status": "acknowledged"}
+        try:
+
+            # ------------------------------------------------
+            # Determine target
+            # ------------------------------------------------
+
+            if target_agent:
+                agent_name = target_agent
+            else:
+                agent_name = self.route_task(task)
+
+            # ------------------------------------------------
+            # Pipeline execution
+            # ------------------------------------------------
+            # "pipeline" is not a specialist agent.
+            # It must be handled by run_pipeline().
+            # ------------------------------------------------
+
+            if agent_name == "pipeline":
+
+                pipeline_result = await self.run_pipeline(
+                    context=context
+                )
+
+                return {
+                    "status": "completed",
+                    "agent_used": "pipeline",
+                    "task": task,
+                    "result": pipeline_result,
+                }
+
+            # ------------------------------------------------
+            # Validate specialist agent
+            # ------------------------------------------------
+
+            if agent_name not in self.agents:
+
+                return {
+                    "status": "error",
+                    "reason": (
+                        f"Agent {agent_name} not available"
+                    ),
+                }
+
+            # ------------------------------------------------
+            # Execute specialist agent
+            # ------------------------------------------------
+
+            agent = self.agents[agent_name]
+
+            result = await agent.run(
+                task=task,
+                context=context,
+            )
+
+            return {
+                "status": "completed",
+                "agent_used": agent_name,
+                "task": task,
+                "result": result,
+            }
+
+        except Exception as e:
+
+            logger.exception(
+                "Manager execution failed"
+            )
+
+            return {
+                "status": "error",
+                "reason": str(e),
+            }
+
+    # ========================================================
+    # Full GTM Pipeline
+    # ========================================================
+
+    async def run_pipeline(
+        self,
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+
+        """
+        Full GTM Pipeline
+
+        Research
+            |
+            v
+        Enrichment
+            |
+            v
+        Email
+            |
+            v
+        CRM
+            |
+            v
+        Calendar
+        """
+
+        context = context or {}
+
+        results: Dict[str, Any] = {}
+
+        # ----------------------------------------------------
+        # Research
+        # ----------------------------------------------------
+
+        results["research"] = await self.agents[
+            "research"
+        ].run(
+            task="research company",
+            context=context,
+        )
+
+        # ----------------------------------------------------
+        # Enrichment
+        # ----------------------------------------------------
+
+        results["enrichment"] = await self.agents[
+            "enrichment"
+        ].run(
+            task="enrich company",
+            context=context,
+        )
+
+        # ----------------------------------------------------
+        # Add enrichment data to shared context
+        # ----------------------------------------------------
+
+        context["enrichment"] = results[
+            "enrichment"
+        ]
+
+        # ----------------------------------------------------
+        # Email
+        # ----------------------------------------------------
+
+        results["email"] = await self.agents[
+            "email"
+        ].run(
+            task="generate outreach email",
+            context=context,
+        )
+
+        # ----------------------------------------------------
+        # CRM
+        # ----------------------------------------------------
+
+        results["crm"] = await self.agents[
+            "crm"
+        ].run(
+            task="create crm record",
+            context=context,
+        )
+
+        # ----------------------------------------------------
+        # Calendar
+        # ----------------------------------------------------
+
+        results["calendar"] = await self.agents[
+            "calendar"
+        ].run(
+            task="schedule follow up",
+            context=context,
+        )
+
+        # ----------------------------------------------------
+        # Final pipeline result
+        # ----------------------------------------------------
 
         return {
-                      "agent_used": agent_name,
-                      "routing_reasoning": routing.get("reasoning"),
-                      "result": result,
-                      "task": task
-                  }
+            "status": "completed",
+            "pipeline": results,
+        }
+
+    # ========================================================
+    # Task Router
+    # ========================================================
+
+    def route_task(
+        self,
+        task: str,
+    ) -> str:
+
+        task = (task or "").lower().strip()
+
+        # Pipeline must be checked first because
+        # pipeline tasks may also contain words such as
+        # research, email, crm, etc.
+
+        if "pipeline" in task:
+
+            return "pipeline"
+
+        if "research" in task:
+
+            return "research"
+
+        if "enrich" in task:
+
+            return "enrichment"
+
+        if (
+            "email" in task
+            or "outreach" in task
+        ):
+
+            return "email"
+
+        if "crm" in task:
+
+            return "crm"
+
+        if (
+            "meeting" in task
+            or "calendar" in task
+        ):
+
+            return "calendar"
+
+        return "research"
