@@ -76,3 +76,10 @@ loguru>=0.7.2
 
 # --- Utilities ---
 python-slugify>=8.0.4
+
+# --- Production Runtime Dependencies ---
+asyncpg>=0.31.0
+PyJWT>=2.13.0
+google-auth>=2.57.0
+google-auth-oauthlib>=1.4.1
+google-api-python-client>=2.200.0
