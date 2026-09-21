@@ -19,11 +19,16 @@ os.environ.update(
 )
 
 from backend.main import app  # noqa: E402
+from backend.database import engine  # noqa: E402
 
 
 @pytest.fixture()
 def client():
     TEST_DB.unlink(missing_ok=True)
     with TestClient(app) as test_client:
-        yield test_client
+        try:
+            yield test_client
+        finally:
+            # Close pooled connections before deleting the SQLite database.
+            test_client.portal.call(engine.dispose)
     TEST_DB.unlink(missing_ok=True)
