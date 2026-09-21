@@ -3,7 +3,7 @@ AI GTM Engineer - FastAPI Backend Entry Point
 Steps 27-33: Backend setup, JWT auth, CORS, all routes
 """
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
@@ -30,6 +30,10 @@ from backend.routers import (
     integrations,
 )
 
+from backend.tenancy import require_workspace
+
+from backend.routers import workspaces, record_management
+
 configure_logging()
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
@@ -40,9 +44,7 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     logger.info("Starting AI GTM Engineer backend...")
 
-    if settings.AUTO_CREATE_TABLES:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    # Schema evolution is performed only by Alembic release commands.
 
     logger.info("Database initialization complete.")
 
@@ -120,55 +122,67 @@ app.include_router(
 
 app.include_router(
     companies.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/companies",
     tags=["Companies"],
 )
 
 app.include_router(
     contacts.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/contacts",
     tags=["Contacts"],
 )
 
 app.include_router(
     leads.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/leads",
     tags=["Leads"],
 )
 
 app.include_router(
     emails.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/emails",
     tags=["Emails"],
 )
 
 app.include_router(
     crm.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/crm",
     tags=["CRM"],
 )
 
 app.include_router(
     calendar.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/calendar",
     tags=["Calendar"],
 )
 
 app.include_router(
     agents.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/agents",
     tags=["Agents"],
 )
 
 app.include_router(
     workflows.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1/workflows",
     tags=["Workflows"],
 )
 
+app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["Workspaces"])
+app.include_router(record_management.router, prefix="/api/v1", dependencies=[Depends(require_workspace)])
+
 # Universal customer integrations
 app.include_router(
     integrations.router,
+    dependencies=[Depends(require_workspace)],
     prefix="/api/v1",
     tags=["Integrations"],
 )

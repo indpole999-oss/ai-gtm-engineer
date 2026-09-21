@@ -1,3 +1,5 @@
+from backend.tenancy import require_approved_execution
+from backend.tenancy import get_workspace_db as get_db
 """Calendar Router - Meeting Scheduling and Google OAuth"""
 
 from datetime import datetime
@@ -12,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
-from backend.database import get_db, Contact, Meeting, Integration
+from backend.database import Contact, Meeting, Integration
 from backend.routers.auth import get_current_user, create_access_token
 from backend.security import encrypt_credentials
 
@@ -83,7 +85,7 @@ def _create_google_oauth_flow(state: Optional[str] = None):
     )
 
 
-@router.get("/oauth/google/start")
+@router.get("/oauth/google/start", dependencies=[Depends(require_approved_execution)])
 async def google_oauth_start(
     current_user=Depends(get_current_user),
 ):
@@ -116,7 +118,7 @@ async def google_oauth_start(
     }
 
 
-@router.get("/oauth/google/callback")
+@router.get("/oauth/google/callback", dependencies=[Depends(require_approved_execution)])
 async def google_oauth_callback(
     code: str,
     state: str,
@@ -274,7 +276,7 @@ async def google_oauth_callback(
     }
 
 
-@router.post("/book")
+@router.post("/book", dependencies=[Depends(require_approved_execution)])
 async def book_meeting(
     request: MeetingRequest,
     db: AsyncSession = Depends(get_db),

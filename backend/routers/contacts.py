@@ -1,3 +1,4 @@
+from backend.tenancy import get_workspace_db as get_db
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -5,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, EmailStr
 
-from backend.database import Contact, get_db
+from backend.database import Contact
 from backend.routers.auth import get_current_user
 
 

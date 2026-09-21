@@ -1,3 +1,4 @@
+from backend.tenancy import get_workspace_db as get_db
 """
 Integration Router
 
@@ -23,7 +24,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.database import Integration, get_db
+from backend.database import Integration
 from backend.routers.auth import get_current_user
 from backend.security import encrypt_credentials, decrypt_credentials
 
@@ -81,14 +82,14 @@ def integration_response(integration: Integration) -> Dict[str, Any]:
         "category": integration.category,
         "provider": integration.provider,
         "auth_type": integration.auth_type,
-        "config": integration.config or {},
+        "config": {key: value for key, value in (integration.config or {}).items() if key in {"calendar_id", "instance_url", "api_version"}},
         "status": integration.status,
         "last_connected_at": (
             integration.last_connected_at.isoformat()
             if integration.last_connected_at
             else None
         ),
-        "last_error": integration.last_error,
+        "last_error": "Provider connection failed" if integration.last_error else None,
         "created_at": (
             integration.created_at.isoformat()
             if integration.created_at
@@ -119,7 +120,7 @@ async def get_user_integration(
     result = await db.execute(
         select(Integration).where(
             Integration.id == integration_uuid,
-            Integration.user_id == user_uuid,
+            Integration.workspace_id == db.info["workspace_id"],
         )
     )
 
@@ -147,7 +148,7 @@ async def list_integrations(
 
     result = await db.execute(
         select(Integration)
-        .where(Integration.user_id == user_uuid)
+        .where(Integration.workspace_id == db.info["workspace_id"])
         .order_by(Integration.updated_at.desc())
     )
 

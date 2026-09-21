@@ -1,0 +1,75 @@
+# V2 migration and recovery runbook
+
+No production database has been contacted or changed during implementation.
+Run schema changes using Alembic only. Application startup no longer creates
+tables. Preserve the Phase 0 baseline adoption procedure for pre-Alembic databases.
+
+## Phase 1 order
+
+1. Back up the existing database and demonstrate restoration in an isolated clone.
+2. Stop old application writers and background workers during the ownership cutover.
+   An old binary cannot safely run alongside the new tenant-aware binary.
+3. Upgrade to `20260922_0002`: workspaces, memberships, audit inventory and nullable
+   ownership columns. No existing customer rows are deleted or reassigned.
+4. Upgrade to `20260922_0003`: create one deterministic UUIDv5 workspace per
+   existing user, with owner membership. Inactive users receive suspended memberships.
+   Map integrations using their existing `user_id` foreign key only.
+   Companies, contacts (including leads), CRM records, emails and meetings have no
+   provable user owner in the Phase 0 schema. Keep them NULL/unassigned. Do not infer
+   ownership from email domain, registration order, sole-user count, or company name.
+5. Review `legacy_ownership_audit`, grouped by table, disposition and reason.
+   Every existing customer record is inventoried as mapped or quarantined.
+6. Upgrade to `20260922_0004`: reject invalid owners and mixed-tenant relationships,
+   add indexes/FKs/composite relationship FKs and workspace-scoped domain/email
+   uniqueness. Require integration ownership; other legacy NULLs remain quarantined.
+7. Verify schema, counts, ownership and FK integrity; run security tests on the clone.
+8. Deploy the tenant-aware binary only after a separately authorized production gate.
+
+## Quarantine and manual mapping
+
+Quarantine means `workspace_id IS NULL`, not a shared customer workspace. Normal
+API queries cannot return these records, and normal API writes cannot adopt them.
+There is no customer-facing remediation endpoint.
+
+Export the audit inventory using a privileged migration connection. For each
+proposed assignment, retain the record ID, target workspace, independent ownership
+evidence, reviewer, approval time and relationship closure. Resolve companies before
+contacts, and contacts before CRM/email/meeting children. All linked rows must agree
+on the target workspace. Never infer ownership from a customer's request alone.
+
+Prepare an explicit reviewed mapping as a new data migration: assert the source is
+still unassigned, assert target membership/workspace legitimacy, check duplicate
+domains/emails within the target, update parent and children in one transaction,
+and update the audit disposition/reason with the evidence reference. Abort on any
+mismatch. Review both mapped and remaining quarantined counts before release.
+
+## PostgreSQL role and RLS
+
+Use a separate migration role. The runtime role must have no SUPERUSER, BYPASSRLS,
+schema alteration, or migration-audit access. Customer tables have ENABLE/FORCE
+RLS and a workspace policy. The application sets transaction-local
+`app.workspace_id` only after authenticating and checking active membership; it
+reapplies the setting after commits. Missing settings expose no customer rows.
+The runtime role must not be available to clients or arbitrary SQL tools.
+RLS does not replace application checks; membership and role policy remains in the
+central dependency/service. Do not expose these tables directly through Supabase
+client roles without separate reviewed policies/grants.
+
+## Validation and operational risks
+
+Run `python -m pytest -q`, the disposable PostgreSQL test job, `alembic upgrade head`
+on a new database and on a populated baseline clone, then `alembic current`.
+Check row counts, `legacy_ownership_audit`, NULL counts, FK consistency and tenant
+uniqueness. Test every workspace with representative users before enabling traffic.
+
+SQLite batch migrations copy tables locally; PostgreSQL index/FK creation can take
+locks and needs a maintenance window sized on a production clone. Backfill reads
+legacy rows and writes an audit row per record; assess scale before production.
+No new customer inserts may be made through unscoped SQL. Remaining nullable
+legacy columns cannot safely become globally NOT NULL until quarantine is resolved.
+
+Downgrades deliberately refuse to erase ownership or restore global uniqueness.
+After new tenant writes, reverting to V1 would expose data and may introduce global
+uniqueness conflicts. Recover by rolling forward or restoring the verified backup
+with writers stopped. Retain the audit trail and document any lost writes. Never
+blindly stamp revisions or drop customer tables to recover.

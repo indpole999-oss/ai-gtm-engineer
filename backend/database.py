@@ -22,6 +22,10 @@ from sqlalchemy import (
     ForeignKey,
     JSON,
     Uuid,
+    UniqueConstraint,
+    CheckConstraint,
+    ForeignKeyConstraint,
+    event,
 )
 
 from sqlalchemy.ext.asyncio import (
@@ -65,6 +69,14 @@ else:
     )
 
 
+if is_sqlite:
+    @event.listens_for(engine.sync_engine, "connect")
+    def enable_foreign_keys(connection, record):
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
@@ -78,6 +90,37 @@ AsyncSessionLocal = async_sessionmaker(
 
 class Base(DeclarativeBase):
     pass
+
+
+class Workspace(Base):
+    __tablename__ = "workspaces"
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), unique=True, nullable=False)
+    status = Column(String(30), nullable=False, default="active")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    __table_args__ = (CheckConstraint("status IN ('active', 'suspended')", name="ck_workspace_status"),)
+
+
+class WorkspaceMembership(Base):
+    __tablename__ = "workspace_memberships"
+    workspace_id = Column(Uuid(as_uuid=True), ForeignKey("workspaces.id"), primary_key=True)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), primary_key=True, index=True)
+    role = Column(String(20), nullable=False)
+    status = Column(String(20), nullable=False, default="active")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    __table_args__ = (
+        CheckConstraint("role IN ('owner', 'admin', 'member', 'viewer')", name="ck_membership_role"),
+        CheckConstraint("status IN ('active', 'suspended')", name="ck_membership_status"),
+    )
+
+
+class WorkspaceOwned:
+    # NULL is reserved for quarantined legacy records. Application inserts must
+    # always supply ownership; the session guard enforces this before flush.
+    workspace_id = Column(Uuid(as_uuid=True), ForeignKey("workspaces.id"), nullable=True, index=True)
 
 
 # ==============================
@@ -126,9 +169,10 @@ class User(Base):
 # COMPANY TABLE
 # ==============================
 
-class Company(Base):
+class Company(WorkspaceOwned, Base):
 
     __tablename__ = "companies"
+    __table_args__ = (UniqueConstraint("workspace_id", "domain", name="uq_companies_workspace_domain"), UniqueConstraint("workspace_id", "id", name="uq_companies_workspace_id_id"),)
 
     id = Column(
         Uuid(as_uuid=True),
@@ -143,7 +187,6 @@ class Company(Base):
 
     domain = Column(
         String(255),
-        unique=True,
         index=True
     )
 
@@ -182,9 +225,10 @@ class Company(Base):
 # CONTACT TABLE
 # ==============================
 
-class Contact(Base):
+class Contact(WorkspaceOwned, Base):
 
     __tablename__ = "contacts"
+    __table_args__ = (UniqueConstraint("workspace_id", "email", name="uq_contacts_workspace_email"), UniqueConstraint("workspace_id", "id", name="uq_contacts_workspace_id_id"), ForeignKeyConstraint(["workspace_id", "company_id"], ["companies.workspace_id", "companies.id"], name="fk_contacts_workspace_parent"),)
 
     id = Column(
         Uuid(as_uuid=True),
@@ -208,7 +252,6 @@ class Contact(Base):
 
     email = Column(
         String(255),
-        unique=True,
         index=True
     )
 
@@ -259,9 +302,10 @@ class Contact(Base):
 # CRM TABLE
 # ==============================
 
-class CRMRecord(Base):
+class CRMRecord(WorkspaceOwned, Base):
 
     __tablename__ = "crm_records"
+    __table_args__ = (UniqueConstraint("workspace_id", "id", name="uq_crm_records_workspace_id_id"), ForeignKeyConstraint(["workspace_id", "contact_id"], ["contacts.workspace_id", "contacts.id"], name="fk_crm_records_workspace_parent"),)
 
     id = Column(
         Uuid(as_uuid=True),
@@ -324,9 +368,10 @@ class CRMRecord(Base):
 # EMAIL LOG TABLE
 # ==============================
 
-class EmailLog(Base):
+class EmailLog(WorkspaceOwned, Base):
 
     __tablename__ = "email_logs"
+    __table_args__ = (UniqueConstraint("workspace_id", "id", name="uq_email_logs_workspace_id_id"), ForeignKeyConstraint(["workspace_id", "contact_id"], ["contacts.workspace_id", "contacts.id"], name="fk_email_logs_workspace_parent"),)
 
     id = Column(
         Uuid(as_uuid=True),
@@ -378,9 +423,10 @@ class EmailLog(Base):
 # MEETING TABLE
 # ==============================
 
-class Meeting(Base):
+class Meeting(WorkspaceOwned, Base):
 
     __tablename__ = "meetings"
+    __table_args__ = (UniqueConstraint("workspace_id", "id", name="uq_meetings_workspace_id_id"), ForeignKeyConstraint(["workspace_id", "contact_id"], ["contacts.workspace_id", "contacts.id"], name="fk_meetings_workspace_parent"),)
 
     id = Column(
         Uuid(as_uuid=True),
@@ -437,9 +483,12 @@ class Meeting(Base):
 # UNIVERSAL INTEGRATIONS TABLE
 # ==============================
 
-class Integration(Base):
+class Integration(WorkspaceOwned, Base):
+
+    workspace_id = Column(Uuid(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True)
 
     __tablename__ = "integrations"
+    __table_args__ = (UniqueConstraint("workspace_id", "id", name="uq_integrations_workspace_id_id"),)
 
     id = Column(
         Uuid(as_uuid=True),
@@ -545,9 +594,7 @@ async def get_db():
 
             await session.rollback()
 
-            logger.error(
-                f"Database error: {e}"
-            )
+            logger.error("Database operation failed", extra={"error_type": type(e).__name__})
 
             raise
 
