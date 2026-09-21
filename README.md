@@ -1,139 +1,94 @@
 # AI GTM Engineer
 
-> Autonomous AI-powered Go-To-Market Engineer platform that researches companies, finds leads, personalizes outreach, sends emails, updates CRM, and books meetings with minimal human intervention.
+AI GTM Engineer V1 is a FastAPI and TanStack Start application for company research,
+contact enrichment, outbound email, CRM synchronization, and calendar operations.
+The repository is being hardened incrementally; V2 product features are not part of
+the Phase 0 production-safety baseline.
 
----
+## Current stack
 
-## Product Definition
-
-**"I am building an autonomous AI GTM Engineer that can research companies, find leads, personalize outreach, send emails, update the CRM, and book meetings with minimal human intervention."**
-
----
-
-## Tech Stack
-
-| Layer | Technology |
+| Layer | Implementation |
 |---|---|
-| AI Models | NVIDIA NIM API (nemotron, llama) |
-| Backend | Python + FastAPI |
-| Frontend | React / Next.js |
-| Database | PostgreSQL (Supabase) |
-| Vector Memory | pgvector + Pinecone |
-| Email | Resend API |
-| CRM | HubSpot |
-| Calendar | Google Calendar API |
-| Enrichment | Apollo.io |
-| Search | Serper / Tavily |
-| Workflows | n8n |
-| Notifications | Slack |
-| Containerization | Docker |
-| Deployment | Railway / Render |
+| Backend API | Python 3.12, FastAPI, Pydantic Settings |
+| Persistence | Async SQLAlchemy; SQLite for local/test, PostgreSQL for production |
+| Migrations | Alembic |
+| Frontend | React 19, TanStack Start/Router/Query, Vite, Tailwind CSS |
+| Authentication | Local bcrypt passwords and signed JWT access tokens |
+| Research | Serper/Tavily search, Ollama analysis |
+| Enrichment | Apollo and public browser/search fallbacks |
+| Email | OpenAI composition; Resend, SendGrid, or SMTP development fallback |
+| CRM | Per-user encrypted HubSpot/Salesforce connections; development-only env fallback |
+| Calendar | Per-user Google OAuth; development-only service-account fallback |
+| Browser | Playwright and HTTP/Jina fallback |
 
----
+See [the architecture notes](docs/ARCHITECTURE.md) and
+[operations guide](docs/OPERATIONS.md) for boundaries and production requirements.
 
-## Agent Architecture
+## Local development
 
-```
-User
- └── Frontend Dashboard (React/Next.js)
-       └── Backend API (FastAPI)
-             └── Manager Agent (NVIDIA NIM)
-                   ├── Research Agent (web search only)
-                   ├── Browser Agent (Playwright)
-                   ├── Enrichment Agent (Apollo API)
-                   ├── Email Agent (Resend)
-                   ├── CRM Agent (HubSpot)
-                   ├── Calendar Agent (Google Calendar)
-                   └── Memory Agent (pgvector + Pinecone)
-                         └── n8n Workflow Engine
-```
-
----
-
-## Project Structure
-
-```
-ai-gtm-engineer/
-├── agents/          # All AI specialist agents
-├── backend/         # FastAPI server
-├── frontend/        # React/Next.js dashboard
-├── database/        # SQL schemas and migrations
-├── memory/          # Short-term, long-term, vector memory
-├── workflows/       # n8n workflow JSON exports
-├── prompts/         # Reusable prompt templates
-├── config/          # App configuration
-├── scripts/         # Setup and utility scripts
-├── tests/           # Agent and integration tests
-├── docs/            # Architecture documentation
-├── logs/            # Application logs
-├── uploads/         # File uploads (PDF, CSV)
-├── deployment/      # Docker and deployment files
-├── .env.example     # All required environment variables
-├── requirements.txt # Python dependencies
-└── docker-compose.yml
-```
-
----
-
-## Infrastructure Setup Status
-
-- [x] NVIDIA NIM API Key generated
-- [x] GitHub repository created with full folder structure
-- [x] Supabase database created (8 tables with RLS enabled)
-- [x] Resend email API key created
-- [ ] n8n workflow engine (requires account setup)
-- [ ] Google Calendar OAuth
-- [ ] HubSpot CRM sandbox
-- [ ] Apollo.io enrichment
-- [ ] Pinecone vector store
-
----
-
-## Database Tables (Supabase)
-
-- `users` - Platform users
-- `companies` - Target companies
-- `contacts` - Leads and contacts
-- `emails` - Email sequences and tracking
-- `activities` - CRM activities log
-- `workflows` - Automation workflow configs
-- `conversations` - AI memory / chat history
-- `logs` - System and agent logs
-
----
-
-## Quick Start
+Requirements: Python 3.12.13, Node 22, and npm.
 
 ```bash
-# Clone the repo
-git clone https://github.com/indpole999-oss/ai-gtm-engineer.git
-cd ai-gtm-engineer
-
-# Copy environment file
 cp .env.example .env
-# Fill in your API keys in .env
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Run with Docker
-docker-compose up -d
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+alembic upgrade head
+uvicorn backend.main:app --reload
 ```
 
----
+In a second shell:
 
-## Build Roadmap (100 Steps)
+```bash
+cd frontend
+npm ci
+VITE_API_BASE_URL=http://localhost:8000 npm run dev
+```
 
-### Phase 1: Foundation (Steps 1-15) DONE
-### Phase 2: Core App (Steps 16-33) IN PROGRESS
-### Phase 3: Agent Layer (Steps 34-51)
-### Phase 4: Intelligence Layer (Steps 52-60)
-### Phase 5: Automation Layer (Steps 61-76)
-### Phase 6: Business Features (Steps 77-86)
-### Phase 7: Production (Steps 87-100)
+For an entirely local PostgreSQL-backed stack:
 
----
+```bash
+docker compose up --build
+```
 
-## License
+The Compose credentials are explicitly local-only and must not be reused in any
+shared or production environment.
 
-MIT License - see LICENSE file
+## Validation
+
+```bash
+pytest -q
+DATABASE_URL=sqlite+aiosqlite:////tmp/migration.db alembic upgrade head
+cd frontend && npm run build
+cd frontend && npx tsc --noEmit
+```
+
+The historical repository has substantial Prettier lint debt. Phase 0 treats the
+TypeScript compiler and production build as release-blocking, while lint is run on
+files changed for frontend correctness rather than formatting the full application.
+
+## Production startup
+
+Production is intentionally fail-closed. Set `APP_ENV=production`, provide all
+settings documented in `docs/OPERATIONS.md`, run `alembic upgrade head` as a
+separate release step, and then start:
+
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+```
+
+Never use `Base.metadata.create_all()` in production. Set
+`AUTO_CREATE_TABLES=false`. Never apply the baseline upgrade to an existing V1
+production database without first following the baseline verification and stamping
+procedure in the operations guide.
+
+## Repository layout
+
+- `backend/` — FastAPI application, routers, settings, persistence, logging.
+- `agents/` — specialist integrations and agent implementations.
+- `workflows/` — current V1 in-process workflow executor.
+- `migrations/` — authoritative Alembic history.
+- `frontend/` — TanStack Start application.
+- `tests/` — local, provider-free backend safety tests.
+- `deployment/` — backend container image.
+- `docs/` — architecture and operations documentation.

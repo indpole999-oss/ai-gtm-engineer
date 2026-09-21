@@ -44,6 +44,10 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = settings.DATABASE_URL
 
+if DATABASE_URL.startswith("postgresql://"):
+    # SQLAlchemy's async engine requires an async PostgreSQL driver.
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 is_sqlite = DATABASE_URL.startswith("sqlite")
 
 if is_sqlite:
