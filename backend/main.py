@@ -3,15 +3,19 @@ AI GTM Engineer - FastAPI Backend Entry Point
 Steps 27-33: Backend setup, JWT auth, CORS, all routes
 """
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import uvicorn
 import logging
+import time
+import uuid
+import re
 
 from backend.config import settings
 from backend.database import engine, Base
+from backend.logging_config import configure_logging, request_id_context
 from backend.routers import (
     auth,
     companies,
@@ -26,7 +30,7 @@ from backend.routers import (
     integrations,
 )
 
-logging.basicConfig(level=logging.INFO)
+configure_logging()
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
@@ -36,10 +40,11 @@ async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     logger.info("Starting AI GTM Engineer backend...")
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if settings.AUTO_CREATE_TABLES:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
-    logger.info("Database tables ready.")
+    logger.info("Database initialization complete.")
 
     yield
 
@@ -65,6 +70,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next):
+    """Attach a safe correlation ID and record one structured access log."""
+    supplied_request_id = request.headers.get("X-Request-ID", "")[:128]
+    request_id = (
+        supplied_request_id
+        if re.fullmatch(r"[A-Za-z0-9._-]+", supplied_request_id)
+        else str(uuid.uuid4())
+    )
+    token = request_id_context.set(request_id)
+    started = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        logger.info(
+            "request_completed",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
+        request_id_context.reset(token)
 
 
 # ==============================
@@ -158,7 +193,7 @@ async def root():
 
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
+        "backend.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
