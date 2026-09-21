@@ -149,6 +149,24 @@ def test_quarantined_legacy_records_remain_invisible(client, tenants):
         assert client.delete(f"/api/v1/companies/{legacy_id}", headers=headers).status_code == 404
 
 
+def test_provider_errors_never_expose_credentials(client, tenants, monkeypatch, caplog):
+    from cryptography.fernet import Fernet
+    from backend.config import settings
+    from backend.routers import integrations
+    monkeypatch.setattr(settings, "INTEGRATION_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    secret = "provider-error-secret-must-not-leak"
+    async def fail(credentials):
+        raise RuntimeError(secret)
+    monkeypatch.setattr(integrations, "test_hubspot", fail)
+    response = client.post("/api/v1/integrations", headers=tenants[0], json={
+        "category":"crm", "provider":"hubspot", "credentials":{"access_token":secret}})
+    assert response.status_code == 200
+    assert secret not in response.text
+    result = client.post(f"/api/v1/integrations/{response.json()['id']}/test", headers=tenants[0])
+    assert result.json()["status"] == "error"
+    assert secret not in result.text and secret not in caplog.text
+
+
 @pytest.mark.parametrize("path,payload", [
     ("/agents/run", {"agent":"crm","task":"write","context":{"user_id":"spoofed"}}),
     ("/workflows/run", {"workflow_name":"lead_pipeline","context":{}}),

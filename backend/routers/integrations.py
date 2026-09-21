@@ -591,13 +591,10 @@ async def test_integration(
 
     except Exception as exc:
 
-        logger.exception(
-            "Integration test failed: %s",
-            exc,
-        )
+        logger.warning("Integration test failed", extra={"error_type": type(exc).__name__})
 
         integration.status = "error"
-        integration.last_error = str(exc)[:2000]
+        integration.last_error = "Provider connection failed"
         integration.updated_at = datetime.utcnow()
 
         await db.commit()
@@ -609,7 +606,7 @@ async def test_integration(
                 f"{integration.provider.title()} "
                 "connection test failed"
             ),
-            "error": str(exc),
+            "error": "Provider connection failed",
             "integration": integration_response(
                 integration
             ),

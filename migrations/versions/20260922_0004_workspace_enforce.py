@@ -40,6 +40,13 @@ def upgrade():
             batch.create_index(f"ix_{table}_{field}", [field])
             batch.create_unique_constraint(f"uq_{table}_workspace_{field}", ["workspace_id", field])
     if db.dialect.name == "postgresql":
+        # FastAPI owns authentication. Supabase Data API roles must not be an
+        # alternate API for memberships, password hashes or migration audit.
+        for table in TABLES + ("users", "workspaces", "workspace_memberships", "legacy_ownership_audit"):
+            op.execute(f"REVOKE ALL ON TABLE {table} FROM PUBLIC")
+            for role in ("anon", "authenticated"):
+                if db.scalar(sa.text("SELECT 1 FROM pg_roles WHERE rolname=:role"), {"role": role}):
+                    op.execute(f"REVOKE ALL ON TABLE {table} FROM {role}")
         for table in TABLES:
             op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
             op.execute(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY")
