@@ -39,6 +39,9 @@ def test_postgres_rls_and_composite_relationships():
                 cursor.execute("INSERT INTO company_brains(id,workspace_id,created_at) VALUES(%s,%s,now()),(%s,%s,now())", (ba,a,bb,b))
                 cursor.execute("INSERT INTO company_brain_versions(id,workspace_id,brain_id,number,status,profile,revision,created_by,created_at) VALUES(%s,%s,%s,1,'draft','{}',1,%s,now())", (va,a,ba,uid))
                 cursor.execute("UPDATE company_brain_versions SET status='published' WHERE id=%s", (va,))
+                ja, fa = str(uuid4()), str(uuid4())
+                cursor.execute("INSERT INTO research_jobs(id,workspace_id,company_id,brain_version_id,created_by,status,source_urls,created_at) VALUES(%s,%s,%s,%s,%s,'queued','[]',now())", (ja,a,ca,va,uid))
+                cursor.execute("INSERT INTO source_fetches(id,workspace_id,job_id,url,title,publisher,retrieved_at,content,content_hash,extractor_version) VALUES(%s,%s,%s,'https://example.com','Source','example.com',now(),'Original','hash','test')", (fa,a,ja))
                 cursor.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(role)))
                 cursor.execute(sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {}").format(sql.Identifier(role)))
                 cursor.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(role)))
@@ -49,6 +52,12 @@ def test_postgres_rls_and_composite_relationships():
                 assert cursor.fetchall() == [(ca,)]
                 cursor.execute("SELECT id::text FROM company_brains")
                 assert cursor.fetchall() == [(ba,)]
+                cursor.execute("SELECT id::text FROM research_jobs")
+                assert cursor.fetchall() == [(ja,)]
+                with pytest.raises(psycopg2.errors.RaiseException, match="immutable"):
+                    cursor.execute("UPDATE source_fetches SET content='tampered' WHERE id=%s", (fa,))
+                with pytest.raises(psycopg2.errors.ForeignKeyViolation):
+                    cursor.execute("INSERT INTO research_jobs(id,workspace_id,company_id,brain_version_id,created_by,status,source_urls,created_at) VALUES(%s,%s,%s,%s,%s,'queued','[]',now())", (str(uuid4()),a,cb,va,uid))
                 with pytest.raises(psycopg2.errors.RaiseException, match="immutable"):
                     cursor.execute("UPDATE company_brain_versions SET profile='{}' WHERE id=%s", (va,))
                 with pytest.raises(psycopg2.errors.RaiseException, match="immutable"):
@@ -60,7 +69,7 @@ def test_postgres_rls_and_composite_relationships():
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
                     cursor.execute("INSERT INTO contacts(id,email,workspace_id,company_id) VALUES(%s,'bad@example.com',%s,%s)",(str(uuid4()),a,cb))
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone()[0] == "20260922_0006"
+                assert cursor.fetchone()[0] == "20260923_0007"
         finally:
             db.close()
     finally:

@@ -177,6 +177,8 @@ app.include_router(
 )
 
 from backend.routers import brain
+from backend.routers import research
+app.include_router(research.router, prefix="/api/v1/research", tags=["Research"])
 app.include_router(brain.router, prefix="/api/v1/company-brain", tags=["Company Brain"])
 app.include_router(oauth.router, prefix="/api/v1/calendar", tags=["OAuth"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["Workspaces"])

@@ -29,7 +29,7 @@ def test_migration_preserves_and_quarantines_legacy_data(tmp_path, existing):
             db.execute("INSERT INTO integrations(id,user_id,category,provider,auth_type,credentials,config,status) VALUES(?,?,'crm','hubspot','api_key','{}','{}','disconnected')", (integration_id,uid))
     migrate(path,"head")
     with sqlite3.connect(path) as db:
-        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260922_0006"
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260923_0007"
         assert db.execute("PRAGMA foreign_key_check").fetchall() == []
         if existing:
             assert db.execute("SELECT name,workspace_id FROM companies WHERE id=?",(cid,)).fetchone() == ("Legacy",None)

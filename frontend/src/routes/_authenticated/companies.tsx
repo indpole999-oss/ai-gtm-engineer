@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCompany, getCompany, researchCompany } from "@/lib/gtm-api";
+import { createCompany, getCompany } from "@/lib/gtm-api";
+import { AccountResearch } from "@/components/account-research";
 import { rows, text, useCompanies, useContacts, useLeads } from "@/lib/gtm-queries";
 
 export const Route = createFileRoute("/_authenticated/companies")({
@@ -67,16 +68,6 @@ function CompaniesPage() {
     onError: (error: Error) => toast.error("Could not create company", { description: error.message }),
   });
 
-  const research = useMutation({
-    mutationFn: (row: Row) => researchCompany(text(row, ["name"], ""), text(row, ["domain"], "") || undefined),
-    onSuccess: () => {
-      toast.success("Research agent finished", { description: "Open the company to review the result." });
-      void queryClient.invalidateQueries({ queryKey: ["companies"] });
-      if (selectedId) void queryClient.invalidateQueries({ queryKey: ["company", selectedId] });
-    },
-    onError: (error: Error) => toast.error("Research failed", { description: error.message }),
-  });
-
   const related = useMemo(() => {
     if (!selectedId) return { contacts: [] as Row[], leads: [] as Row[] };
     const relatedContacts = contactRows.filter((c) => String(c["company_id"]) === selectedId);
@@ -108,17 +99,12 @@ function CompaniesPage() {
         <Button
           variant="outline"
           size="sm"
-          disabled={research.isPending}
           onClick={(e) => {
             e.stopPropagation();
-            research.mutate(r);
+            setSelectedId(String(r["id"]));
           }}
         >
-          {research.isPending && research.variables === r ? (
-            <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          ) : (
-            <Search className="size-3.5" aria-hidden />
-          )}
+          <Search className="size-3.5" aria-hidden />
           Research
         </Button>
       ),
@@ -206,6 +192,7 @@ function CompaniesPage() {
         title={detail.data ? text(detail.data, ["name"], "Company") : "Company"}
         record={detail.data ?? null}
       >
+        {selectedId && <AccountResearch key={selectedId} companyId={selectedId} />}
         {detail.isPending && selectedId ? <LoadingBlock rows={3} /> : null}
         {detail.isError ? (
           <ErrorBlock error={detail.error} resourceLabel="company" onRetry={() => detail.refetch()} />

@@ -54,15 +54,21 @@ publication. Published versions and children are immutable in ORM and SQL.
 Local validation: 64 passed, 1 PostgreSQL-only skip; TypeScript and targeted lint
 passed. Clean/baseline/Phase 2 upgrades and SQLite immutability passed. Browser
 save/reopen/review/publish passed against a disposable local database. GitHub CI
-is the remaining gate. See `docs/V2_COMPANY_BRAIN.md`.
+passed at `8fb2748`, CI run 35735042223. See `docs/V2_COMPANY_BRAIN.md`.
 
-Migration head under test: `20260922_0006`.
+Phase 4 adds source captures, quoted evidence, validated local-model research,
+exact-Brain ICP qualification, buyer observations with unknown verification,
+audited administrator fact review and company-detail account intelligence UI.
+Initial full suite: 79 passed, 1 PostgreSQL-only skip. Final role/PG checks pending.
+No paid calls; development uses injected deterministic providers. Existing OpenAI
+configuration is preserved. See `docs/V2_RESEARCH.md` for boundaries and risks.
+
+Migration head under test: `20260923_0007`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Remaining phases
 
-3. Complete browser and CI validation of Company Brain, then checkpoint.
-4. Retrieval/evidence/claims/signals/qualification/account intelligence and buyer verification.
+4. Finish research validation/CI and checkpoint.
 5. Goals, schema-validated planner, immutable plan approval, durable resumable worker,
    outbox, retries/timeouts/cancellation/budgets/idempotent approved commands.
 6. Draft-only composition, sequences/enrollments, immutable outbound approval,
