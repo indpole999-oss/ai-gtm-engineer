@@ -152,12 +152,13 @@ def test_quarantined_legacy_records_remain_invisible(client, tenants):
 def test_provider_errors_never_expose_credentials(client, tenants, monkeypatch, caplog):
     from cryptography.fernet import Fernet
     from backend.config import settings
-    from backend.routers import integrations
+    from backend import providers
     monkeypatch.setattr(settings, "INTEGRATION_ENCRYPTION_KEY", Fernet.generate_key().decode())
     secret = "provider-error-secret-must-not-leak"
-    async def fail(credentials):
-        raise RuntimeError(secret)
-    monkeypatch.setattr(integrations, "test_hubspot", fail)
+    class BrokenProvider:
+        async def verify(self, credentials, config):
+            raise RuntimeError(secret)
+    monkeypatch.setattr(providers, "get_provider", lambda *args: BrokenProvider())
     response = client.post("/api/v1/integrations", headers=tenants[0], json={
         "category":"crm", "provider":"hubspot", "credentials":{"access_token":secret}})
     assert response.status_code == 200

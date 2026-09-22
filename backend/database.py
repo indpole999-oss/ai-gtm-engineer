@@ -496,6 +496,12 @@ class Integration(WorkspaceOwned, Base):
         default=uuid.uuid4
     )
 
+    scopes = Column(JSON, nullable=False, default=list)
+    health = Column(String(50), nullable=False, default="unknown")
+    token_expires_at = Column(DateTime, nullable=True)
+    last_error_at = Column(DateTime, nullable=True)
+    reconnect_required = Column(Boolean, nullable=False, default=False)
+
     # Customer / user who owns this integration
     user_id = Column(
         Uuid(as_uuid=True),
@@ -614,3 +620,25 @@ async def create_tables():
     logger.info(
         "Database tables created successfully"
     )
+
+
+class OAuthAttempt(Base):
+    __tablename__ = "oauth_attempts"
+    state_hash = Column(String(64), primary_key=True)
+    workspace_id = Column(Uuid(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    integration_id = Column(Uuid(as_uuid=True), nullable=True)
+    encrypted_verifier = Column(Text, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    consumed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class IntegrationAudit(WorkspaceOwned, Base):
+    workspace_id = Column(Uuid(as_uuid=True), ForeignKey("workspaces.id"), nullable=False, index=True)
+    __tablename__ = "integration_audit"
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    integration_id = Column(Uuid(as_uuid=True), nullable=False)
+    action = Column(String(60), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

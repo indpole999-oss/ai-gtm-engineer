@@ -31,13 +31,24 @@ The full product specification is preserved in `docs/V2_SPECIFICATION.md`.
 
 ## Validation and current work
 
-Phase 1 security/migration validation in progress. Initial suite: 33 passed on
-SQLite including populated baseline and clean migration. Additional quarantine
-test and disposable PostgreSQL RLS CI job added; results pending.
-Frontend TypeScript/build/targeted lint in progress. Do not call Phase 1 passed
-until all required jobs finish successfully.
+Phase 1 passed at `b1668c6`: backend, frontend and PostgreSQL security CI green
+(run 35642316058). No production actions were performed.
 
-Migration head: `20260922_0004` (expand → backfill → validate/enforce).
+Phase 2 implementation is in progress: workspace provider contracts, connection
+health/scopes/expiry/reconnect/audit, durable one-time Google OAuth/PKCE, persistent
+Google refresh and revoke, safe frontend return and supported provider choices.
+Local validation: 56 passed, 1 PostgreSQL-only skip; TypeScript and targeted lint
+passed. Callback membership revalidation, declined consent and reconnect refresh
+retention are covered. GitHub CI is the remaining checkpoint gate.
+
+Google OAuth and live provider smoke tests need staging credentials supplied at
+release time. Unit/contract tests use fake providers and make no paid API calls.
+Gmail/Outlook/Salesforce currently support bring-your-own authorized access tokens;
+only Google Calendar has an interactive OAuth/automatic refresh flow. Serper is
+explicitly configured-unverified until research execution uses it; health checks
+never spend search credits. No fake connected/sent/calendar-created state.
+
+Migration head under test: `20260922_0005`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Remaining phases

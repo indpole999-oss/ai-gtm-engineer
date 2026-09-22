@@ -32,7 +32,7 @@ from backend.routers import (
 
 from backend.tenancy import require_workspace
 
-from backend.routers import workspaces, record_management
+from backend.routers import workspaces, record_management, oauth
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -176,6 +176,7 @@ app.include_router(
     tags=["Workflows"],
 )
 
+app.include_router(oauth.router, prefix="/api/v1/calendar", tags=["OAuth"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["Workspaces"])
 app.include_router(record_management.router, prefix="/api/v1", dependencies=[Depends(require_workspace)])
 

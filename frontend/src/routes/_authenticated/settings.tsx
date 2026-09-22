@@ -84,185 +84,35 @@ type Integration = {
   updated_at: string | null;
 };
 
-type IntegrationCategory =
-  | "crm"
-  | "enrichment"
-  | "email"
-  | "calendar"
-  | "ai"
-  | "workflow";
-
+type IntegrationCategory = "crm" | "enrichment" | "email" | "calendar" | "search";
 type ProviderDefinition = {
   name: string;
   description: string;
-  auth: "api_key" | "oauth2" | "custom";
+  auth: "api_key" | "oauth2";
 };
-
-const PROVIDERS: Record<
-  IntegrationCategory,
-  ProviderDefinition[]
-> = {
+const PROVIDERS: Record<IntegrationCategory, ProviderDefinition[]> = {
   crm: [
-    {
-      name: "Salesforce",
-      description: "Sales CRM and pipeline management",
-      auth: "oauth2",
-    },
-    {
-      name: "HubSpot",
-      description: "CRM, sales and marketing platform",
-      auth: "oauth2",
-    },
-    {
-      name: "Zoho CRM",
-      description: "CRM and business automation",
-      auth: "oauth2",
-    },
-    {
-      name: "Custom CRM",
-      description: "Connect your company's own CRM API",
-      auth: "custom",
-    },
+    { name: "Salesforce", description: "Use an existing access token and your Salesforce instance URL.", auth: "oauth2" },
+    { name: "HubSpot", description: "Connect a private app token for your CRM.", auth: "api_key" },
   ],
-
-  enrichment: [
-    {
-      name: "Clay",
-      description: "Data enrichment and GTM workflows",
-      auth: "api_key",
-    },
-    {
-      name: "Apollo",
-      description: "B2B contact and company intelligence",
-      auth: "api_key",
-    },
-    {
-      name: "Hunter",
-      description: "Email finding and verification",
-      auth: "api_key",
-    },
-    {
-      name: "Custom Enrichment",
-      description: "Connect your own enrichment API",
-      auth: "custom",
-    },
-  ],
-
+  enrichment: [{ name: "Apollo", description: "Connect your existing account for buyer enrichment.", auth: "api_key" }],
   email: [
-    {
-      name: "Gmail",
-      description: "Google Workspace email",
-      auth: "oauth2",
-    },
-    {
-      name: "Outlook",
-      description: "Microsoft 365 email",
-      auth: "oauth2",
-    },
-    {
-      name: "Yahoo Mail",
-      description: "Yahoo email",
-      auth: "custom",
-    },
-    {
-      name: "Custom Email",
-      description: "Connect another email provider",
-      auth: "custom",
-    },
+    { name: "Gmail", description: "Connect an existing authorized mailbox token. Reconnect when it expires.", auth: "oauth2" },
+    { name: "Outlook", description: "Connect an existing Microsoft mailbox token. Reconnect when it expires.", auth: "oauth2" },
+    { name: "Resend", description: "Connect your sending account and approved sender address.", auth: "api_key" },
   ],
-
-  calendar: [
-    {
-      name: "Google Calendar",
-      description: "Google Calendar scheduling",
-      auth: "oauth2",
-    },
-    {
-      name: "Calendly",
-      description: "Meeting scheduling",
-      auth: "api_key",
-    },
-    {
-      name: "Outlook Calendar",
-      description: "Microsoft 365 calendar",
-      auth: "oauth2",
-    },
-    {
-      name: "Custom Calendar",
-      description: "Connect your company's calendar API",
-      auth: "custom",
-    },
-  ],
-
-  ai: [
-    {
-      name: "OpenAI",
-      description: "AI models and reasoning",
-      auth: "api_key",
-    },
-    {
-      name: "Anthropic",
-      description: "Claude AI models",
-      auth: "api_key",
-    },
-    {
-      name: "Custom AI",
-      description: "Connect another AI provider",
-      auth: "custom",
-    },
-  ],
-
-  workflow: [
-    {
-      name: "n8n",
-      description: "Workflow automation",
-      auth: "api_key",
-    },
-    {
-      name: "Zapier",
-      description: "Workflow automation",
-      auth: "api_key",
-    },
-    {
-      name: "Make",
-      description: "Automation and integrations",
-      auth: "api_key",
-    },
-    {
-      name: "Custom Workflow",
-      description: "Connect your own workflow engine",
-      auth: "custom",
-    },
-  ],
+  calendar: [{ name: "Google Calendar", description: "Authorize your calendar securely with Google.", auth: "oauth2" }],
+  search: [{ name: "Serper", description: "Use your search account. Saving a connection does not spend search credits.", auth: "api_key" }],
 };
-
-const CATEGORY_LABELS: Record<
-  IntegrationCategory,
-  string
-> = {
-  crm: "CRM",
-  enrichment: "Enrichment",
-  email: "Email",
-  calendar: "Calendar",
-  ai: "AI / LLM",
-  workflow: "Workflow",
+const CATEGORY_LABELS: Record<IntegrationCategory, string> = {
+  crm: "CRM", enrichment: "Enrichment", email: "Email", calendar: "Calendar", search: "Search",
 };
-
-const CATEGORY_DESCRIPTIONS: Record<
-  IntegrationCategory,
-  string
-> = {
-  crm: "Choose the CRM your company already uses.",
-  enrichment:
-    "Choose your preferred data and contact enrichment provider.",
-  email:
-    "Connect the mailbox you want GTM Engineer to use.",
-  calendar:
-    "Connect the calendar used for meeting scheduling.",
-  ai:
-    "Choose the AI provider used by your GTM agents.",
-  workflow:
-    "Connect the automation platform used by your company.",
+const CATEGORY_DESCRIPTIONS: Record<IntegrationCategory, string> = {
+  crm: "Connect the CRM your company uses.",
+  enrichment: "Connect a source of buyer and company information.",
+  email: "Connect your approved sending identity.",
+  calendar: "Connect the calendar used for meetings.",
+  search: "Connect the search provider used for research.",
 };
 
 function integrationState(query: {
@@ -391,6 +241,14 @@ function SettingsPage() {
 
   useEffect(() => {
     void loadIntegrations();
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("connection")) {
+      setIntegrationMessage(url.searchParams.get("connection") === "success"
+        ? "Google Calendar connected. Your workspace connection is ready."
+        : "Calendar connection was not completed. Please try again.");
+      url.searchParams.delete("connection");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
   }, []);
 
   async function probe() {
@@ -612,7 +470,7 @@ function SettingsPage() {
 
       setIntegrationMessage(
         response.message ??
-          "Integration test completed successfully.",
+          "Connection check completed. Review its status below.",
       );
     } catch (error) {
       const message =
@@ -649,7 +507,7 @@ function SettingsPage() {
       );
 
       setIntegrationMessage(
-        "Integration disconnected.",
+        "Local connection removed. Revoke its token at the provider if needed.",
       );
     } catch (error) {
       const message =

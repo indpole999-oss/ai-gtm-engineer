@@ -160,6 +160,8 @@ class Settings(BaseSettings):
 
     CALENDAR_PROVIDER: str = "google"
 
+    FRONTEND_URL: str = "http://localhost:3000"
+
     GOOGLE_CLIENT_ID: str = ""
 
     GOOGLE_CLIENT_SECRET: str = ""

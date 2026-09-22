@@ -22,7 +22,7 @@ jobs:
           DATABASE_URL: sqlite+aiosqlite:////tmp/phase0-migration.db
         run: |
           alembic upgrade head
-          test "$(alembic current | awk '{print $1}')" = "20260922_0004"
+          test "$(alembic current | awk '{print $1}')" = "20260922_0005"
 
   frontend:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
       - run: npm run build
       - name: Targeted correctness lint
         run: |
-          npx eslint src/routes/_authenticated/crm.tsx --no-cache --rule 'prettier/prettier: off'
+          npx eslint src/routes/_authenticated/crm.tsx src/routes/_authenticated/settings.tsx --no-cache --rule 'prettier/prettier: off'
 
   postgres-security:
     runs-on: ubuntu-latest
