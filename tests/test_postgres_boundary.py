@@ -34,6 +34,11 @@ def test_postgres_rls_and_composite_relationships():
             with db.cursor() as cursor:
                 cursor.execute("INSERT INTO workspaces(id,name,slug,status,created_at,updated_at) VALUES(%s,'A','a','active',now(),now()),(%s,'B','b','active',now(),now())", (a,b))
                 cursor.execute("INSERT INTO companies(id,name,domain,workspace_id) VALUES(%s,'A','same.example',%s),(%s,'B','same.example',%s)",(ca,a,cb,b))
+                uid, ba, bb, va = [str(uuid4()) for _ in range(4)]
+                cursor.execute("INSERT INTO users(id,email,hashed_password,is_active) VALUES(%s,'brain@example.com','hash',true)", (uid,))
+                cursor.execute("INSERT INTO company_brains(id,workspace_id,created_at) VALUES(%s,%s,now()),(%s,%s,now())", (ba,a,bb,b))
+                cursor.execute("INSERT INTO company_brain_versions(id,workspace_id,brain_id,number,status,profile,revision,created_by,created_at) VALUES(%s,%s,%s,1,'draft','{}',1,%s,now())", (va,a,ba,uid))
+                cursor.execute("UPDATE company_brain_versions SET status='published' WHERE id=%s", (va,))
                 cursor.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(role)))
                 cursor.execute(sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {}").format(sql.Identifier(role)))
                 cursor.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(role)))
@@ -42,6 +47,12 @@ def test_postgres_rls_and_composite_relationships():
                 cursor.execute("SELECT set_config('app.workspace_id',%s,false)",(a,))
                 cursor.execute("SELECT id::text FROM companies")
                 assert cursor.fetchall() == [(ca,)]
+                cursor.execute("SELECT id::text FROM company_brains")
+                assert cursor.fetchall() == [(ba,)]
+                with pytest.raises(psycopg2.errors.RaiseException, match="immutable"):
+                    cursor.execute("UPDATE company_brain_versions SET profile='{}' WHERE id=%s", (va,))
+                with pytest.raises(psycopg2.errors.RaiseException, match="immutable"):
+                    cursor.execute("INSERT INTO brain_claims(id,workspace_id,version_id,text,disposition) VALUES(%s,%s,%s,'Unreviewed','approved')", (str(uuid4()),a,va))
                 cursor.execute("DELETE FROM companies WHERE id=%s", (cb,))
                 assert cursor.rowcount == 0
                 with pytest.raises(psycopg2.errors.InsufficientPrivilege):
@@ -49,7 +60,7 @@ def test_postgres_rls_and_composite_relationships():
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
                     cursor.execute("INSERT INTO contacts(id,email,workspace_id,company_id) VALUES(%s,'bad@example.com',%s,%s)",(str(uuid4()),a,cb))
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone()[0] == "20260922_0005"
+                assert cursor.fetchone()[0] == "20260922_0006"
         finally:
             db.close()
     finally:

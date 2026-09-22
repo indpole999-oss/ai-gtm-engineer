@@ -176,6 +176,8 @@ app.include_router(
     tags=["Workflows"],
 )
 
+from backend.routers import brain
+app.include_router(brain.router, prefix="/api/v1/company-brain", tags=["Company Brain"])
 app.include_router(oauth.router, prefix="/api/v1/calendar", tags=["OAuth"])
 app.include_router(workspaces.router, prefix="/api/v1/workspaces", tags=["Workspaces"])
 app.include_router(record_management.router, prefix="/api/v1", dependencies=[Depends(require_workspace)])

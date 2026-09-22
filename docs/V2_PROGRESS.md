@@ -34,12 +34,12 @@ The full product specification is preserved in `docs/V2_SPECIFICATION.md`.
 Phase 1 passed at `b1668c6`: backend, frontend and PostgreSQL security CI green
 (run 35642316058). No production actions were performed.
 
-Phase 2 implementation is in progress: workspace provider contracts, connection
+Phase 2 passed at `4495880`, CI run 35732166994 (all three jobs green): workspace provider contracts, connection
 health/scopes/expiry/reconnect/audit, durable one-time Google OAuth/PKCE, persistent
 Google refresh and revoke, safe frontend return and supported provider choices.
 Local validation: 56 passed, 1 PostgreSQL-only skip; TypeScript and targeted lint
 passed. Callback membership revalidation, declined consent and reconnect refresh
-retention are covered. GitHub CI is the remaining checkpoint gate.
+retention are covered. PostgreSQL RLS/migrations and frontend build passed in CI.
 
 Google OAuth and live provider smoke tests need staging credentials supplied at
 release time. Unit/contract tests use fake providers and make no paid API calls.
@@ -48,14 +48,20 @@ only Google Calendar has an interactive OAuth/automatic refresh flow. Serper is
 explicitly configured-unverified until research execution uses it; health checks
 never spend search credits. No fake connected/sent/calendar-created state.
 
-Migration head under test: `20260922_0005`.
+Phase 3 implements guided Company Brain drafts in Settings, source/document
+previews, approved/prohibited claims, revision-based saves and explicit reviewed
+publication. Published versions and children are immutable in ORM and SQL.
+Local validation: 64 passed, 1 PostgreSQL-only skip; TypeScript and targeted lint
+passed. Clean/baseline/Phase 2 upgrades and SQLite immutability passed. Browser
+save/reopen/review/publish passed against a disposable local database. GitHub CI
+is the remaining gate. See `docs/V2_COMPANY_BRAIN.md`.
+
+Migration head under test: `20260922_0006`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Remaining phases
 
-2. Workspace provider contracts, OAuth state/PKCE durability, refresh/revoke/health,
-   fake adapters and contract tests; replace blocked integration paths safely.
-3. Guided onboarding, versioned Company Brain, source/claim model, immutable publish.
+3. Complete browser and CI validation of Company Brain, then checkpoint.
 4. Retrieval/evidence/claims/signals/qualification/account intelligence and buyer verification.
 5. Goals, schema-validated planner, immutable plan approval, durable resumable worker,
    outbox, retries/timeouts/cancellation/budgets/idempotent approved commands.

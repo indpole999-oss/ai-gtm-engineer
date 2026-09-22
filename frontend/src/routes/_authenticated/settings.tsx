@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/page-header";
+import { CompanyBrainEditor } from "@/components/company-brain";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -540,22 +541,22 @@ function SettingsPage() {
 
   const legacyIntegrations = [
     {
-      name: "Email provider",
+      name: "Email records API",
       state: integrationState(emails),
       note: "Backed by the email API.",
     },
     {
       name: "CRM",
       state: integrationState(crm),
-      note: "CRM agent sync target.",
+      note: "CRM records API responsiveness.",
     },
     {
       name: "Calendar",
       state: integrationState(meetings),
-      note: "Meeting booking provider.",
+      note: "Meeting records API responsiveness.",
     },
     {
-      name: "AI / LLM",
+      name: "Backend health API",
       state: health.isPending
         ? ("pending" as const)
         : health.isError
@@ -593,6 +594,8 @@ function SettingsPage() {
       />
 
       {/* ACCOUNT */}
+
+      <CompanyBrainEditor />
 
       <section className="rounded-lg border bg-card p-5 shadow-xs">
         <h2 className="text-sm font-semibold">
@@ -1096,12 +1099,12 @@ function SettingsPage() {
 
       <section className="rounded-lg border bg-card p-5 shadow-xs">
         <h2 className="text-sm font-semibold">
-          Backend-reported integration status
+          Endpoint availability
         </h2>
 
         <p className="mt-1 text-xs text-muted-foreground">
-          These statuses come from the existing GTM
-          backend endpoints.
+          These checks show API responsiveness only. Provider connection health
+          appears on each saved integration above.
         </p>
 
         <ul className="mt-4 space-y-2">
