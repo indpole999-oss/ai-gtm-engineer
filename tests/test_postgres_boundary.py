@@ -74,6 +74,16 @@ def test_postgres_rls_and_composite_relationships():
             probe = Path(__file__).with_name("postgres_worker_probe.py").read_text()
             result = subprocess.run([sys.executable, "-c", probe, a, ca, va, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
+            with db.cursor() as cursor:
+                cursor.execute("SELECT set_config('app.workspace_id',%s,false)", (b,))
+                for table in ("goals", "plan_versions", "execution_cycles", "step_runs", "action_commands", "domain_events", "outbox_events"):
+                    cursor.execute(sql.SQL("SELECT id FROM {}").format(sql.Identifier(table)))
+                    assert cursor.fetchall() == [], table
+                    cursor.execute(sql.SQL("DELETE FROM {}").format(sql.Identifier(table)))
+                    assert cursor.rowcount == 0, table
+                cursor.execute("SELECT set_config('app.workspace_id',%s,false)", (a,))
+                cursor.execute("SELECT count(*) FROM action_commands")
+                assert cursor.fetchone()[0] == 1
         finally:
             db.close()
     finally:

@@ -10,6 +10,13 @@ from test_workspace_security import signup, company
 from test_research import published, fake_research  # noqa: F401
 
 
+def test_worker_imports_without_http_application():
+    import subprocess
+    import sys
+    result = subprocess.run([sys.executable, "-c", "import backend.execution_worker"], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
 def proposal(client, headers):
     brain, account = published(client, headers), company(client, headers)
     goal = client.post("/api/v1/gtm/goals", headers=headers, json={"objective": "Research evidence of fit for this company", "brain_version_id": brain["id"], "targets": [{"company_id": account["id"], "source_urls": ["https://example.com/"]}]})
