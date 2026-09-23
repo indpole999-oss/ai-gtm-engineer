@@ -68,20 +68,27 @@ Phase 5 implements persisted goals, schema-validated local planning, exact Brain
 version/hash references, versioned review and immutable approval, transactional
 commands/events/outbox, and a separate durable worker with leases, bounded retries,
 timeouts, cancellation/resume and workspace admission controls. Local backend:
-95 passed, 1 PostgreSQL-only skip at `c4ebff4`; CI run 35867895187 passed all
-three jobs, including frontend build and PostgreSQL concurrent claims/RLS.
+The intermediate checkpoint `c4ebff4` passed CI run 35867895187.
 Browser create/revise/review/approve/pause/resume/cancel passed on disposable data.
 Final specification checks add explicit workflow_runs and validated persisted
 step outputs. Final local suite: 97 passed, 1 PostgreSQL-only skip, including
-populated-cycle backfill and rejection of invalid step success output. Final CI
-is pending. See `docs/V2_EXECUTION.md`.
+populated-cycle backfill and rejection of invalid step success output.
+Final Phase 5 implementation checkpoint: `adba93e3ebb2124f5af8a305f152ebbd32d916df`.
+CI run 35900333913 passed all three jobs: backend tests and clean migration,
+PostgreSQL security/isolation/concurrent worker claims, and frontend TypeScript,
+build and targeted lint. **PHASE 5 PASSED.** See `docs/V2_EXECUTION.md`.
 
-Migration head under test: `20260923_0009`.
+Approved plans pin the published Brain ID/hash and exact targets. Approval creates
+the cycle, workflow run, step runs, commands and audit/outbox atomically. Step
+success requires a schema-valid reference to that command's own completed,
+workspace-scoped research result. Migration 0009 backfills workflow ownership
+only from existing cycles and preserves their steps; no legacy reassignment.
+
+Validated migration head: `20260923_0009`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Remaining phases
 
-5. Finish durable execution validation/CI and checkpoint.
 6. Draft-only composition, sequences/enrollments, immutable outbound approval,
    suppression/recipient/sender limits, provider-confirmed asynchronous delivery.
 7. Inbound threads, reply classification/reasoning, sequence pause, proposed responses.
@@ -95,7 +102,11 @@ Do not claim readiness until the entire 21-step acceptance scenario passes.
 
 ## Continuation
 
-Continue this branch from its latest checkpoint. Read this file, the specification
-and migration runbook; use existing implementation and tests rather than repeating
-the repository audit. Finish the current validation gate, then continue phases
-sequentially. Never deploy or merge without separate authorization.
+Stopped after Phase 5 at the user's explicit usage constraint. Phase 6 has not
+started. Next authorized resume point is Phase 6 (Outreach), from the existing V2
+branch / PR #2; preserve all validated Phases 1–5. Inspect status and latest commit
+before making changes, then read the Phase 6 master specification and migration
+runbook. Do not repeat the audit or prior phases. Development must continue using
+local/free AI or injected test providers, with no paid API calls. Production
+provider smoke tests remain a future staging gate; no deployment, production-data
+changes, main merge or paid services were performed or authorized by this checkpoint.
