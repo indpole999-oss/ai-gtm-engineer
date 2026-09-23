@@ -2,12 +2,29 @@ from copy import deepcopy
 from uuid import UUID
 import hashlib
 import socket
+import httpx
+from fastapi import HTTPException
 import pytest
 from backend import research_service, retrieval
+from backend.research_models import ResearchJob
 from backend.database import AsyncSessionLocal, WorkspaceMembership
 from sqlalchemy import select
 from test_workspace_security import signup, company
 from test_company_brain import draft, save, BASE
+
+
+def execute_job(client, headers, job_id):
+    """Exercise the internal service; public execution now requires plan approval."""
+    async def run():
+        async with AsyncSessionLocal() as db:
+            db.info.update(workspace_id=UUID(headers["X-Workspace-ID"]), workspace_role="admin")
+            job = await db.scalar(select(ResearchJob).where(ResearchJob.id == UUID(job_id)))
+            try:
+                await research_service.execute_research(db, job)
+                return httpx.Response(200, json={"status": job.status})
+            except HTTPException as error:
+                return httpx.Response(error.status_code, json={"detail": error.detail})
+    return client.portal.call(run)
 
 
 def published(client, headers):
@@ -50,7 +67,8 @@ def test_evidence_chain_exact_brain_and_no_false_contact_verification(client, fa
     brain = published(client, a)
     job = create_job(client, a, brain=brain)
     path = "/api/v1/research/jobs/" + job["id"]
-    result = client.post(path + "/run", headers=a)
+    assert client.post(path + "/run", headers=a).status_code == 409
+    result = execute_job(client, a, job["id"])
     assert result.status_code == 200, result.text
     report = client.get(path, headers=a).json()
     assert report["status"] == "completed"
@@ -73,7 +91,7 @@ def test_reject_unsupported_model_output_without_partial_report(client, fake_res
     a = signup(client, "invalid-model@example.com")
     job = create_job(client, a)
     path = "/api/v1/research/jobs/" + job["id"]
-    response = client.post(path + "/run", headers=a)
+    response = execute_job(client, a, job["id"])
     assert response.status_code == 422, response.text
     report = client.get(path, headers=a).json()
     assert report["status"] == "failed" and report["intelligence"] is None and report["claims"] == []
@@ -112,7 +130,7 @@ def test_fact_verification_is_audited_role_gated_and_tenant_scoped(client, fake_
     a, b = signup(client, f"review-{role}@example.com"), signup(client, "review-other@example.com")
     job = create_job(client, a)
     path = "/api/v1/research/jobs/" + job["id"]
-    assert client.post(path + "/run", headers=a).status_code == 200
+    assert execute_job(client, a, job["id"]).status_code == 200
     claim = client.get(path, headers=a).json()["claims"][0]
     verification = "/api/v1/research/claims/" + claim["id"] + "/verification"
     payload = {"reviewed_text": claim["text"], "decision": "verified", "reason": "Compared the exact claim with the captured primary source."}

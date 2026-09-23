@@ -36,9 +36,10 @@ def test_postgres_rls_and_composite_relationships():
                 cursor.execute("INSERT INTO companies(id,name,domain,workspace_id) VALUES(%s,'A','same.example',%s),(%s,'B','same.example',%s)",(ca,a,cb,b))
                 uid, ba, bb, va = [str(uuid4()) for _ in range(4)]
                 cursor.execute("INSERT INTO users(id,email,hashed_password,is_active) VALUES(%s,'brain@example.com','hash',true)", (uid,))
+                cursor.execute("INSERT INTO workspace_memberships(workspace_id,user_id,role,status,created_at,updated_at) VALUES(%s,%s,'owner','active',now(),now())", (a,uid))
                 cursor.execute("INSERT INTO company_brains(id,workspace_id,created_at) VALUES(%s,%s,now()),(%s,%s,now())", (ba,a,bb,b))
                 cursor.execute("INSERT INTO company_brain_versions(id,workspace_id,brain_id,number,status,profile,revision,created_by,created_at) VALUES(%s,%s,%s,1,'draft','{}',1,%s,now())", (va,a,ba,uid))
-                cursor.execute("UPDATE company_brain_versions SET status='published' WHERE id=%s", (va,))
+                cursor.execute("UPDATE company_brain_versions SET status='published',content_hash=%s WHERE id=%s", ("a" * 64,va))
                 ja, fa = str(uuid4()), str(uuid4())
                 cursor.execute("INSERT INTO research_jobs(id,workspace_id,company_id,brain_version_id,created_by,status,source_urls,created_at) VALUES(%s,%s,%s,%s,%s,'queued','[]',now())", (ja,a,ca,va,uid))
                 cursor.execute("INSERT INTO source_fetches(id,workspace_id,job_id,url,title,publisher,retrieved_at,content,content_hash,extractor_version) VALUES(%s,%s,%s,'https://example.com','Source','example.com',now(),'Original','hash','test')", (fa,a,ja))
@@ -69,7 +70,10 @@ def test_postgres_rls_and_composite_relationships():
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
                     cursor.execute("INSERT INTO contacts(id,email,workspace_id,company_id) VALUES(%s,'bad@example.com',%s,%s)",(str(uuid4()),a,cb))
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone()[0] == "20260923_0007"
+                assert cursor.fetchone()[0] == "20260923_0008"
+            probe = Path(__file__).with_name("postgres_worker_probe.py").read_text()
+            result = subprocess.run([sys.executable, "-c", probe, a, ca, va, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
+            assert result.returncode == 0, result.stdout + result.stderr
         finally:
             db.close()
     finally:

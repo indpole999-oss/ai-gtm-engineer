@@ -7,7 +7,7 @@ from sqlalchemy import select
 from backend.database import Company
 from backend.brain_models import CompanyBrainVersion
 from backend.research_models import ResearchJob, SourceFetch, EvidenceItem, ResearchClaim, AccountIntelligence, ClaimVerification
-from backend.research_service import execute_research, scoped_record
+from backend.research_service import scoped_record
 from backend.tenancy import get_current_workspace, get_workspace_db
 
 router = APIRouter()
@@ -69,8 +69,7 @@ async def run_job(job_id: UUID, db=Depends(get_workspace_db)):
     job = await db.scalar(select(ResearchJob).where(ResearchJob.id == job_id).with_for_update())
     if job is None:
         raise HTTPException(404, "Research job not found")
-    await execute_research(db, job)
-    return {"id": job.id, "status": job.status}
+    raise HTTPException(409, "Research execution requires an approved GTM plan and the durable worker")
 
 
 @router.get("/jobs/{job_id}")

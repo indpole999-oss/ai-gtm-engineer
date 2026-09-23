@@ -59,18 +59,24 @@ passed at `8fb2748`, CI run 35735042223. See `docs/V2_COMPANY_BRAIN.md`.
 Phase 4 adds source captures, quoted evidence, validated local-model research,
 exact-Brain ICP qualification, buyer observations with unknown verification,
 audited administrator fact review and company-detail account intelligence UI.
-Initial full suite: 79 passed, 1 PostgreSQL-only skip. Final role/PG checks pending.
+Final full suite: 83 passed, 1 PostgreSQL-only skip. CI run 35770276072 passed
+all three jobs at `029cc03`.
 No paid calls; development uses injected deterministic providers. Existing OpenAI
 configuration is preserved. See `docs/V2_RESEARCH.md` for boundaries and risks.
 
-Migration head under test: `20260923_0007`.
+Phase 5 implements persisted goals, schema-validated local planning, exact Brain
+version/hash references, versioned review and immutable approval, transactional
+commands/events/outbox, and a separate durable worker with leases, bounded retries,
+timeouts, cancellation/resume and workspace admission controls. Local backend:
+94 passed, 1 PostgreSQL-only skip. TypeScript and targeted lint passed. PostgreSQL
+concurrent-claim/RLS checks and frontend build await CI. See `docs/V2_EXECUTION.md`.
+
+Migration head under test: `20260923_0008`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Remaining phases
 
-4. Finish research validation/CI and checkpoint.
-5. Goals, schema-validated planner, immutable plan approval, durable resumable worker,
-   outbox, retries/timeouts/cancellation/budgets/idempotent approved commands.
+5. Finish durable execution validation/CI and checkpoint.
 6. Draft-only composition, sequences/enrollments, immutable outbound approval,
    suppression/recipient/sender limits, provider-confirmed asynchronous delivery.
 7. Inbound threads, reply classification/reasoning, sequence pause, proposed responses.
