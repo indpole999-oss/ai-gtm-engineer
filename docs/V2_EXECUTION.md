@@ -18,8 +18,9 @@ command implementations. Max 20 steps, three attempts and 120 seconds per attemp
 Approval atomically creates execution_cycles, step_runs and action_commands plus
 domain_events/outbox_events. Run `python -m backend.execution_worker` separately
 from the web process. No production service has been configured or deployed.
-Each execution cycle is the persisted workflow run; its step_runs track individual
-attempt outcomes through their durable commands. Admission is serialized per
+Each execution cycle has one persisted workflow_runs record, with step_runs linked
+by a composite workspace foreign key. Step outputs are schema validated and must
+reference the command's own completed research job. Admission is serialized per
 workspace, with at most two active leases and ten claims per minute, including
 retries. The approved envelope pins both Company Brain version ID and content hash.
 The worker binds each workspace session, rechecks the active approving membership,
@@ -40,11 +41,13 @@ or delivered and do not send customer messages. Later integrations must add an
 idempotent consumer before using them for external notifications. Research output
 still needs customer review and unverified contacts cannot silently become verified.
 
-Migration 20260923_0008 is additive, with workspace foreign keys/indexes, forced
+Migrations 20260923_0008 and 20260923_0009 are additive, with workspace foreign keys/indexes, forced
 PostgreSQL RLS, and immutable plan/audit triggers. Test on an isolated restored
 database, verify RLS and concurrent claims, then start a staging worker only after
 authorization. Recovery preserves approved plans and audit; destructive downgrade
-is disabled. All database operations in development/CI use disposable data.
+is disabled. Migration 0009 creates workflow records from existing cycles using
+their exact IDs, timestamps and proven workspace ownership, then adds the step
+foreign key. All database operations in development/CI use disposable data.
 
 Production gates still include provider-side reconciliation/idempotency for future
 external actions, mailbox rate limits, full end-to-end tests, observability and

@@ -11,7 +11,7 @@ from backend.database import AsyncSessionLocal, Workspace, WorkspaceMembership, 
 from backend import tenancy  # noqa: F401; register scoping and transaction hooks
 from backend.planning_models import PlanVersion, ExecutionCycle, StepRun, ActionCommand, DomainEvent
 from backend.brain_models import CompanyBrainVersion
-from backend.planning_service import PlanDocument, digest, emit
+from backend.planning_service import PlanDocument, ResearchStepOutput, digest, emit
 from backend.research_models import ResearchJob
 from backend.research_service import execute_research
 
@@ -138,6 +138,14 @@ async def finish(workspace_id, claim, result=None, error=None):
         command = await db.scalar(select(ActionCommand).where(ActionCommand.id == claim["id"]).with_for_update().execution_options(populate_existing=True))
         if not command or command.lease_token != claim["token"] or command.status != "running":
             return  # A stale worker must never acknowledge a newer worker's lease.
+        if error is None:
+            try:
+                result = ResearchStepOutput.model_validate(result).model_dump(mode="json")
+                job = await db.scalar(select(ResearchJob).where(ResearchJob.id == UUID(result["research_job_id"])))
+                if not job or job.id != uuid5(command.id, "research") or job.status != "completed":
+                    raise ValueError("Result is not this command's completed research")
+            except ValueError:
+                error = "invalid_step_output"
         step = await db.scalar(select(StepRun).where(StepRun.id == command.step_id))
         command.lease_until, command.lease_token = None, None
         if cycle.status == "cancelled":

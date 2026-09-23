@@ -50,13 +50,20 @@ class ExecutionCycle(ScopedExecutionRow, Base):
     __table_args__ = (UniqueConstraint("workspace_id", "id"), parent("plan_id", "plan_versions"))
 
 
+class WorkflowRun(ScopedExecutionRow, Base):
+    """One versioned workflow per cycle; the shared ID links its step runs."""
+    __tablename__ = "workflow_runs"
+    definition_version = Column(Integer, nullable=False, default=1)
+    __table_args__ = (UniqueConstraint("workspace_id", "id"), parent("id", "execution_cycles"))
+
+
 class StepRun(ScopedExecutionRow, Base):
     __tablename__ = "step_runs"
     cycle_id = Column(Uuid, nullable=False)
     position = Column(Integer, nullable=False)
     status = Column(String(30), nullable=False, default="pending")
     output = Column(JSON)
-    __table_args__ = (UniqueConstraint("workspace_id", "id"), UniqueConstraint("cycle_id", "position"), parent("cycle_id", "execution_cycles"))
+    __table_args__ = (UniqueConstraint("workspace_id", "id"), UniqueConstraint("cycle_id", "position"), parent("cycle_id", "execution_cycles"), parent("cycle_id", "workflow_runs"))
 
 
 class ActionCommand(ScopedExecutionRow, Base):

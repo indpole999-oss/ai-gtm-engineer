@@ -68,10 +68,15 @@ Phase 5 implements persisted goals, schema-validated local planning, exact Brain
 version/hash references, versioned review and immutable approval, transactional
 commands/events/outbox, and a separate durable worker with leases, bounded retries,
 timeouts, cancellation/resume and workspace admission controls. Local backend:
-94 passed, 1 PostgreSQL-only skip. TypeScript and targeted lint passed. PostgreSQL
-concurrent-claim/RLS checks and frontend build await CI. See `docs/V2_EXECUTION.md`.
+95 passed, 1 PostgreSQL-only skip at `c4ebff4`; CI run 35867895187 passed all
+three jobs, including frontend build and PostgreSQL concurrent claims/RLS.
+Browser create/revise/review/approve/pause/resume/cancel passed on disposable data.
+Final specification checks add explicit workflow_runs and validated persisted
+step outputs. Final local suite: 97 passed, 1 PostgreSQL-only skip, including
+populated-cycle backfill and rejection of invalid step success output. Final CI
+is pending. See `docs/V2_EXECUTION.md`.
 
-Migration head under test: `20260923_0008`.
+Migration head under test: `20260923_0009`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Remaining phases

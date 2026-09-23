@@ -17,6 +17,18 @@ def test_worker_imports_without_http_application():
     assert result.returncode == 0, result.stderr
 
 
+def test_invalid_step_result_cannot_report_success(client):
+    a = signup(client, "invalid-result@example.com")
+    wid = UUID(a["X-Workspace-ID"])
+    cycle = approve(client, a, proposal(client, a))
+    claim = client.portal.call(worker.claim_next, wid)
+    client.portal.call(worker.finish, wid, claim, {"sent": True})
+    state = client.get(f"/api/v1/gtm/cycles/{cycle['id']}", headers=a).json()
+    assert state["steps"][0]["status"] == "pending"
+    assert state["steps"][0]["output"] is None
+    assert state["commands"][0]["error_code"] == "invalid_step_output"
+
+
 def proposal(client, headers):
     brain, account = published(client, headers), company(client, headers)
     goal = client.post("/api/v1/gtm/goals", headers=headers, json={"objective": "Research evidence of fit for this company", "brain_version_id": brain["id"], "targets": [{"company_id": account["id"], "source_urls": ["https://example.com/"]}]})

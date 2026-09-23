@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 from sqlalchemy import select
 from backend.database import Company
 from backend.brain_models import CompanyBrainVersion
-from backend.planning_models import Goal, PlanVersion, ExecutionCycle, StepRun, ActionCommand, DomainEvent, OutboxEvent
+from backend.planning_models import Goal, PlanVersion, ExecutionCycle, WorkflowRun, StepRun, ActionCommand, DomainEvent, OutboxEvent
 from backend.research_service import scoped_record
 
 
@@ -52,6 +52,11 @@ class PlanDocument(BaseModel):
             if any(dependency < 0 or dependency >= position for dependency in step.dependencies):
                 raise ValueError("Dependencies must refer to earlier steps")
         return self
+
+
+class ResearchStepOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    research_job_id: UUID
 
 
 def digest(document):
@@ -126,6 +131,8 @@ async def approve_plan(db, plan, ctx, expected_hash):
     plan.status, plan.approved_by, plan.approved_at = "approved", ctx.user_id, datetime.utcnow()
     cycle = ExecutionCycle(plan_id=plan.id, plan_hash=plan.content_hash)
     db.add(cycle)
+    await db.flush()
+    db.add(WorkflowRun(id=cycle.id))
     await db.flush()
     for position, step in enumerate(document.steps):
         row = StepRun(cycle_id=cycle.id, position=position)
