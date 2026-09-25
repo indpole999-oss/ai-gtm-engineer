@@ -22,7 +22,7 @@ jobs:
           DATABASE_URL: sqlite+aiosqlite:////tmp/phase0-migration.db
         run: |
           alembic upgrade head
-          test "$(alembic current | awk '{print $1}')" = "20260923_0009"
+          test "$(alembic current | awk '{print $1}')" = "20260926_0010"
 
   frontend:
     runs-on: ubuntu-latest

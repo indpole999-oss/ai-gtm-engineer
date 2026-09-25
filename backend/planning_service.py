@@ -22,13 +22,22 @@ class Target(BaseModel):
 
 class PlanStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    action: Literal["research"]
+    action: Literal["research", "outreach_send"]
+    message_id: UUID | None = None
     target_index: int = Field(ge=0, le=19)
     dependencies: list[int] = Field(default_factory=list, max_length=20)
     rationale: str = Field(min_length=1, max_length=3000)
     expected_output: str = Field(min_length=1, max_length=2000)
-    side_effect: Literal["read_only"] = "read_only"
+    side_effect: Literal["read_only", "outbound"] = "read_only"
     approval_required: Literal[True] = True
+
+    @model_validator(mode="after")
+    def action_contract(self):
+        if self.action == "outreach_send" and (not self.message_id or self.side_effect != "outbound"):
+            raise ValueError("Outreach requires an approved message and outbound classification")
+        if self.action == "research" and (self.message_id or self.side_effect != "read_only"):
+            raise ValueError("Research must be read only")
+        return self
 
 
 class PlanDocument(BaseModel):
@@ -128,6 +137,11 @@ async def approve_plan(db, plan, ctx, expected_hash):
     if plan.document["brain_hash"] != brain.content_hash:
         raise HTTPException(409, "Company Brain hash changed; regenerate and review")
     document = PlanDocument.model_validate(plan.document["plan"])
+    for spec in document.steps:
+        if spec.action == "outreach_send":
+            from backend.outreach_service import valid_message
+            from backend.outreach_models import Message
+            await valid_message(db, await scoped_record(db, Message, spec.message_id), plan.id)
     plan.status, plan.approved_by, plan.approved_at = "approved", ctx.user_id, datetime.utcnow()
     cycle = ExecutionCycle(plan_id=plan.id, plan_hash=plan.content_hash)
     db.add(cycle)
@@ -139,8 +153,15 @@ async def approve_plan(db, plan, ctx, expected_hash):
         db.add(row)
         await db.flush()
         db.add(ActionCommand(step_id=row.id, cycle_id=cycle.id, kind=step.action,
-            payload={"brain_version_id": str(goal.brain_version_id), "target": goal.target_inputs[step.target_index], "dependencies": step.dependencies},
+            payload=command_payload(plan, step),
             idempotency_key=f"{cycle.id}:{position}"))
     await emit(db, cycle, "plan_approved", {"plan_id": str(plan.id), "hash": plan.content_hash, "actor": str(ctx.user_id)})
     await db.commit()
     return cycle
+
+
+def command_payload(plan, step):
+    payload = {"brain_version_id": plan.document["brain_version_id"], "target": plan.document["targets"][step.target_index], "dependencies": step.dependencies}
+    if step.action == "outreach_send":
+        payload["message_id"] = str(step.message_id)
+    return payload

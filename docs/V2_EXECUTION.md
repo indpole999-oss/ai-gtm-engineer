@@ -11,9 +11,9 @@ be edited. Owners/admins approve the exact document hash with explicit review.
 Plans persist objective, success metrics, segment, constraints, assumptions, risks,
 ordered dependency graph, outputs, rationale, zero paid-cost estimate, side-effect
 classification, approval requirement, stop conditions and review checkpoint.
-This checkpoint supports only read-only research commands. Paid calls, sending,
-calendar creation and CRM mutation are unavailable until their later approved
-command implementations. Max 20 steps, three attempts and 120 seconds per attempt.
+Phase 5 introduced read-only research commands. Phase 6 adds separately reviewed
+outreach commands through the same worker; see `docs/V2_OUTREACH.md`. Live outbound
+providers, paid calls, calendar creation and CRM mutation remain disabled. Max 20 steps, three attempts and 120 seconds per attempt.
 
 Approval atomically creates execution_cycles, step_runs and action_commands plus
 domain_events/outbox_events. Run `python -m backend.execution_worker` separately

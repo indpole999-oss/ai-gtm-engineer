@@ -12,6 +12,7 @@ from backend.database import Base
 from backend import brain_models  # noqa: F401; register Company Brain metadata
 from backend import research_models  # noqa: F401; register research metadata
 from backend import planning_models  # noqa: F401; register durable execution metadata
+from backend import outreach_models  # noqa: F401; register outreach metadata
 
 
 config = context.config

@@ -11,7 +11,8 @@ from backend.database import AsyncSessionLocal, Workspace, WorkspaceMembership, 
 from backend import tenancy  # noqa: F401; register scoping and transaction hooks
 from backend.planning_models import PlanVersion, ExecutionCycle, StepRun, ActionCommand, DomainEvent
 from backend.brain_models import CompanyBrainVersion
-from backend.planning_service import PlanDocument, ResearchStepOutput, digest, emit
+from backend.planning_service import PlanDocument, ResearchStepOutput, digest, emit, command_payload
+from backend import outreach_models  # noqa: F401; standalone worker metadata
 from backend.research_models import ResearchJob
 from backend.research_service import execute_research
 
@@ -60,7 +61,7 @@ async def claim_next(workspace_id):
             policy = PlanDocument.model_validate(plan.document["plan"])
             step = await db.scalar(select(StepRun).where(StepRun.id == command.step_id))
             spec = policy.steps[step.position] if step and step.position < len(policy.steps) else None
-            expected = {"brain_version_id": plan.document["brain_version_id"], "target": plan.document["targets"][spec.target_index], "dependencies": spec.dependencies} if spec else None
+            expected = command_payload(plan, spec) if spec else None
             if not spec or command.kind != spec.action or command.payload != expected:
                 cycle.status, cycle.stop_reason = "paused", "command_integrity_failed"
                 await emit(db, cycle, "command_integrity_failed", {"command_id": str(command.id)})
@@ -73,6 +74,13 @@ async def claim_next(workspace_id):
                 await db.commit()
                 return None
             dependencies = command.payload["dependencies"]
+            if command.kind == "outreach_send":
+                from backend.outreach_models import Message, ScheduledMessage
+                message = await db.scalar(select(Message).where(Message.id == UUID(command.payload["message_id"])))
+                schedule = await db.scalar(select(ScheduledMessage).where(ScheduledMessage.id == message.scheduled_id)) if message else None
+                from backend.outreach_service import schedule_ready
+                if not schedule or not await schedule_ready(db, schedule):
+                    continue
             completed = set((await db.scalars(select(StepRun.position).where(StepRun.cycle_id == cycle.id, StepRun.status == "succeeded"))).all())
             if not set(dependencies).issubset(completed):
                 continue
@@ -102,7 +110,7 @@ async def claim_next(workspace_id):
 
 
 async def perform(workspace_id, claim):
-    if claim["kind"] != "research":
+    if claim["kind"] not in {"research", "outreach_send"}:
         raise ValueError("Unsupported command")
     async with AsyncSessionLocal() as db:
         bind(db, workspace_id)
@@ -110,6 +118,9 @@ async def perform(workspace_id, claim):
         cycle = await db.scalar(select(ExecutionCycle).where(ExecutionCycle.id == command.cycle_id))
         if command.lease_token != claim["token"] or cycle.status != "running" or not await approved(db, cycle):
             raise ValueError("Command authorization changed")
+        if claim["kind"] == "outreach_send":
+            from backend.outreach_service import deliver
+            return await deliver(db, command, cycle)
         job_id = uuid5(claim["id"], "research")
         job = await db.scalar(select(ResearchJob).where(ResearchJob.id == job_id))
         if job and job.status == "completed":
@@ -140,11 +151,17 @@ async def finish(workspace_id, claim, result=None, error=None):
             return  # A stale worker must never acknowledge a newer worker's lease.
         if error is None:
             try:
-                result = ResearchStepOutput.model_validate(result).model_dump(mode="json")
-                job = await db.scalar(select(ResearchJob).where(ResearchJob.id == UUID(result["research_job_id"])))
-                if not job or job.id != uuid5(command.id, "research") or job.status != "completed":
-                    raise ValueError("Result is not this command's completed research")
-            except ValueError:
+                if command.kind == "outreach_send":
+                    from backend.outreach_models import Message
+                    message = await db.scalar(select(Message).where(Message.id == UUID(command.payload["message_id"])))
+                    if not message or message.plan_id != cycle.plan_id or message.state != "sent" or result != {"message_id": str(message.id), "provider_message_id": message.provider_message_id}:
+                        raise ValueError("Result is not this command's provider-confirmed send")
+                else:
+                    result = ResearchStepOutput.model_validate(result).model_dump(mode="json")
+                    job = await db.scalar(select(ResearchJob).where(ResearchJob.id == UUID(result["research_job_id"])))
+                    if not job or job.id != uuid5(command.id, "research") or job.status != "completed":
+                        raise ValueError("Result is not this command's completed research")
+            except (ValueError, TypeError):
                 error = "invalid_step_output"
         step = await db.scalar(select(StepRun).where(StepRun.id == command.step_id))
         command.lease_until, command.lease_token = None, None

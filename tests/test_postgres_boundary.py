@@ -43,11 +43,22 @@ def test_postgres_rls_and_composite_relationships():
                 ja, fa = str(uuid4()), str(uuid4())
                 cursor.execute("INSERT INTO research_jobs(id,workspace_id,company_id,brain_version_id,created_by,status,source_urls,created_at) VALUES(%s,%s,%s,%s,%s,'queued','[]',now())", (ja,a,ca,va,uid))
                 cursor.execute("INSERT INTO source_fetches(id,workspace_id,job_id,url,title,publisher,retrieved_at,content,content_hash,extractor_version) VALUES(%s,%s,%s,'https://example.com','Source','example.com',now(),'Original','hash','test')", (fa,a,ja))
+                campaign_a, campaign_b, sequence_a, version_a = [str(uuid4()) for _ in range(4)]
+                cursor.execute("INSERT INTO campaigns(id,workspace_id,name,status,created_at) VALUES(%s,%s,'A','active',now()),(%s,%s,'B','active',now())", (campaign_a,a,campaign_b,b))
+                cursor.execute("INSERT INTO sequences(id,workspace_id,campaign_id,name,created_at) VALUES(%s,%s,%s,'Sequence',now())", (sequence_a,a,campaign_a))
+                cursor.execute("INSERT INTO sequence_versions(id,workspace_id,sequence_id,number,definition,content_hash,created_at) VALUES(%s,%s,%s,1,'{}','hash',now())", (version_a,a,sequence_a))
+                outreach_tables = ("campaigns", "sequences", "sequence_versions", "sequence_steps", "sender_identities", "enrollments", "scheduled_messages", "message_drafts", "messages", "delivery_events", "suppressions")
+                for table in outreach_tables:
+                    cursor.execute("SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname=%s", (table,))
+                    assert cursor.fetchone() == (True, True), table
                 cursor.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(role)))
                 cursor.execute(sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {}").format(sql.Identifier(role)))
                 cursor.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(role)))
                 cursor.execute("SELECT id FROM companies")
                 assert cursor.fetchall() == []
+                for table in outreach_tables:
+                    cursor.execute(sql.SQL("SELECT id FROM {}").format(sql.Identifier(table)))
+                    assert cursor.fetchall() == [], table
                 cursor.execute("SELECT set_config('app.workspace_id',%s,false)",(a,))
                 cursor.execute("SELECT id::text FROM companies")
                 assert cursor.fetchall() == [(ca,)]
@@ -55,6 +66,14 @@ def test_postgres_rls_and_composite_relationships():
                 assert cursor.fetchall() == [(ba,)]
                 cursor.execute("SELECT id::text FROM research_jobs")
                 assert cursor.fetchall() == [(ja,)]
+                cursor.execute("SELECT id::text FROM campaigns")
+                assert cursor.fetchall() == [(campaign_a,)]
+                with pytest.raises(psycopg2.errors.RaiseException, match="immutable"):
+                    cursor.execute("UPDATE sequence_versions SET definition='[]' WHERE id=%s", (version_a,))
+                with pytest.raises(psycopg2.errors.ForeignKeyViolation):
+                    cursor.execute("INSERT INTO sequences(id,workspace_id,campaign_id,name,created_at) VALUES(%s,%s,%s,'forged',now())", (str(uuid4()),a,campaign_b))
+                with pytest.raises(psycopg2.errors.InsufficientPrivilege):
+                    cursor.execute("INSERT INTO suppressions(id,workspace_id,email,reason,created_at) VALUES(%s,%s,'blocked@example.com','unsubscribe',now())", (str(uuid4()),b))
                 with pytest.raises(psycopg2.errors.RaiseException, match="immutable"):
                     cursor.execute("UPDATE source_fetches SET content='tampered' WHERE id=%s", (fa,))
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
@@ -70,9 +89,12 @@ def test_postgres_rls_and_composite_relationships():
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
                     cursor.execute("INSERT INTO contacts(id,email,workspace_id,company_id) VALUES(%s,'bad@example.com',%s,%s)",(str(uuid4()),a,cb))
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone()[0] == "20260923_0009"
+                assert cursor.fetchone()[0] == "20260926_0010"
             probe = Path(__file__).with_name("postgres_worker_probe.py").read_text()
             result = subprocess.run([sys.executable, "-c", probe, a, ca, va, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
+            assert result.returncode == 0, result.stdout + result.stderr
+            outreach_probe = Path(__file__).with_name("postgres_outreach_probe.py").read_text()
+            result = subprocess.run([sys.executable, "-c", outreach_probe], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
             with db.cursor() as cursor:
                 cursor.execute("SELECT set_config('app.workspace_id',%s,false)", (b,))

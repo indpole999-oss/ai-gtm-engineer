@@ -73,3 +73,15 @@ After new tenant writes, reverting to V1 would expose data and may introduce glo
 uniqueness conflicts. Recover by rolling forward or restoring the verified backup
 with writers stopped. Retain the audit trail and document any lost writes. Never
 blindly stamp revisions or drop customer tables to recover.
+
+## Phase 6 additive upgrade
+
+Upgrade from `20260923_0009` to `20260926_0010` using Alembic. This adds outreach
+snapshots, enrollments/schedules, message approvals/provider state, sender identities,
+delivery events and suppressions, with composite workspace FKs, forced PostgreSQL
+RLS and SQL immutability triggers. It does not alter or reassign Phase 1–5 rows.
+Validate a clean database and a populated execution-history clone; test immutable
+sequence definitions/message approvals and cross-workspace foreign keys under a
+non-BYPASSRLS runtime role. Start the existing worker only with live delivery still
+disabled until an idempotent adapter passes its separately authorized staging gate.
+Downgrade refuses to discard approvals, provider receipts or suppression history.

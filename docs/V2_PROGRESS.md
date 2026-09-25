@@ -2,7 +2,8 @@
 
 ## Authority and starting point
 
-Implement Phases 1–11 sequentially, continuing after validated checkpoints.
+Current authorization: complete Phase 6 only, then STOP. Do not start Phase 7.
+Phases 1–5 are validated history and must not be repeated.
 Base: validated Phase 0 commit `69b267ca315c1cac1de1476948c7ccf3e9e84fd3`.
 Branch: `codex/ai-gtm-engineer-v2-full-build`.
 Do not merge main, deploy, modify production data, or incur paid-service costs.
@@ -84,13 +85,47 @@ success requires a schema-valid reference to that command's own completed,
 workspace-scoped research result. Migration 0009 backfills workflow ownership
 only from existing cycles and preserves their steps; no legacy reassignment.
 
-Validated migration head: `20260923_0009`.
+Phase 5 validated migration head: `20260923_0009`.
+Current validated migration head: `20260926_0010`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
+
+## Phase 6 checkpoint
+
+**PHASE 6 PASSED locally (2026-09-26).** Built only the Outreach Engine from
+verified clean starting HEAD `d446f49841f24cfab2f463e84698d1c8af722dcb`.
+
+- Campaigns, sequences, immutable sequence versions/steps, pinned enrollments,
+  scheduled messages, immutable evidence-backed drafts and message approvals,
+  sender identities, provider acceptance, separate delivery events and suppressions.
+- Separate draft composition, owner/admin message review and plan approval. Sends
+  reuse Phase 5 execution cycles, workflow/step runs, leased action commands,
+  admission limits, bounded retries, audit and transactional outbox.
+- Stable provider idempotency keys and lookup-before-retry reconciliation; no
+  sent state without provider acceptance. Tests cover provider rejection, unknown
+  lookup, lost acknowledgement, worker restart and stale lease acknowledgement.
+- Workspace/RBAC isolation, immutable SQL approvals and snapshots, active-approver
+  checks, due/prior-step ordering, recipient/sender validation, daily limits,
+  suppression/unsubscribe blocking and fresh-state checks across dispatch commits.
+- Additive Alembic `20260926_0010`, with forced PostgreSQL RLS, composite workspace
+  foreign keys and preservation of populated Phase 5 execution history.
+- Command-center contracts and labels distinguish outbound plans from research.
+
+Validation: full backend regression run **120 passed**, including disposable
+PostgreSQL migration/security and concurrent-worker/restart probes. After final
+race hardening, targeted outreach + actual Alembic migration + PostgreSQL run
+**24 passed**. Frontend TypeScript, targeted ESLint and production build passed.
+GitHub CI is checked after pushing this checkpoint; its exact run/result is
+reported with the delivery commit. No live provider sends, paid calls, API keys,
+production data changes, Render deployment or main merge occurred.
+
+Live delivery remains disabled by default. Fake adapters have a separate durable
+provider ledger and are injected only in tests. A real adapter must guarantee
+provider-side durable idempotency and authoritative lookup before a separately
+approved staging rollout. This is not a production-readiness claim.
+See `docs/V2_OUTREACH.md` for API lifecycle, provider contract and recovery.
 
 ## Remaining phases
 
-6. Draft-only composition, sequences/enrollments, immutable outbound approval,
-   suppression/recipient/sender limits, provider-confirmed asynchronous delivery.
 7. Inbound threads, reply classification/reasoning, sequence pause, proposed responses.
 8. Outcome pipeline, idempotent CRM sync and calendar booking/reconciliation.
 9. Normalized outcome metrics and evidence-backed descriptive gap recommendations.
@@ -102,11 +137,16 @@ Do not claim readiness until the entire 21-step acceptance scenario passes.
 
 ## Continuation
 
-Stopped after Phase 5 at the user's explicit usage constraint. Phase 6 has not
-started. Next authorized resume point is Phase 6 (Outreach), from the existing V2
-branch / PR #2; preserve all validated Phases 1–5. Inspect status and latest commit
-before making changes, then read the Phase 6 master specification and migration
-runbook. Do not repeat the audit or prior phases. Development must continue using
-local/free AI or injected test providers, with no paid API calls. Production
-provider smoke tests remain a future staging gate; no deployment, production-data
-changes, main merge or paid services were performed or authorized by this checkpoint.
+STOPPED AFTER PHASE 6. Phase 7 has not started and is not authorized in this task.
+Next resume point, only after a new instruction: **Phase 7 — AI Inbox**, beginning
+at `PHASE 7 — AI INBOX` in `docs/V2_SPECIFICATION.md`, on this same
+`codex/ai-gtm-engineer-v2-full-build` branch and open draft PR #2.
+Verify the latest Phase 6 checkpoint commit and clean checkout before resuming.
+Do not repeat Phases 1–6 or their audit. Begin with authenticated inbound-message
+handling, threads/inbound_messages/reply_classifications, reply reasoning and
+suggested responses, and sequence pause integration. Reuse Phase 6 enrollment
+controls, suppression service, immutable message approvals and Phase 5 durable
+execution/outbox. Keep inbound handling idempotent and workspace-scoped. Continue
+using local/free models or deterministic injected providers. Real provider smoke
+tests remain a separately authorized staging gate; do not deploy, change production
+records, merge main, send external outreach or incur paid-service costs.
