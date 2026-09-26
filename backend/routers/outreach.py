@@ -167,6 +167,10 @@ async def control(resource: Literal["campaigns", "enrollments"], record_id: UUID
     row = await scoped_record(db, RESOURCES[resource], record_id)
     if row.status == "cancelled":
         raise HTTPException(409, "Cancelled outreach cannot resume")
+    if resource == "enrollments" and body.status == "active":
+        from backend.inbox_service import inbox_hold
+        if await inbox_hold(db, row.id):
+            raise HTTPException(409, "Inbound reply hold requires a reviewed follow-up policy; this sequence cannot resume")
     row.status = body.status
     await db.commit()
     return response(row)

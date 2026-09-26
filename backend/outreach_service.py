@@ -42,7 +42,8 @@ async def context(db, scheduled):
         raise HTTPException(409, "Sequence step does not match its immutable definition")
     if job.status != "completed" or job.company_id != contact.company_id or brain.status != "published":
         raise HTTPException(409, "Completed research for this contact and published Brain required")
-    if enrollment.status != "active" or campaign.status != "active":
+    from backend.inbox_service import inbox_hold
+    if enrollment.status != "active" or campaign.status != "active" or await inbox_hold(db, enrollment.id):
         raise HTTPException(409, "Outreach is paused")
     return enrollment, step, version, sequence, campaign, contact, sender, job, brain
 
@@ -145,7 +146,8 @@ async def schedule_ready(db, scheduled):
     version = await scoped_record(db, SequenceVersion, enrollment.version_id)
     sequence = await scoped_record(db, Sequence, version.sequence_id)
     campaign = await scoped_record(db, Campaign, sequence.campaign_id)
-    if enrollment.status != "active" or campaign.status != "active":
+    from backend.inbox_service import inbox_hold
+    if enrollment.status != "active" or campaign.status != "active" or await inbox_hold(db, enrollment.id):
         return False
     step = await scoped_record(db, SequenceStep, scheduled.sequence_step_id)
     earlier = (await db.scalars(select(ScheduledMessage).join(SequenceStep, SequenceStep.id == ScheduledMessage.sequence_step_id).where(ScheduledMessage.enrollment_id == scheduled.enrollment_id, SequenceStep.position < step.position))).all()

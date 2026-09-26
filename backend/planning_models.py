@@ -1,7 +1,7 @@
 """Durable plans, approvals, execution state and transactional audit/outbox."""
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, Uuid, String, Text, JSON, Integer, DateTime, ForeignKey, ForeignKeyConstraint, UniqueConstraint, event, inspect
+from sqlalchemy import Column, Uuid, String, Text, JSON, Integer, DateTime, ForeignKey, ForeignKeyConstraint, UniqueConstraint, Index, event, inspect
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from backend.database import Base, WorkspaceOwned
@@ -85,10 +85,10 @@ class ActionCommand(ScopedExecutionRow, Base):
 
 class DomainEvent(ScopedExecutionRow, Base):
     __tablename__ = "domain_events"
-    cycle_id = Column(Uuid, nullable=False)
+    cycle_id = Column(Uuid)  # Inbound workspace events need not originate in a cycle.
     kind = Column(String(80), nullable=False)
     data = Column(JSON, nullable=False)
-    __table_args__ = (UniqueConstraint("workspace_id", "id"), parent("cycle_id", "execution_cycles"))
+    __table_args__ = (UniqueConstraint("workspace_id", "id"), parent("cycle_id", "execution_cycles"), Index("ix_domain_event_kind", "workspace_id", "kind"))
 
 
 class OutboxEvent(ScopedExecutionRow, Base):
@@ -96,7 +96,12 @@ class OutboxEvent(ScopedExecutionRow, Base):
     event_id = Column(Uuid, nullable=False, unique=True)
     status = Column(String(30), nullable=False, default="pending")
     delivered_at = Column(DateTime)
-    __table_args__ = (parent("event_id", "domain_events"),)
+    attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    due_at = Column(DateTime)
+    lease_token = Column(Uuid)
+    lease_until = Column(DateTime)
+    error_code = Column(String(100))
+    __table_args__ = (parent("event_id", "domain_events"), Index("ix_outbox_ready", "workspace_id", "status", "due_at"))
 
 
 @event.listens_for(Session, "before_flush")

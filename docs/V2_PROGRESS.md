@@ -2,8 +2,9 @@
 
 ## Authority and starting point
 
-Current authorization: complete Phase 6 only, then STOP. Do not start Phase 7.
-Phases 1–5 are validated history and must not be repeated.
+Current authorization: complete Phase 7 only, then STOP. Do not start Phase 8.
+Phases 1–6 are validated history and must not be repeated.
+Overall V2 completion at this checkpoint: **77%** (user-specified milestone).
 Base: validated Phase 0 commit `69b267ca315c1cac1de1476948c7ccf3e9e84fd3`.
 Branch: `codex/ai-gtm-engineer-v2-full-build`.
 Do not merge main, deploy, modify production data, or incur paid-service costs.
@@ -86,7 +87,7 @@ workspace-scoped research result. Migration 0009 backfills workflow ownership
 only from existing cycles and preserves their steps; no legacy reassignment.
 
 Phase 5 validated migration head: `20260923_0009`.
-Current validated migration head: `20260926_0010`.
+Current validated migration head: `20260926_0011`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Phase 6 checkpoint
@@ -124,9 +125,45 @@ provider-side durable idempotency and authoritative lookup before a separately
 approved staging rollout. This is not a production-readiness claim.
 See `docs/V2_OUTREACH.md` for API lifecycle, provider contract and recovery.
 
+## Phase 7 checkpoint
+
+**PHASE 7 implementation complete and locally validated (2026-09-26).** Built only
+AI Inbox from verified clean HEAD `c570560d979bf0e048b7ba4d16fc49da478888ba` on the
+specified branch. Phase 6 CI run `36187223415` passed all three jobs. PR #2 was
+verified open, draft and unmerged before Phase 7 work.
+
+- Immutable inbound messages, provider receipts, conversations and deterministic
+  outbound/thread/reply-chain associations, retaining pinned outreach/research/
+  Brain context. Unknown or ambiguous associations remain explicitly unresolved.
+- All nine required deterministic reply categories, confidence/reasons/evidence,
+  classifier version, recommendations and append-only administrator overrides.
+- Immediate persistent sequence holds for genuine replies and distinct OOO state;
+  unsubscribe integrates with existing suppression before acknowledgement.
+  Queued and claimed sends respect holds, including the dispatch commit gap.
+- Atomic deferred classification through the existing Phase 5 outbox and worker,
+  shared admission, leases, bounded retries, stale-token rejection and recovery.
+  Duplicate provider events/messages cannot repeat business side effects.
+- Workspace/RBAC-protected list/detail/review/retry APIs and optional immutable
+  reply suggestions. Suggestions remain drafts; meeting intent remains intent.
+- Alembic `20260926_0011`, forced PostgreSQL RLS/composite tenant references,
+  immutable SQL evidence, preserved Phase 6 audit/outbox and legacy quarantine.
+
+Focused inbox + populated migration + PostgreSQL suite: **32 passed**. Full
+backend regression: **152 passed** (186.05 seconds), including PostgreSQL 16
+migration/RLS, tenant foreign keys, concurrent ingestion/claims and restart probes.
+Frontend source and consumed contracts are unchanged; the existing CI frontend
+TypeScript, lint and build checks still run.
+CI is verified on the pushed checkpoint SHA before final delivery; its exact run
+and result accompany that commit. Phase 7 is not accepted if those jobs fail.
+
+No real provider send, calendar creation, CRM/pipeline mutation, paid API, OpenAI
+key, production change, deployment or merge occurred. Live inbound adapters remain
+disabled; the only ingestion endpoint is authenticated fake-mailbox simulation.
+Inbox holds have no automatic resume policy. See `docs/V2_INBOX.md` for API,
+classification limitations, provider authentication gate and restart/recovery.
+
 ## Remaining phases
 
-7. Inbound threads, reply classification/reasoning, sequence pause, proposed responses.
 8. Outcome pipeline, idempotent CRM sync and calendar booking/reconciliation.
 9. Normalized outcome metrics and evidence-backed descriptive gap recommendations.
 10. Customer navigation and command-center readiness/plans/execution/approvals/outcomes.
@@ -137,16 +174,20 @@ Do not claim readiness until the entire 21-step acceptance scenario passes.
 
 ## Continuation
 
-STOPPED AFTER PHASE 6. Phase 7 has not started and is not authorized in this task.
-Next resume point, only after a new instruction: **Phase 7 — AI Inbox**, beginning
-at `PHASE 7 — AI INBOX` in `docs/V2_SPECIFICATION.md`, on this same
+STOPPED AFTER PHASE 7. Phase 8 has not started and is not authorized in this task.
+Next resume point, only after a new instruction: **Phase 8 — Pipeline + CRM +
+Calendar**, beginning at `PHASE 8 — PIPELINE, CRM & CALENDAR OUTCOMES` in
+`docs/V2_SPECIFICATION.md` (line 519), on this same
 `codex/ai-gtm-engineer-v2-full-build` branch and open draft PR #2.
-Verify the latest Phase 6 checkpoint commit and clean checkout before resuming.
-Do not repeat Phases 1–6 or their audit. Begin with authenticated inbound-message
-handling, threads/inbound_messages/reply_classifications, reply reasoning and
-suggested responses, and sequence pause integration. Reuse Phase 6 enrollment
-controls, suppression service, immutable message approvals and Phase 5 durable
-execution/outbox. Keep inbound handling idempotent and workspace-scoped. Continue
-using local/free models or deterministic injected providers. Real provider smoke
-tests remain a separately authorized staging gate; do not deploy, change production
-records, merge main, send external outreach or incur paid-service costs.
+Verify the latest Phase 7 checkpoint SHA, clean checkout and green CI first.
+Do not repeat Phases 1–7. Begin with the outcome pipeline and durable CRM sync
+contracts (provider mappings/external IDs, sync records/cursors, idempotent
+webhooks, conflicts and health). Then implement reviewed calendar outcomes with
+provider IDs, time zones, duplicate prevention and reconciliation. Reuse Phase
+5 approved action commands/outbox, Phase 6 outbound/suppression safeguards and
+Phase 7 immutable reply intent/history. Positive/meeting intent must not itself
+execute an external action. Preserve tenant boundaries and all approvals.
+Use deterministic fake providers for development and tests; real provider smoke
+tests remain a separately authorized staging gate. Do not deploy, change
+production records, merge main, send external outreach, create real meetings,
+mutate real CRM records or incur paid-service costs.

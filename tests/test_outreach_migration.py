@@ -11,7 +11,7 @@ def test_outreach_migration_sql_immutability_and_tenant_foreign_keys(tmp_path):
     with sqlite3.connect(path) as db:
         for key in (wid, other):
             db.execute("INSERT INTO workspaces(id,name,slug,status,created_at,updated_at) VALUES(?,'Test',?,'active',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", (key,key))
-    migrate(path, "head")
+    migrate(path, "20260926_0010")
     with sqlite3.connect(path) as db:
         db.execute("PRAGMA foreign_keys=ON")
         assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260926_0010"

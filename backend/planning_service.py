@@ -122,10 +122,12 @@ async def save_plan(db, goal, document, method):
 
 
 async def emit(db, cycle, kind, data):
-    event = DomainEvent(cycle_id=cycle.id, kind=kind, data=data)
+    event = DomainEvent(cycle_id=cycle.id if cycle else None, kind=kind, data=data)
     db.add(event)
     await db.flush()
-    db.add(OutboxEvent(event_id=event.id))
+    outbox = OutboxEvent(event_id=event.id)
+    db.add(outbox)
+    return outbox
 
 
 async def approve_plan(db, plan, ctx, expected_hash):

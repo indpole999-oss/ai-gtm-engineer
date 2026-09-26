@@ -1,5 +1,6 @@
 """No network provider calls: a durable, deterministic external-provider ledger."""
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timedelta
 from uuid import UUID
 import pytest
@@ -20,11 +21,11 @@ class FakeProvider:
     durable_idempotency = True
     def __init__(self, path, mode="accepted"):
         self.path, self.mode, self.calls = path, mode, 0
-        with sqlite3.connect(path) as db:
+        with closing(sqlite3.connect(path)) as db, db:
             db.execute("CREATE TABLE IF NOT EXISTS accepted (key TEXT PRIMARY KEY, id TEXT NOT NULL)")
 
     async def lookup(self, key):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             row = db.execute("SELECT id FROM accepted WHERE key=?", (key,)).fetchone()
         return {"status": "accepted", "id": row[0]} if row else None
 
@@ -34,7 +35,7 @@ class FakeProvider:
             return {"status": "rejected"}
         if self.mode == "unavailable":
             raise RuntimeError("fake provider unavailable")
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("INSERT OR IGNORE INTO accepted VALUES (?,?)", (key, "fake-" + key))
         if self.mode == "lost_ack":
             raise RuntimeError("fake response lost after provider accepted")

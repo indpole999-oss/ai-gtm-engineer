@@ -180,6 +180,8 @@ from backend.routers import brain
 from backend.routers import research
 from backend.routers import planning
 from backend.routers import outreach
+from backend.routers import inbox
+app.include_router(inbox.router, prefix="/api/v1/inbox", tags=["Inbox"])
 app.include_router(outreach.router, prefix="/api/v1/outreach", tags=["Outreach"])
 app.include_router(planning.router, prefix="/api/v1/gtm", tags=["GTM planning"])
 app.include_router(research.router, prefix="/api/v1/research", tags=["Research"])

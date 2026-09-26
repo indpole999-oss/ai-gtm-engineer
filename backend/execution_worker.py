@@ -9,10 +9,11 @@ from uuid import UUID, uuid4, uuid5
 from sqlalchemy import select, update, or_, and_, func
 from backend.database import AsyncSessionLocal, Workspace, WorkspaceMembership, User
 from backend import tenancy  # noqa: F401; register scoping and transaction hooks
-from backend.planning_models import PlanVersion, ExecutionCycle, StepRun, ActionCommand, DomainEvent
+from backend.planning_models import PlanVersion, ExecutionCycle, StepRun, ActionCommand, DomainEvent, OutboxEvent
 from backend.brain_models import CompanyBrainVersion
 from backend.planning_service import PlanDocument, ResearchStepOutput, digest, emit, command_payload
 from backend import outreach_models  # noqa: F401; standalone worker metadata
+from backend import inbox_models  # noqa: F401; standalone worker metadata
 from backend.research_models import ResearchJob
 from backend.research_service import execute_research
 
@@ -34,16 +35,24 @@ async def approved(db, cycle):
     return plan if membership else None
 
 
+async def admission(db, workspace_id, now):
+    """Shared admission for approved actions and internal outbox consumption."""
+    workspace = await db.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
+    if not workspace or workspace.status != "active":
+        return False
+    commands = await db.scalar(select(func.count(ActionCommand.id)).where(ActionCommand.status == "running", ActionCommand.lease_until > now))
+    events = await db.scalar(select(func.count(OutboxEvent.id)).where(OutboxEvent.status == "running", OutboxEvent.lease_until > now))
+    recent = await db.scalar(select(func.count(DomainEvent.id)).where(DomainEvent.kind == "command_claimed", DomainEvent.created_at > now - timedelta(minutes=1)))
+    return commands + events < 2 and recent < 10
+
+
 async def claim_next(workspace_id):
     now = datetime.utcnow()
     async with AsyncSessionLocal() as db:
         bind(db, workspace_id)
         # Serialize admission per workspace, including across different cycles.
         # Fixed zero-paid-budget policy is deliberately conservative for Phase 5.
-        await db.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
-        active = await db.scalar(select(func.count(ActionCommand.id)).where(ActionCommand.status == "running", ActionCommand.lease_until > now))
-        recent = await db.scalar(select(func.count(DomainEvent.id)).where(DomainEvent.kind == "command_claimed", DomainEvent.created_at > now - timedelta(minutes=1)))
-        if active >= 2 or recent >= 10:
+        if not await admission(db, workspace_id, now):
             return None
         candidates = (await db.scalars(select(ActionCommand).where(or_(
             and_(ActionCommand.status == "queued", ActionCommand.due_at <= now),
@@ -188,6 +197,9 @@ async def finish(workspace_id, claim, result=None, error=None):
 
 
 async def run_once(workspace_id):
+    from backend.inbox_worker import consume_once
+    if await consume_once(workspace_id):
+        return True
     claim = await claim_next(workspace_id)
     if not claim:
         return False

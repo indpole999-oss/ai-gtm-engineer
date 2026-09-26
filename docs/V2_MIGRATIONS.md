@@ -85,3 +85,18 @@ sequence definitions/message approvals and cross-workspace foreign keys under a
 non-BYPASSRLS runtime role. Start the existing worker only with live delivery still
 disabled until an idempotent adapter passes its separately authorized staging gate.
 Downgrade refuses to discard approvals, provider receipts or suppression history.
+
+
+## Phase 7 additive upgrade
+
+Upgrade `20260926_0010` to `20260926_0011` using Alembic. Seven immutable,
+workspace-scoped inbox tables gain forced PostgreSQL RLS and composite foreign
+keys. Existing outbox rows gain retry/lease fields with zero attempts and no due
+work; existing execution cycles and audit content remain unchanged. Domain events
+may now omit a cycle for independently received inbound mail. SQLite's audit
+immutability triggers are explicitly restored after its required table rebuild.
+Test populated Phase 6 audit/outbox, legacy NULL ownership and immutable evidence
+before adopting the upgrade. No customer ownership is backfilled or reassigned.
+Use the existing worker for deferred inbox classification; live ingestion and
+outbound providers remain disabled. Downgrade refuses to discard inbound evidence
+or sequence holds. See `docs/V2_INBOX.md` for idempotency and recovery contracts.
