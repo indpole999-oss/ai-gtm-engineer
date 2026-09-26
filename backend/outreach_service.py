@@ -269,6 +269,8 @@ async def deliver(db, command, cycle):
         raise ValueError("Provider did not confirm acceptance")
     message.state, message.provider_message_id, message.accepted_at, message.error_code = "sent", receipt["id"], datetime.utcnow(), None
     db.add(DeliveryEvent(message_id=message.id, provider_event_id=key + ":accepted", kind="accepted"))
+    from backend.pipeline_service import outbound
+    await outbound(db, message, draft, cycle)
     await db.commit()
     return {"message_id": str(message.id), "provider_message_id": message.provider_message_id}
 

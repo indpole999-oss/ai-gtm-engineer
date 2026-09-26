@@ -66,6 +66,11 @@ async def create_company(
 
     db.add(new_company)
 
+    from backend.outreach_service import lock_workspace
+    from backend.pipeline_service import ensure
+    await lock_workspace(db)
+    await db.flush()
+    await ensure(db, new_company.id, None, current_user.id)
     await db.commit()
     await db.refresh(new_company)
 

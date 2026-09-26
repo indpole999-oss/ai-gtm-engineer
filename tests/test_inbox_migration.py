@@ -21,7 +21,7 @@ def test_populated_phase6_audit_and_outbox_survive_inbox_upgrade(tmp_path):
         db.execute("INSERT INTO domain_events(id,workspace_id,cycle_id,kind,data,created_at) VALUES(?,?,?,'existing_event','{}',CURRENT_TIMESTAMP)", (event,workspace,cycle))
         db.execute("INSERT INTO outbox_events(id,workspace_id,event_id,status,created_at) VALUES(?,?,?,'pending',CURRENT_TIMESTAMP)", (outbox,workspace,event))
         db.execute("INSERT INTO sender_identities(id,workspace_id,email,provider,status,daily_limit,created_at) VALUES(?,?,'sender@example.com','fake','connected',20,CURRENT_TIMESTAMP)", (sender,workspace))
-    migrate(path, "head")
+    migrate(path, "20260926_0011")
     with sqlite3.connect(path) as db:
         db.execute("PRAGMA foreign_keys=ON")
         assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "20260926_0011"

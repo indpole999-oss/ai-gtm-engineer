@@ -89,7 +89,7 @@ def test_postgres_rls_and_composite_relationships():
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
                     cursor.execute("INSERT INTO contacts(id,email,workspace_id,company_id) VALUES(%s,'bad@example.com',%s,%s)",(str(uuid4()),a,cb))
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone()[0] == "20260926_0011"
+                assert cursor.fetchone()[0] == "20260926_0012"
             probe = Path(__file__).with_name("postgres_worker_probe.py").read_text()
             result = subprocess.run([sys.executable, "-c", probe, a, ca, va, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
@@ -98,6 +98,9 @@ def test_postgres_rls_and_composite_relationships():
             assert result.returncode == 0, result.stdout + result.stderr
             inbox_probe = Path(__file__).with_name("postgres_inbox_probe.py").read_text()
             result = subprocess.run([sys.executable, "-c", inbox_probe, role, b], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
+            assert result.returncode == 0, result.stdout + result.stderr
+            outcomes_probe = Path(__file__).with_name("postgres_outcomes_probe.py").read_text()
+            result = subprocess.run([sys.executable, "-c", outcomes_probe, role], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
             with db.cursor() as cursor:
                 cursor.execute("SELECT set_config('app.workspace_id',%s,false)", (b,))

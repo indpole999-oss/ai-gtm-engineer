@@ -2,9 +2,9 @@
 
 ## Authority and starting point
 
-Current authorization: complete Phase 7 only, then STOP. Do not start Phase 8.
-Phases 1–6 are validated history and must not be repeated.
-Overall V2 completion at this checkpoint: **77%** (user-specified milestone).
+Current authorization: complete Phase 8 only, then STOP. Do not start Phase 9.
+Phases 1–7 are validated history and must not be repeated.
+Overall V2 completion at this checkpoint: **86%** (user-specified milestone).
 Base: validated Phase 0 commit `69b267ca315c1cac1de1476948c7ccf3e9e84fd3`.
 Branch: `codex/ai-gtm-engineer-v2-full-build`.
 Do not merge main, deploy, modify production data, or incur paid-service costs.
@@ -87,7 +87,7 @@ workspace-scoped research result. Migration 0009 backfills workflow ownership
 only from existing cycles and preserves their steps; no legacy reassignment.
 
 Phase 5 validated migration head: `20260923_0009`.
-Current validated migration head: `20260926_0011`.
+Current validated migration head: `20260926_0012`.
 Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
 
 ## Phase 6 checkpoint
@@ -162,9 +162,52 @@ disabled; the only ingestion endpoint is authenticated fake-mailbox simulation.
 Inbox holds have no automatic resume policy. See `docs/V2_INBOX.md` for API,
 classification limitations, provider authentication gate and restart/recovery.
 
+## Phase 8 checkpoint
+
+**PHASE 8 implementation complete and locally validated.** Implements
+**Pipeline + CRM + Calendar only** from the already-verified
+Phase 7 checkpoint `55a0c8c58e2c95b4dce66203e3cb590b446e21a9`. Phases 1–7 were
+reused; no repeated implementation or dependency reinstall was performed.
+
+- Durable account/prospect pipeline and immutable stage history, supported research,
+  confirmed outbound, human reply/interest and confirmed calendar projections.
+  Explicit user/CRM evidence is required for opportunity/won/lost. Manual
+  corrections use reviewed evidence, reasons and optimistic revisions.
+- CRM mappings, reused external IDs, immutable reviewed requests, sync state,
+  successful-sync time, safe errors, remote snapshots/versions, deduplicated
+  receipts and cursor review. Conflicts never cause blind overwrites.
+- Persisted calendar reservations with inbound intent, attendees, IANA timezone,
+  UTC interval and preselected provider event ID. Overlaps/duplicates and changed
+  intent/suppression block dispatch; confirmed receipts alone create meeting state.
+- Existing Phase 5 plans/commands/outbox/worker handle both action types, including
+  durable intent, leases, admission, bounded retries, stale acknowledgements and
+  lookup-before-retry reconciliation. Phase 2 OAuth refresh persists token rotation.
+- HubSpot company/contact/deal and Google Calendar request adapters use an injected
+  deterministic transport in tests. Default live mutations remain disabled;
+  Salesforce writes explicitly reject unsupported behavior. A real transport must
+  prove durable identity and atomic conflict handling at a separate staging gate.
+- Alembic `20260926_0012` adds six tables with forced PostgreSQL RLS, scoped foreign
+  keys, immutable evidence/identity protection and discovered-only owned-data
+  backfill. Legacy NULL ownership and prior inbox/outreach history remain intact.
+- Command-center contracts display exact outcome payloads for review and distinguish
+  CRM/calendar operations and provider-confirmed outputs. Retained pipeline history
+  blocks customer-record deletion/reparenting instead of erasing its evidence.
+
+Focused Phase 8 + populated migration + PostgreSQL validation: **33 passed**.
+Frontend TypeScript, targeted ESLint and production build passed. The single
+broader regression run passed **184 tests** in 320.34 seconds, including PostgreSQL.
+After the final dispatch-time safeguard, **32 focused Phase 8 tests passed**
+in 47.71 seconds; the broader suite was not repeated. CI is verified on the pushed
+checkpoint before final delivery; its exact run/result accompanies that SHA.
+Phase 8 is not accepted if any relevant CI job fails.
+
+No real CRM write, calendar event, external email, production mutation, paid API,
+OpenAI key, Render deployment or main/PR merge occurred. Live transport/staging
+capability validation remains separate from this offline development checkpoint.
+See `docs/V2_OUTCOMES.md` for API contracts, stage semantics, recovery and limits.
+
 ## Remaining phases
 
-8. Outcome pipeline, idempotent CRM sync and calendar booking/reconciliation.
 9. Normalized outcome metrics and evidence-backed descriptive gap recommendations.
 10. Customer navigation and command-center readiness/plans/execution/approvals/outcomes.
 11. Full security/retry/approval/provider/frontend/E2E suite, logging/metrics/rate limits,
@@ -174,20 +217,19 @@ Do not claim readiness until the entire 21-step acceptance scenario passes.
 
 ## Continuation
 
-STOPPED AFTER PHASE 7. Phase 8 has not started and is not authorized in this task.
-Next resume point, only after a new instruction: **Phase 8 — Pipeline + CRM +
-Calendar**, beginning at `PHASE 8 — PIPELINE, CRM & CALENDAR OUTCOMES` in
-`docs/V2_SPECIFICATION.md` (line 519), on this same
+STOPPED AFTER PHASE 8. Phase 9 has not started and is not authorized in this task.
+Next resume point, only after a new instruction: **Phase 9 — Insights + GTM Gap
+Intelligence**, at `PHASE 9 — INSIGHTS & GTM GAP INTELLIGENCE` in
+`docs/V2_SPECIFICATION.md` (line 564), on the same
 `codex/ai-gtm-engineer-v2-full-build` branch and open draft PR #2.
-Verify the latest Phase 7 checkpoint SHA, clean checkout and green CI first.
-Do not repeat Phases 1–7. Begin with the outcome pipeline and durable CRM sync
-contracts (provider mappings/external IDs, sync records/cursors, idempotent
-webhooks, conflicts and health). Then implement reviewed calendar outcomes with
-provider IDs, time zones, duplicate prevention and reconciliation. Reuse Phase
-5 approved action commands/outbox, Phase 6 outbound/suppression safeguards and
-Phase 7 immutable reply intent/history. Positive/meeting intent must not itself
-execute an external action. Preserve tenant boundaries and all approvals.
-Use deterministic fake providers for development and tests; real provider smoke
-tests remain a separately authorized staging gate. Do not deploy, change
-production records, merge main, send external outreach, create real meetings,
-mutate real CRM records or incur paid-service costs.
+Verify the latest Phase 8 checkpoint, clean checkout and green CI when resuming.
+Do not repeat Phases 1–8. Begin by normalizing persisted outcome events and their
+workspace-scoped dimensions: account/industry/size, persona, research evidence,
+message angle/CTA, immutable sequence version, delivery, replies/interest, confirmed
+meetings, explicit opportunities and supported revenue. Build descriptive funnel,
+coverage and CRM-completeness insights with evidence-backed gap recommendations;
+state confidence/limitations and do not imply causal or revenue certainty.
+Reuse existing audit/history/provider receipts without executing new CRM/calendar
+operations. Keep approvals, isolation, suppression, quarantine and immutable history
+intact. No live writes, paid APIs, deployment, production changes or merge are
+implied by this resume point; real provider staging still needs separate authority.

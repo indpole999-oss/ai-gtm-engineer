@@ -146,6 +146,11 @@ async def execute_research(db, job):
             buyer["verification_reason"] = "Observed in a source; mailbox ownership and deliverability have not been verified"
         db.add(AccountIntelligence(job_id=job.id, result=result))
         job.status, job.completed_at = "completed", datetime.utcnow()
+        from backend.outreach_service import lock_workspace
+        from backend.pipeline_service import qualification
+        await lock_workspace(db)
+        await db.flush()
+        await qualification(db, job)
         await db.commit()
     except (RetrievalError, httpx.HTTPError, ValueError, KeyError, TypeError):
         await db.rollback()

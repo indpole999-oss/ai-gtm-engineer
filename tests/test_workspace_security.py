@@ -91,7 +91,7 @@ def test_all_other_customer_records_are_isolated(client, tenants):
     assert "hidden" not in client.get(f"/api/v1/integrations/{integration_id}", headers=b).text
 
 
-@pytest.mark.parametrize("role,write,delete,integrations", [("viewer",403,403,403),("member",200,403,403),("admin",200,200,404),("owner",200,200,404)])
+@pytest.mark.parametrize("role,write,delete,integrations", [("viewer",403,403,403),("member",200,403,403),("admin",200,409,404),("owner",200,409,404)])
 def test_role_policy(client, tenants, role, write, delete, integrations):
     a, b = tenants
     row = company(client, a)

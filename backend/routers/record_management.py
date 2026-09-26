@@ -36,6 +36,11 @@ def add_record_routes(path, model):
 
     async def delete_record(record_id: UUID, db=Depends(get_workspace_db)):
         record = await find_record(db, model, record_id)
+        if model in (Company, Contact):
+            from backend.outcome_models import PipelineRecord
+            field = PipelineRecord.company_id if model is Company else PipelineRecord.contact_id
+            if await db.scalar(select(PipelineRecord.id).where(field == record_id).limit(1)):
+                raise HTTPException(409, "Retained pipeline history references this record; deletion is blocked")
         await db.delete(record)
         await db.flush()
         return {"status": "deleted"}
@@ -63,6 +68,12 @@ async def update_company(record_id: UUID, payload: CompanyPatch, db=Depends(get_
 @router.patch("/contacts/{record_id}")
 async def update_contact(record_id: UUID, payload: ContactPatch, db=Depends(get_workspace_db)):
     record = await find_record(db, Contact, record_id)
+    if "company_id" in payload.model_fields_set and payload.company_id != record.company_id:
+        if payload.company_id:
+            await find_record(db, Company, payload.company_id)
+        from backend.outcome_models import PipelineRecord
+        if await db.scalar(select(PipelineRecord.id).where(PipelineRecord.contact_id == record.id)):
+            raise HTTPException(409, "Retained pipeline history fixes this prospect account; create a separate prospect record")
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(record, key, value)
     await db.flush()

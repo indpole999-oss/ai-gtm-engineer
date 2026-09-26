@@ -100,3 +100,20 @@ before adopting the upgrade. No customer ownership is backfilled or reassigned.
 Use the existing worker for deferred inbox classification; live ingestion and
 outbound providers remain disabled. Downgrade refuses to discard inbound evidence
 or sequence holds. See `docs/V2_INBOX.md` for idempotency and recovery contracts.
+
+
+## Phase 8 additive upgrade
+
+Upgrade `20260926_0011` to `20260926_0012` through Alembic. Six new outcome tables
+receive composite workspace references, forced PostgreSQL RLS, identity/approval
+protection and immutable history/receipt triggers. PostgreSQL JSON payload guards
+compare JSONB values. Existing inbox/outreach/command tables are unchanged.
+
+Discovery backfill visits each explicit workspace with transaction-local RLS
+context, creates stable account/prospect identities and discovered-only history,
+and leaves NULL ownership quarantined. It does not infer earlier qualification,
+sends, replies, meetings or revenue. Verify owned-account/contact counts against
+pipeline discovery and inspect retained inbox/outreach history on a populated
+clone. The runtime role still needs no BYPASSRLS or schema privileges. Historical
+pipeline references prevent hard deletion/reparenting of their customer records.
+Downgrade refuses to discard provider identities, approvals or audit evidence.

@@ -22,13 +22,15 @@ class Target(BaseModel):
 
 class PlanStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    action: Literal["research", "outreach_send"]
+    action: Literal["research", "outreach_send", "crm_sync", "calendar_schedule"]
     message_id: UUID | None = None
+    outcome_id: UUID | None = None
+    outcome_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     target_index: int = Field(ge=0, le=19)
     dependencies: list[int] = Field(default_factory=list, max_length=20)
     rationale: str = Field(min_length=1, max_length=3000)
     expected_output: str = Field(min_length=1, max_length=2000)
-    side_effect: Literal["read_only", "outbound"] = "read_only"
+    side_effect: Literal["read_only", "outbound", "external_write"] = "read_only"
     approval_required: Literal[True] = True
 
     @model_validator(mode="after")
@@ -37,6 +39,11 @@ class PlanStep(BaseModel):
             raise ValueError("Outreach requires an approved message and outbound classification")
         if self.action == "research" and (self.message_id or self.side_effect != "read_only"):
             raise ValueError("Research must be read only")
+        if self.action in {"crm_sync", "calendar_schedule"}:
+            if not self.outcome_id or not self.outcome_hash or self.message_id or self.side_effect != "external_write":
+                raise ValueError("External outcomes require a pinned request and explicit side-effect classification")
+        elif self.outcome_id or self.outcome_hash:
+            raise ValueError("Unexpected outcome reference")
         return self
 
 
@@ -144,6 +151,10 @@ async def approve_plan(db, plan, ctx, expected_hash):
             from backend.outreach_service import valid_message
             from backend.outreach_models import Message
             await valid_message(db, await scoped_record(db, Message, spec.message_id), plan.id)
+        if spec.action in {"crm_sync", "calendar_schedule"}:
+            from backend.outcome_models import OutcomeAction
+            from backend.outcome_service import validate_action
+            await validate_action(db, await scoped_record(db, OutcomeAction, spec.outcome_id), plan, spec)
     plan.status, plan.approved_by, plan.approved_at = "approved", ctx.user_id, datetime.utcnow()
     cycle = ExecutionCycle(plan_id=plan.id, plan_hash=plan.content_hash)
     db.add(cycle)
@@ -166,4 +177,6 @@ def command_payload(plan, step):
     payload = {"brain_version_id": plan.document["brain_version_id"], "target": plan.document["targets"][step.target_index], "dependencies": step.dependencies}
     if step.action == "outreach_send":
         payload["message_id"] = str(step.message_id)
+    if step.action in {"crm_sync", "calendar_schedule"}:
+        payload.update(outcome_id=str(step.outcome_id), outcome_hash=step.outcome_hash)
     return payload

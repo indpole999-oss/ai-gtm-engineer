@@ -13,6 +13,7 @@ from backend.planning_models import PlanVersion, ExecutionCycle, StepRun, Action
 from backend.brain_models import CompanyBrainVersion
 from backend.planning_service import PlanDocument, ResearchStepOutput, digest, emit, command_payload
 from backend import outreach_models  # noqa: F401; standalone worker metadata
+from backend import outcome_models  # noqa: F401
 from backend import inbox_models  # noqa: F401; standalone worker metadata
 from backend.research_models import ResearchJob
 from backend.research_service import execute_research
@@ -119,7 +120,7 @@ async def claim_next(workspace_id):
 
 
 async def perform(workspace_id, claim):
-    if claim["kind"] not in {"research", "outreach_send"}:
+    if claim["kind"] not in {"research", "outreach_send", "crm_sync", "calendar_schedule"}:
         raise ValueError("Unsupported command")
     async with AsyncSessionLocal() as db:
         bind(db, workspace_id)
@@ -130,6 +131,9 @@ async def perform(workspace_id, claim):
         if claim["kind"] == "outreach_send":
             from backend.outreach_service import deliver
             return await deliver(db, command, cycle)
+        if claim["kind"] in {"crm_sync", "calendar_schedule"}:
+            from backend.outcome_service import execute
+            return await execute(db, command, cycle)
         job_id = uuid5(claim["id"], "research")
         job = await db.scalar(select(ResearchJob).where(ResearchJob.id == job_id))
         if job and job.status == "completed":
@@ -165,6 +169,12 @@ async def finish(workspace_id, claim, result=None, error=None):
                     message = await db.scalar(select(Message).where(Message.id == UUID(command.payload["message_id"])))
                     if not message or message.plan_id != cycle.plan_id or message.state != "sent" or result != {"message_id": str(message.id), "provider_message_id": message.provider_message_id}:
                         raise ValueError("Result is not this command's provider-confirmed send")
+                elif command.kind in {"crm_sync", "calendar_schedule"}:
+                    from backend.outcome_models import OutcomeAction
+                    from backend.outcome_service import output
+                    action = await db.scalar(select(OutcomeAction).where(OutcomeAction.id == UUID(command.payload["outcome_id"])))
+                    if not action or action.plan_id != cycle.plan_id or action.state != "confirmed" or not action.receipt or result != output(action):
+                        raise ValueError("Result is not this command's provider-confirmed outcome")
                 else:
                     result = ResearchStepOutput.model_validate(result).model_dump(mode="json")
                     job = await db.scalar(select(ResearchJob).where(ResearchJob.id == UUID(result["research_job_id"])))

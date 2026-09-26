@@ -140,6 +140,8 @@ async def ingest(db, sender_id, event: InboundEvent):
             content_hash=content_hash, association=association, **linkage)
         db.add(message)
         await db.flush()
+        from backend.pipeline_service import inbound
+        await inbound(db, message)
         preliminary = classify(message.subject, message.body, message.auto_submitted)
         await protect_reply(db, message, preliminary.category)
         work = await audit(db, message, "inbound_received", {"association": association})
@@ -160,6 +162,9 @@ async def classify_message(db, message):
     decision = Classification.model_validate(classify(message.subject, message.body, message.auto_submitted))
     row = ReplyClassification(inbound_message_id=message.id, number=1, **decision.model_dump())
     db.add(row)
+    await db.flush()
+    from backend.pipeline_service import inbound
+    await inbound(db, message, row)
     await protect_reply(db, message, decision.category)
     await audit(db, message, "inbound_classified", {"category": decision.category, "classifier": decision.classifier_version})
     return row
@@ -176,6 +181,9 @@ async def override(db, message, ctx, category, reason, expected_number):
         confidence=None, reason=reason, evidence=["Workspace administrator review"], classifier_version="manual-review-v1",
         recommended_action=ACTIONS[category], requires_review=False, manual_override=True, overridden_by=ctx.user_id)
     db.add(row)
+    await db.flush()
+    from backend.pipeline_service import inbound
+    await inbound(db, message, row)
     await protect_reply(db, message, category)
     await audit(db, message, "inbound_classification_overridden", {"category": category, "actor": str(ctx.user_id), "previous_number": number})
     await db.commit()
