@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
-from backend.database import User, get_db
+from backend.database import User, Workspace, WorkspaceMembership, get_db
 
 
 router = APIRouter()
@@ -96,6 +96,8 @@ async def get_current_user(
             algorithms=[settings.ALGORITHM],
         )
 
+        if payload.get("purpose") is not None:
+            raise HTTPException(401, "Invalid authentication token")
         user_id = payload.get("sub")
 
         if not user_id:
@@ -120,7 +122,7 @@ async def get_current_user(
 
         user = result.scalar_one_or_none()
 
-        if not user:
+        if not user or not user.is_active:
             raise HTTPException(
                 status_code=401,
                 detail="User not found",
@@ -185,6 +187,12 @@ async def register(
 
     await db.flush()
 
+    workspace = Workspace(name=f"{user.full_name or 'My'} workspace", slug=f"workspace-{user.id.hex}")
+    db.add(workspace)
+    await db.flush()
+    db.add(WorkspaceMembership(workspace_id=workspace.id, user_id=user.id, role="owner"))
+    await db.flush()
+
     token = create_access_token(
         {"sub": str(user.id)}
     )
@@ -210,7 +218,7 @@ async def login(
 
     user = result.scalar_one_or_none()
 
-    if not user:
+    if not user or not user.is_active:
         raise HTTPException(
             status_code=401,
             detail="Invalid credentials",

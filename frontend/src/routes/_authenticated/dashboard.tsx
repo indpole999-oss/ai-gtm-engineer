@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { GtmCommandCenter } from "@/components/gtm-command-center";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyBlock, ErrorBlock, LoadingBlock } from "@/components/state-block";
@@ -98,6 +99,7 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <GtmCommandCenter />
       <PageHeader
         title="Dashboard"
         description="Live counts and activity straight from your GTM backend. Nothing here is simulated."

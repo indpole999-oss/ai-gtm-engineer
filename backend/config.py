@@ -2,11 +2,21 @@
 Backend Configuration - Settings with Pydantic BaseSettings
 """
 
-from pydantic_settings import BaseSettings
 from typing import List
+
+from cryptography.fernet import Fernet
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
 
     # -----------------------------
     # App
@@ -14,6 +24,7 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "AI GTM Engineer"
     APP_VERSION: str = "1.0.0"
+    APP_ENV: str = "development"
     DEBUG: bool = False
 
     SECRET_KEY: str = "change-me-in-production"
@@ -23,6 +34,7 @@ class Settings(BaseSettings):
 
     # Integration credential encryption
     INTEGRATION_ENCRYPTION_KEY: str = ""
+    ALLOW_LEGACY_ENV_CREDENTIALS: bool = True
 
 
     # -----------------------------
@@ -44,6 +56,7 @@ class Settings(BaseSettings):
     # -----------------------------
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
+    AUTO_CREATE_TABLES: bool = True
 
 
     # -----------------------------
@@ -147,6 +160,8 @@ class Settings(BaseSettings):
 
     CALENDAR_PROVIDER: str = "google"
 
+    FRONTEND_URL: str = "http://localhost:3000"
+
     GOOGLE_CLIENT_ID: str = ""
 
     GOOGLE_CLIENT_SECRET: str = ""
@@ -187,13 +202,57 @@ class Settings(BaseSettings):
     )
 
 
-    class Config:
+    LOG_LEVEL: str = "INFO"
 
-        env_file = ".env"
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV.strip().lower() == "production"
 
-        case_sensitive = True
+    @model_validator(mode="after")
+    def validate_security_configuration(self):
+        """Reject unsafe production settings while keeping local setup simple."""
+        if not self.is_production:
+            return self
 
-        extra = "ignore"
+        errors: list[str] = []
+        insecure_secrets = {
+            "",
+            "change-me-in-production",
+            "your-secret-key-min-32-chars",
+        }
+        if self.SECRET_KEY in insecure_secrets or len(self.SECRET_KEY) < 32:
+            errors.append("SECRET_KEY must be a non-default value of at least 32 characters")
+
+        if not self.INTEGRATION_ENCRYPTION_KEY:
+            errors.append("INTEGRATION_ENCRYPTION_KEY is required")
+        else:
+            try:
+                Fernet(self.INTEGRATION_ENCRYPTION_KEY.encode("utf-8"))
+            except (TypeError, ValueError):
+                errors.append("INTEGRATION_ENCRYPTION_KEY must be a valid Fernet key")
+
+        if not self.DATABASE_URL.startswith(("postgresql+asyncpg://", "postgresql://")):
+            errors.append("DATABASE_URL must use PostgreSQL in production")
+        try:
+            database_url = make_url(self.DATABASE_URL)
+            if not database_url.host or not database_url.database:
+                errors.append("DATABASE_URL must include a database host and name")
+        except Exception:
+            errors.append("DATABASE_URL is not a valid SQLAlchemy URL")
+        if "[YOUR-" in self.DATABASE_URL or "localhost" in self.DATABASE_URL:
+            errors.append("DATABASE_URL contains a placeholder or localhost production host")
+        if self.DEBUG:
+            errors.append("DEBUG must be disabled in production")
+        if self.AUTO_CREATE_TABLES:
+            errors.append("AUTO_CREATE_TABLES must be false in production; run Alembic first")
+        if self.ALLOW_LEGACY_ENV_CREDENTIALS:
+            errors.append("ALLOW_LEGACY_ENV_CREDENTIALS must be false in production")
+        if not self.CORS_ORIGINS or any(origin == "*" for origin in self.CORS_ORIGINS):
+            errors.append("CORS_ORIGINS must contain explicit trusted origins")
+
+        if errors:
+            raise ValueError("Unsafe production configuration: " + "; ".join(errors))
+        return self
 
 
 settings = Settings()
