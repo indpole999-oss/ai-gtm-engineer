@@ -81,6 +81,29 @@ with tempfile.TemporaryDirectory() as directory,pytest.MonkeyPatch.context() as 
         approve(client,b,booking["plan"])
         client.portal.call(worker.run_once,UUID(b["X-Workspace-ID"]))
         assert get_action(client,b,booking)["meeting"]["status"]=="scheduled" and transport.count()==2
+        # Phase 9 consumes the migrated canonical data under a non-bypass role.
+        from backend.insights_service import report as insight_report
+        from datetime import timezone
+        async def insights_security():
+            results=[]
+            for workspace in (wid, UUID(b["X-Workspace-ID"])):
+                async with AsyncSessionLocal() as db:
+                    worker.bind(db,workspace)
+                    connection=await db.connection()
+                    await connection.execute(text(f'SET LOCAL ROLE "{role}"'))
+                    result=await insight_report(db,datetime(2020,1,1,tzinfo=timezone.utc),datetime.now(timezone.utc),"account" if workspace==wid else "contact")
+                    results.append(result)
+                    assert result["approval"]["can_execute"] is False
+                    # Deliberately disagree with ORM context: RLS must still deny.
+                    await connection.execute(text("SELECT set_config('app.workspace_id',:wid,true)"),{"wid":str(uuid4())})
+                    empty=await insight_report(db,datetime(2020,1,1,tzinfo=timezone.utc),datetime.now(timezone.utc),"contact")
+                    assert empty["evidence_manifest"]==[]
+            assert results[0]["event_counts"]["crm_synced"]==1
+            assert results[0]["event_counts"].get("meeting_scheduled",0)==0
+            assert results[1]["event_counts"]["meeting_scheduled"]==1
+            assert results[1]["metrics"]["contacted_to_confirmed_meeting"]["numerator"]==1
+            assert {e["id"] for e in results[0]["evidence_manifest"]}.isdisjoint(e["id"] for e in results[1]["evidence_manifest"])
+        client.portal.call(insights_security)
         async def security():
             async with AsyncSessionLocal() as db:
                 worker.bind(db,wid)

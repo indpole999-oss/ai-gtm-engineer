@@ -181,6 +181,8 @@ from backend.routers import research
 from backend.routers import planning
 from backend.routers import outreach
 from backend.routers import outcomes
+from backend.routers import insights
+app.include_router(insights.router, prefix="/api/v1/insights", tags=["Insights and GTM gaps"])
 app.include_router(outcomes.router, prefix="/api/v1/outcomes", tags=["Pipeline and outcomes"])
 from backend.routers import inbox
 app.include_router(inbox.router, prefix="/api/v1/inbox", tags=["Inbox"])

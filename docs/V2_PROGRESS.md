@@ -2,9 +2,9 @@
 
 ## Authority and starting point
 
-Current authorization: complete Phase 8 only, then STOP. Do not start Phase 9.
-Phases 1–7 are validated history and must not be repeated.
-Overall V2 completion at this checkpoint: **86%** (user-specified milestone).
+Current authorization: complete Phase 9 only, then STOP. Do not start Phase 10.
+Phases 1–8 are validated history and must not be repeated.
+Overall V2 completion at this checkpoint: **91%** (user-specified milestone).
 Base: validated Phase 0 commit `69b267ca315c1cac1de1476948c7ccf3e9e84fd3`.
 Branch: `codex/ai-gtm-engineer-v2-full-build`.
 Do not merge main, deploy, modify production data, or incur paid-service costs.
@@ -206,9 +206,50 @@ OpenAI key, Render deployment or main/PR merge occurred. Live transport/staging
 capability validation remains separate from this offline development checkpoint.
 See `docs/V2_OUTCOMES.md` for API contracts, stage semantics, recovery and limits.
 
+## Phase 9 — Insights + GTM Gap Intelligence (complete)
+
+Added a read-only `/api/v1/insights` API and versioned canonical event projection.
+Reports include contact/account cohort funnels, actual stage entries and corrected
+current-stage counts, confirmed-send/delivery/reply/positive-reply performance,
+confirmed meeting conversion, research coverage and confirmed CRM sync coverage.
+Campaign, immutable sequence version, message, exact CTA, pinned ICP segment,
+evidence-linked recipient-title persona and why-now statement breakdowns retain
+source IDs and historical dimensions. Unsupported industry/company-size/message
+angle dimensions remain unknown; actual costs and revenue remain insufficient_data.
+
+Descriptive gap rules include exact cohort/member evidence, numerator/denominator,
+sample size, UTC half-open range, confidence, limitations, review thresholds,
+version, as-of time, expected outcome, unknown cost, risk and required approval.
+Reports include their full normalized evidence manifest and deterministic hashes.
+Fewer than 20 observations or incomplete reply classification prevents a low-reply
+recommendation. Zero denominators return null. Retries/receipts do not inflate
+business outcomes; pipeline corrections preserve historical entries without
+misreporting current state. No prediction, causal/revenue guarantee or automatic
+execution is introduced. Existing Phase 5 approval/action-command/outbox machinery
+is unchanged. All active roles can read only their own workspace's evidence.
+
+No schema change was required; normalized events are derived from existing
+canonical tables, not a second event log. Alembic head remains `20260926_0012`.
+Existing RLS, composite tenant relationships and legacy quarantine are preserved.
+No frontend files changed; Phase 10 remains separate. Synchronous reporting has an
+explicit 20,000-row per-source limit and fails without partial results above it.
+See `docs/V2_INSIGHTS.md` for exact semantics, evidence lineage and limitations.
+
+Validation:
+- Single broader backend regression with PostgreSQL: **204 passed**, 477.05 seconds.
+- Final focused Phase 9 suite after the incomplete-classification safeguard:
+  **20 passed**, 30.98 seconds. The broader suite was not repeated.
+- Focused PostgreSQL migrated-database/security test: **1 passed**, 36.94 seconds,
+  including analytics under a non-bypass role and a deliberate ORM/RLS context
+  mismatch. The broader run also passed the PostgreSQL test.
+- No frontend contract consumer/component changed. Existing GitHub CI runs frontend
+  TypeScript, targeted lint and production build on the pushed checkpoint; exact
+  CI status/run is reported with the final commit. No dependency reinstall locally.
+- No real CRM/calendar/email action, production mutation, paid API, deployment or
+  merge occurred. PR #2 remains draft/open; Phase 10 has not started.
+
 ## Remaining phases
 
-9. Normalized outcome metrics and evidence-backed descriptive gap recommendations.
 10. Customer navigation and command-center readiness/plans/execution/approvals/outcomes.
 11. Full security/retry/approval/provider/frontend/E2E suite, logging/metrics/rate limits,
     staging smoke test and deployment readiness documentation.
@@ -217,19 +258,23 @@ Do not claim readiness until the entire 21-step acceptance scenario passes.
 
 ## Continuation
 
-STOPPED AFTER PHASE 8. Phase 9 has not started and is not authorized in this task.
-Next resume point, only after a new instruction: **Phase 9 — Insights + GTM Gap
-Intelligence**, at `PHASE 9 — INSIGHTS & GTM GAP INTELLIGENCE` in
-`docs/V2_SPECIFICATION.md` (line 564), on the same
+STOPPED AFTER PHASE 9. Phase 10 has not started and is not authorized in this task.
+Next resume point, only after a new instruction: **Phase 10 — SaaS Frontend Cutover**,
+at `PHASE 10 — CUSTOMER EXPERIENCE CUTOVER` in `docs/V2_SPECIFICATION.md`, on the same
 `codex/ai-gtm-engineer-v2-full-build` branch and open draft PR #2.
-Verify the latest Phase 8 checkpoint, clean checkout and green CI when resuming.
-Do not repeat Phases 1–8. Begin by normalizing persisted outcome events and their
-workspace-scoped dimensions: account/industry/size, persona, research evidence,
-message angle/CTA, immutable sequence version, delivery, replies/interest, confirmed
-meetings, explicit opportunities and supported revenue. Build descriptive funnel,
-coverage and CRM-completeness insights with evidence-backed gap recommendations;
-state confidence/limitations and do not imply causal or revenue certainty.
-Reuse existing audit/history/provider receipts without executing new CRM/calendar
-operations. Keep approvals, isolation, suppression, quarantine and immutable history
-intact. No live writes, paid APIs, deployment, production changes or merge are
-implied by this resume point; real provider staging still needs separate authority.
+Do not repeat Phases 1–9. Begin with customer navigation: AI GTM, Prospects,
+Outreach, Inbox, Pipeline, Insights, Integrations and Settings. Hide raw Agents,
+Workflows, provider debug tools, execution traces and prompt/model debugging from
+normal customers while retaining appropriate internal operator access. Connect the
+command center to current goal, Brain readiness/version, plan/execution progress,
+blockers, approvals, completed work, opportunities, evidence, outcomes and advisory
+next actions. Consume the Phase 9 analytics contract without implying that an
+advisory recommendation is approved to execute.
+
+Preserve this Phase 10 requirement exactly:
+
+“Build the GAPS AI customer frontend with a premium, Apple-inspired SaaS experience: smooth 60fps transitions, restrained motion, clean typography, generous spacing, subtle depth, polished hover/focus states, skeleton loading, responsive layouts, and no heavy visual clutter. Do not copy Apple’s UI directly; create an original GAPS AI design system with the same level of refinement.”
+
+Keep approvals, workspace isolation/RBAC, suppression, immutable versions and
+quarantine intact. No real side effects, paid services, deployment, production
+changes or merge are implied. Stop after Phase 10; Phase 11 needs separate authority.
