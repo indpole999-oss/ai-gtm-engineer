@@ -2,6 +2,16 @@
 
 ## Latest Phase 11 offline follow-up — 2026-09-29
 
+Final logging review also disabled raw Uvicorn/Gunicorn access records and HTTP
+client verbose logs, which could otherwise expose OAuth callback query strings
+outside the sanitized application middleware. Ingress redaction is a staging gate.
+The preceding checkpoint `b6b866a91dc70295ea7482e9ca7b794c345e5429` passed
+all CI jobs in run `36466310690`: **241 backend tests passed, 1 PostgreSQL-only
+skip**, with that PostgreSQL security/concurrent-admission probe passing in its
+separate job; migration to `20260928_0013` and frontend production validation
+passed. Focused logging/config/auth/OAuth validation: **47 passed**. Final logging
+checkpoint CI is recorded on PR #2 so release evidence stays tied to its SHA.
+
 Security checkpoint `f8518a8bf4f3f7fede1d6a01329203c10626d981` is pushed and
 passed all CI jobs in run `36463968080`. Its staged work was preserved across
 the interruption, not recreated.

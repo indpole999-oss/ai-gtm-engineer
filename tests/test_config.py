@@ -58,6 +58,15 @@ def test_safe_production_configuration_is_accepted():
     assert production_settings().is_production is True
 
 
+def test_raw_http_access_and_client_debug_logging_are_disabled(caplog):
+    with caplog.at_level(logging.DEBUG):
+        for name in ("uvicorn.access", "gunicorn.access", "httpx", "httpx2", "httpcore"):
+            logging.getLogger(name).info("GET /callback?code=never-log-this-oauth-code")
+        logging.getLogger("backend.main").info("safe_application_access_record")
+    assert "never-log-this-oauth-code" not in caplog.text
+    assert "safe_application_access_record" in caplog.text
+
+
 def test_development_configuration_remains_practical():
     settings = Settings(
         _env_file=None,

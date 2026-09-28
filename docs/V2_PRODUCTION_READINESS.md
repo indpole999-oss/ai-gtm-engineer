@@ -21,6 +21,9 @@ checkpoint, not authorization to deploy. Phases 1–10 remain completed history.
 - Unexpected API exceptions return a generic error with a request ID. Access
   logs use route templates rather than arbitrary URL paths. Never log request
   bodies, authorization headers, provider responses or OAuth query strings.
+  Raw Uvicorn/Gunicorn access logging is disabled by application logging setup;
+  HTTP client loggers are restricted to WARNING. The ingress must independently
+  omit query strings and sensitive headers; verify this with the staging OAuth test.
 - Worker attempts log workspace, goal, run, step and command IDs, action, duration
   and processing outcome. `result_processed` is not proof of provider success;
   canonical command state and provider receipts remain authoritative.

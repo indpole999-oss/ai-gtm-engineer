@@ -69,6 +69,12 @@ class RequestContextFilter(logging.Filter):
 
 
 def configure_logging() -> None:
+    # Framework access loggers have their own handlers and may include OAuth
+    # callback query strings. The application middleware emits safe route logs.
+    for name in ("uvicorn.access", "gunicorn.access"):
+        logging.getLogger(name).disabled = True
+    for name in ("httpx", "httpx2", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
     handler.addFilter(RequestContextFilter())
