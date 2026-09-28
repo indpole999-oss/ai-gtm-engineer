@@ -2,6 +2,17 @@
 
 ## Phase 11 current checkpoint — 2026-09-28
 
+Dependency remediation follow-up: switched Company Brain PDF preview from PyPDF2
+to pypdf >=6.19,<7; removed unused python-jose/ecdsa and the unreferenced legacy
+ChromaDB runtime dependency. The standalone legacy vector-memory source remains
+preserved but its vector mode is not part of V2 runtime support. Local pip tooling
+was updated. Final local `pip-audit`: **no known vulnerabilities**; `pip check`:
+**no broken requirements**. Focused PDF/Brain/auth/OAuth suite: **34 passed**;
+journey and durable planning/worker suite after dependency removal: **14 passed**.
+The previous operational checkpoint `c82622d3a209e01a5f4df744b6b1677d85cbe7b9`
+passed all three GitHub CI jobs in run `36432630418`, including PostgreSQL and
+Linux production frontend build. The dependency follow-up requires its own CI.
+
 Resumed from confirmed remote `5723a13a0973cbc9b2a4be59f738e39d7712f250`
 after explicit authorization. No prior Phase 11 work was recoverable; no Phase 1–10
 implementation was repeated and the unrelated `_upload` checkout was not used.
@@ -19,8 +30,8 @@ Focused tests: **27 passed**. Full backend regression: **213 passed, 1 skipped**
 TypeScript and 4/4 contract tests passed; targeted lint: zero errors, four existing
 Fast Refresh warnings. Final npm audit: zero vulnerabilities. Local production
 build reached Nitro bundling but was blocked by Windows sandbox readlink EPERM;
-Linux CI remains required. Python environment audit reports ChromaDB, ecdsa,
-PyPDF2 and local pip advisories; these remain an explicit security gate.
+Linux CI subsequently passed as recorded above. Initial Python environment audit
+findings were remediated by the dependency follow-up described above.
 Disposable empty SQLite upgrade/current passed at
 `20260926_0012`; no migrations added or modified. Full regression and checkpoint
 CI results are recorded in PR #2.

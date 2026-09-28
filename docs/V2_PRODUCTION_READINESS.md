@@ -34,11 +34,14 @@ checkpoint, not authorization to deploy. Phases 1–10 remain completed history.
 
 ## Release blockers and remaining validation
 
-Python environment audit reported 20 advisory entries across ChromaDB 1.5.9,
-ecdsa 0.19.2, PyPDF2 3.0.1 and local pip 25.0.1 (including repeated IDs).
-Dependency remediation/reachability review is required; do not waive these based
-on passing tests. ChromaDB has no fixed version listed by the audit. The local
-pip version is tooling, not an application requirement.
+The initial Python audit reported ChromaDB, ecdsa, PyPDF2 and local pip advisories.
+The V2 runtime no longer installs unused python-jose/ecdsa or ChromaDB. Repository
+reference inspection found ChromaDB only in the standalone legacy MemoryAgent,
+which is not imported by V2 API/workers. Its vector mode is excluded from this
+release; do not re-enable it without a security-reviewed dependency and tenant
+boundary. Its source was preserved. PDF preview now uses maintained pypdf with
+text extraction and encrypted/malformed-file regression tests. Local pip tooling
+was updated separately; this does not change the application requirements.
 
 1. Live mail transport, authenticated inbound/delivery receipts, CRM atomic conflict
    handling and calendar provider identity/reconciliation require implementation

@@ -27,7 +27,7 @@ def extract_document(filename, raw):
         if suffix in {".txt", ".md"}:
             content = raw.decode("utf-8-sig")
         elif suffix == ".pdf":
-            from PyPDF2 import PdfReader
+            from pypdf import PdfReader
             document = PdfReader(BytesIO(raw))
             if document.is_encrypted or len(document.pages) > 50:
                 raise ValueError("Unsupported PDF")
