@@ -1,5 +1,36 @@
 # AI GTM Engineer V2 implementation progress
 
+## Phase 11 current checkpoint — 2026-09-28
+
+Resumed from confirmed remote `5723a13a0973cbc9b2a4be59f738e39d7712f250`
+after explicit authorization. No prior Phase 11 work was recoverable; no Phase 1–10
+implementation was repeated and the unrelated `_upload` checkout was not used.
+
+Added bounded database/schema readiness, bounded per-process auth admission,
+generic correlated unexpected-error responses, route-template access logging,
+worker workspace/goal/run/step/command correlation and attempt timing, and
+owner/admin-only tenant-scoped operational counts. Added a continuous offline
+API journey with explicit approval at research, outreach, calendar, CRM and next
+cycle boundaries. Updated transitive js-yaml 4.3.1 to 4.3.2 for a high-severity
+npm advisory, preserving unrelated lockfile entries.
+
+Focused tests: **27 passed**. Full backend regression: **213 passed, 1 skipped**
+(377.60 seconds); the skip is PostgreSQL-only and must pass in CI. Frontend
+TypeScript and 4/4 contract tests passed; targeted lint: zero errors, four existing
+Fast Refresh warnings. Final npm audit: zero vulnerabilities. Local production
+build reached Nitro bundling but was blocked by Windows sandbox readlink EPERM;
+Linux CI remains required. Python environment audit reports ChromaDB, ecdsa,
+PyPDF2 and local pip advisories; these remain an explicit security gate.
+Disposable empty SQLite upgrade/current passed at
+`20260926_0012`; no migrations added or modified. Full regression and checkpoint
+CI results are recorded in PR #2.
+
+**Phase 11 remains incomplete; production readiness is not claimed.** Live
+transports, delivery/inbound receipts, staging OAuth/model/UI journey, shared edge
+limits/monitoring and retention/robots/legal review remain release gates. Exact
+scope, limitations, configuration and deployment checklist:
+`docs/V2_PRODUCTION_READINESS.md`. No production writes, paid calls, deployment or merge.
+
 ## Authority and starting point
 
 Current authorization: finish Phase 10, commit/push its validated checkpoint, then continue automatically into Phase 11 Production Hardening.

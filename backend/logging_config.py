@@ -54,7 +54,7 @@ class JsonFormatter(logging.Formatter):
             "message": redact(record.getMessage()),
             "request_id": getattr(record, "request_id", request_id_context.get()),
         }
-        for key in ("method", "path", "status_code", "duration_ms"):
+        for key in ("method", "path", "status_code", "duration_ms", "workspace_id", "goal_id", "run_id", "step_id", "command_id", "action", "outcome"):
             if hasattr(record, key):
                 payload[key] = redact(getattr(record, key))
         if record.exc_info:

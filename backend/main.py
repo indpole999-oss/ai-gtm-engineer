@@ -12,6 +12,8 @@ import logging
 import time
 import uuid
 import re
+from fastapi.responses import JSONResponse
+from backend.abuse import auth_limiter
 
 from backend.config import settings
 from backend.database import engine, Base
@@ -87,7 +89,15 @@ async def request_context_middleware(request: Request, call_next):
     started = time.perf_counter()
     status_code = 500
     try:
-        response = await call_next(request)
+        if request.method == "POST" and request.url.path.rstrip("/") in {"/api/v1/auth/login", "/api/v1/auth/register"} and not auth_limiter.allow(request.client.host if request.client else "unknown"):
+            response = JSONResponse({"detail": "Too many authentication attempts"}, status_code=429, headers={"Retry-After": "60"})
+        else:
+            try:
+                response = await call_next(request)
+            except Exception:
+                # Arbitrary exception strings can contain provider payloads or credentials.
+                logger.error("request_failed")
+                response = JSONResponse({"detail": "An internal error occurred", "request_id": request_id}, status_code=500)
         status_code = response.status_code
         response.headers["X-Request-ID"] = request_id
         return response
@@ -96,7 +106,7 @@ async def request_context_middleware(request: Request, call_next):
             "request_completed",
             extra={
                 "method": request.method,
-                "path": request.url.path,
+                "path": getattr(request.scope.get("route"), "path", "unmatched"),
                 "status_code": status_code,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 2),
             },
@@ -182,6 +192,8 @@ from backend.routers import planning
 from backend.routers import outreach
 from backend.routers import outcomes
 from backend.routers import insights
+from backend.routers import operations
+app.include_router(operations.router, prefix="/api/v1", tags=["Operations"])
 app.include_router(insights.router, prefix="/api/v1/insights", tags=["Insights and GTM gaps"])
 app.include_router(outcomes.router, prefix="/api/v1/outcomes", tags=["Pipeline and outcomes"])
 from backend.routers import inbox

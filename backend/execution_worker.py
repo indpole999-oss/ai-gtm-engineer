@@ -4,6 +4,8 @@ Trusted worker sessions bind one workspace at a time. No customer credentials
 come from deployment-global provider variables. Only approved commands execute.
 """
 import asyncio
+import logging
+import time
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4, uuid5
 from sqlalchemy import select, update, or_, and_, func
@@ -113,6 +115,7 @@ async def claim_next(workspace_id):
             step.status = "running"
             await emit(db, cycle, "command_claimed", {"command_id": str(command.id), "attempt": command.attempts + 1})
             result = {"id": command.id, "token": token, "kind": command.kind, "payload": command.payload,
+                      "goal_id": plan.goal_id, "run_id": cycle.id, "step_id": command.step_id,
                       "timeout": policy.timeout_seconds, "max_attempts": policy.max_attempts, "approved_by": plan.approved_by}
             await db.commit()
             return result
@@ -213,14 +216,24 @@ async def run_once(workspace_id):
     claim = await claim_next(workspace_id)
     if not claim:
         return False
+    started = time.monotonic()
+    context = {"workspace_id": str(workspace_id), "goal_id": str(claim["goal_id"]), "run_id": str(claim["run_id"]),
+               "step_id": str(claim["step_id"]), "command_id": str(claim["id"]), "action": claim["kind"]}
+    logger = logging.getLogger(__name__)
+    logger.info("command_attempt_started", extra=context)
+    outcome = "interrupted"
     try:
         result = await asyncio.wait_for(perform(workspace_id, claim), timeout=claim["timeout"])
     except asyncio.CancelledError:
         raise  # Leave the lease for restart recovery; no false acknowledgement.
     except Exception:
         await finish(workspace_id, claim, error="command_execution_failed")
+        outcome = "execution_error"
     else:
         await finish(workspace_id, claim, result=result)
+        outcome = "result_processed"
+    finally:
+        logger.info("command_attempt_finished", extra={**context, "outcome": outcome, "duration_ms": round((time.monotonic() - started) * 1000, 2)})
     return True
 
 
@@ -234,4 +247,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    from backend.logging_config import configure_logging
+    configure_logging()
     asyncio.run(main())

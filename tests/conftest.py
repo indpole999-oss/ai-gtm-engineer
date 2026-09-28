@@ -25,7 +25,9 @@ from backend.database import engine, Base  # noqa: E402
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    from backend.abuse import AuthLimiter
+    monkeypatch.setattr("backend.main.auth_limiter", AuthLimiter())
     TEST_DB.unlink(missing_ok=True)
     async def initialize_test_schema():
         async with engine.begin() as connection:
