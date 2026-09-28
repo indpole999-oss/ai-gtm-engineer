@@ -1,4 +1,6 @@
 import { API_BASE_URL, TOKEN_STORAGE_KEY } from "./api-config";
+let workspaceId: string | null = null;
+export function setWorkspaceId(id: string | null) { workspaceId = id; }
 
 export type Json =
   | string
@@ -46,6 +48,7 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null) {
+  workspaceId = null;
   if (typeof window === "undefined") return;
 
   try {
@@ -100,6 +103,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
+  if (workspaceId && !path.startsWith("/api/v1/auth/") && path !== "/api/v1/workspaces") headers.set("X-Workspace-ID", workspaceId);
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);

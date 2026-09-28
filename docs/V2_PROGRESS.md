@@ -2,9 +2,9 @@
 
 ## Authority and starting point
 
-Current authorization: complete Phase 9 only, then STOP. Do not start Phase 10.
-Phases 1–8 are validated history and must not be repeated.
-Overall V2 completion at this checkpoint: **91%** (user-specified milestone).
+Current authorization: finish Phase 10, commit/push its validated checkpoint, then continue automatically into Phase 11 Production Hardening.
+Phases 1–9 are validated history and must not be repeated.
+Overall V2 completion at this checkpoint: **95%** (user-specified Phase 10 milestone).
 Base: validated Phase 0 commit `69b267ca315c1cac1de1476948c7ccf3e9e84fd3`.
 Branch: `codex/ai-gtm-engineer-v2-full-build`.
 Do not merge main, deploy, modify production data, or incur paid-service costs.
@@ -258,18 +258,28 @@ Do not claim readiness until the entire 21-step acceptance scenario passes.
 
 ## Continuation
 
-STOPPED AFTER PHASE 9. Phase 10 has not started and is not authorized in this task.
-Next resume point, only after a new instruction: **Phase 10 — SaaS Frontend Cutover**,
-at `PHASE 10 — CUSTOMER EXPERIENCE CUTOVER` in `docs/V2_SPECIFICATION.md`, on the same
-`codex/ai-gtm-engineer-v2-full-build` branch and open draft PR #2.
-Do not repeat Phases 1–9. Begin with customer navigation: AI GTM, Prospects,
-Outreach, Inbox, Pipeline, Insights, Integrations and Settings. Hide raw Agents,
-Workflows, provider debug tools, execution traces and prompt/model debugging from
-normal customers while retaining appropriate internal operator access. Connect the
-command center to current goal, Brain readiness/version, plan/execution progress,
-blockers, approvals, completed work, opportunities, evidence, outcomes and advisory
-next actions. Consume the Phase 9 analytics contract without implying that an
-advisory recommendation is approved to execute.
+Phase 10 — SaaS Frontend Cutover is complete. Existing work in progress was
+preserved and extended on the same branch. Customer navigation, eight workspace
+views, original GAPS AI styling, responsive navigation, review boundaries,
+workspace switching, evidence and truthful outcome states are implemented.
+See `docs/V2_CUSTOMER_EXPERIENCE.md` for scope, validation and limitations.
+
+Validation: TypeScript passed; production build passed; correctness lint has zero
+errors and four non-blocking Fast Refresh warnings; frontend contract tests 4/4;
+focused backend/API tests 35/35; full backend regression including local PostgreSQL
+migration/RLS tests 205/205. No schema change: head remains `20260926_0012`.
+The interrupted broad test run was restarted because its process/result was lost;
+the completed run is recorded in `.venv/phase10-regression.log` (local artifact).
+
+Exact next step: **Phase 11 — Production Hardening**, beginning at that heading
+in `docs/V2_SPECIFICATION.md`. Reuse existing tenant, approval, idempotency,
+reconciliation and migration tests; add missing operational hardening and the
+21-step fake-provider acceptance test. Review request/workspace/goal/run/step
+correlation, safe errors/redaction, auth abuse limits, database readiness and
+workspace-scoped operational metrics. Validate research privacy/robots/retention
+and document deployment gates without deploying. No production readiness claim
+until all actual release gates are verified. Phase 11 is explicitly authorized
+by the latest user instruction; continue after Phase 10 checkpoint CI is green.
 
 Preserve this Phase 10 requirement exactly:
 
@@ -277,4 +287,4 @@ Preserve this Phase 10 requirement exactly:
 
 Keep approvals, workspace isolation/RBAC, suppression, immutable versions and
 quarantine intact. No real side effects, paid services, deployment, production
-changes or merge are implied. Stop after Phase 10; Phase 11 needs separate authority.
+changes or merge are implied. Phase 11 is now authorized; deployment and merging are not.
