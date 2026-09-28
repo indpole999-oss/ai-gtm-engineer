@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from backend.database import Company, Contact, CRMRecord, EmailLog, Meeting
 from backend.tenancy import get_workspace_db
 
@@ -42,7 +43,11 @@ def add_record_routes(path, model):
             if await db.scalar(select(PipelineRecord.id).where(field == record_id).limit(1)):
                 raise HTTPException(409, "Retained pipeline history references this record; deletion is blocked")
         await db.delete(record)
-        await db.flush()
+        try:
+            await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(409, "Retained relationships reference this record; deletion is blocked") from None
         return {"status": "deleted"}
 
     if model not in (Company, Contact):

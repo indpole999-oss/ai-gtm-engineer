@@ -1,5 +1,11 @@
 """One continuous API journey with isolated fake providers, never live success."""
 from datetime import datetime, timezone, timedelta
+from types import SimpleNamespace
+from uuid import UUID
+import hashlib
+import pytest
+from backend import planning_service, research_service, outreach_service, execution_worker
+from backend.database import AsyncSessionLocal
 from test_workspace_security import signup, company
 from test_research import published, fake_research  # noqa: F401
 from test_outreach import provider, post, approve_draft, get_message  # noqa: F401
@@ -9,14 +15,32 @@ from test_planning_execution import approve
 from test_insights import query
 
 
-def test_continuous_approved_customer_journey(client, fake_research, provider, transport):
+@pytest.mark.parametrize("planner_mode", ["research_template", "local_ai"])
+def test_continuous_approved_customer_journey(client, fake_research, provider, transport, monkeypatch, planner_mode):
+    class FakePlanner:
+        async def plan(self, context):
+            document = planning_service.research_template(SimpleNamespace(objective=context["objective"], target_inputs=context["targets"]), SimpleNamespace(profile=context["company_brain"]))
+            return document, "fake-planner-contract-v1"
+    monkeypatch.setattr(planning_service, "planner_provider", FakePlanner)
+    original_retrieve = research_service.retrieve
+    signal = "Acme announced a revenue operations hiring program on 2026-09-28."
+    def source(url):
+        capture = original_retrieve(url)
+        capture["content"] += " " + signal
+        capture["content_hash"] = hashlib.sha256(capture["content"].encode()).hexdigest()
+        return capture
+    monkeypatch.setattr(research_service, "retrieve", source)
+    fake_research["claims"].append({"text": signal, "kind": "provider_assertion", "confidence": 0.7, "source_index": 0, "excerpt": signal})
+    fake_research["why_now"] = {"reasoning": "The supplied fixture reports recent RevOps hiring", "claim_indices": [1]}
     a = signup(client, "journey@example.com")
     brain, account = published(client, a), company(client, a)
     calendar_id = integration(client, a, "calendar", "google")
     crm_id = integration(client, a)
     objective = "Find one US B2B SaaS company that matches our ICP and prepare personalized outreach for the best RevOps buyer."
     goal = client.post("/api/v1/gtm/goals", headers=a, json={"objective": objective, "brain_version_id": brain["id"], "targets": [{"company_id": account["id"], "source_urls": ["https://example.com/"]}]}).json()
-    plan = client.post(f"/api/v1/gtm/goals/{goal['id']}/plans", headers=a, json={"mode": "research_template"}).json()
+    plan = client.post(f"/api/v1/gtm/goals/{goal['id']}/plans", headers=a, json={"mode": planner_mode}).json()
+    if planner_mode == "local_ai":
+        assert plan["author_method"] == "fake-planner-contract-v1"
     assert not run(client, a)
     cycle = approve(client, a, plan)
     assert run(client, a)
@@ -42,6 +66,14 @@ def test_continuous_approved_customer_journey(client, fake_research, provider, t
     assert outbound["provider_message_id"] and provider.calls == 1
     # Acceptance is not delivery: no delivery webhook transport is available yet.
     assert query(client, a)["metrics"]["outreach"]["delivered"]["numerator"] == 0
+    async def fake_delivery_receipt():
+        async with AsyncSessionLocal() as db:
+            execution_worker.bind(db, UUID(a["X-Workspace-ID"]))
+            for _ in range(2):
+                await outreach_service.record_delivery_event(db, UUID(outbound["id"]), outbound["provider_message_id"], "fake-delivery-receipt", "delivered")
+            await db.commit()
+    client.portal.call(fake_delivery_receipt)
+    assert query(client, a)["metrics"]["outreach"]["delivered"]["numerator"] == 1
     incoming = ingest(client, a, {"sender": sender}, event(outbound, body="Let's schedule a meeting."))
     assert run(client, a)
     incoming = client.get("/api/v1/inbox/messages/" + incoming["id"], headers=a).json()

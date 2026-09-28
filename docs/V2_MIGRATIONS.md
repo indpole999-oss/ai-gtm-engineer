@@ -1,5 +1,26 @@
 # V2 migration and recovery runbook
 
+## Phase 11 additive admission migration
+
+Current head: `20260928_0013`, following `20260926_0012`. It adds only
+`auth_admission_buckets` and a window index; existing customer data, RLS,
+immutable evidence, quarantines and ownership are unchanged. Apply with the
+migration role before starting the new API. Readiness requires this revision;
+authentication fails closed if the counter store is unavailable.
+
+Grant counter-table SELECT/INSERT/UPDATE/DELETE only to the API service role.
+It contains HMAC peer keys, minute windows and counts, not raw IPs, credentials
+or customer data. PUBLIC privileges are revoked. Do not expose it to browser or
+client SQL roles. Current/previous abuse windows are cleaned during admission;
+this is protocol state and does not establish a customer retention duration.
+All replicas must share the signing secret, database and admission limits.
+
+The migration is additive and compatible with the prior binary; downgrade is
+deliberately refused. Roll back application binaries only through a reviewed
+release plan and preserve the additive table. Empty/populated SQLite upgrades
+and a PostgreSQL concurrent-admission probe validate this change on disposable
+databases. Production migration and restoration remain separately authorized.
+
 No production database has been contacted or changed during implementation.
 Run schema changes using Alembic only. Application startup no longer creates
 tables. Preserve the Phase 0 baseline adoption procedure for pre-Alembic databases.

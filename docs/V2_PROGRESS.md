@@ -1,5 +1,34 @@
 # AI GTM Engineer V2 implementation progress
 
+## Latest Phase 11 offline follow-up — 2026-09-29
+
+Security checkpoint `f8518a8bf4f3f7fede1d6a01329203c10626d981` is pushed and
+passed all CI jobs in run `36463968080`. Its staged work was preserved across
+the interruption, not recreated.
+
+Further offline hardening adds database-backed authentication admission across
+replicas, database time/atomic counters and fail-closed store errors; public HTTPS
+production configuration checks; bounded password handling and input-free
+validation errors; conservative robots/noarchive/noai source policies; scoped
+operational alerts/approval ages and retention inventory; safe referenced-deletion
+409 responses. The existing journey now also exercises a fake planner, supported
+fixture buying signals and distinct deduplicated fake delivery receipts.
+
+Migration `20260928_0013` adds only ephemeral admission counters and an index,
+revokes PUBLIC table access on PostgreSQL, and refuses destructive downgrade.
+No customer records or previous migrations changed. Readiness/CI expect the new
+head. Empty SQLite upgrade/current passed; populated upgrade tests passed.
+Focused suite: **69 passed**, then final robots suite **12 passed** after a
+conservative deny-precedence check. Final checkpoint CI must validate PostgreSQL
+concurrent admission plus all existing regression/frontend gates.
+
+The user confirmed no isolated live staging and no approved retention policy.
+Retention durations remain unset and deletion fails closed for retained evidence.
+See `docs/V2_STAGING_VALIDATION.md` for minimum isolated accounts/integrations,
+the fake-versus-live evidence matrix and explicit release decisions. Live staging,
+retention approval and implementation of the approved lifecycle remain required;
+do not claim production readiness or authorize deployment from offline tests.
+
 ## Phase 11 current checkpoint — 2026-09-28
 
 Dependency remediation follow-up: switched Company Brain PDF preview from PyPDF2

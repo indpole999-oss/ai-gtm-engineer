@@ -13,6 +13,7 @@ TEST_DB = Path(TEST_DIRECTORY.name) / "test.db"
 os.environ.update(
     {
         "APP_ENV": "test",
+        "AUTH_ADMISSION_STORE": "memory",
         "DATABASE_URL": f"sqlite+aiosqlite:///{TEST_DB.as_posix()}",
         "SECRET_KEY": "test-only-secret-key-that-is-long-enough",
         "ALLOW_LEGACY_ENV_CREDENTIALS": "false",

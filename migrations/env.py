@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from backend.config import settings
 from backend.database import Base
+from backend import admission  # noqa: F401
 from backend import brain_models  # noqa: F401; register Company Brain metadata
 from backend import research_models  # noqa: F401; register research metadata
 from backend import planning_models  # noqa: F401; register durable execution metadata

@@ -29,3 +29,10 @@ def test_unexpected_error_is_safe_and_correlated(client, monkeypatch):
     assert response.status_code == 500
     assert response.json() == {"detail": "An internal error occurred", "request_id": "safe-correlation"}
     assert response.headers["x-request-id"] == "safe-correlation"
+
+
+def test_invalid_passwords_never_echo_secret_or_raise_server_error(client):
+    for password in ("short", "x" * 73, "🔒" * 20):
+        response = client.post("/api/v1/auth/register", json={"email": "invalid@example.com", "password": password})
+        assert response.status_code == 422
+        assert response.json() == {"detail": "Invalid request"}

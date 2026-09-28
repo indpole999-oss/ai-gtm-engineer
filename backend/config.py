@@ -2,12 +2,31 @@
 Backend Configuration - Settings with Pydantic BaseSettings
 """
 
-from typing import List
+from typing import List, Literal
 
 from cryptography.fernet import Fernet
-from pydantic import model_validator
+from pydantic import model_validator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
+from urllib.parse import urlsplit
+import ipaddress
+
+
+def public_https(value):
+    try:
+        url = urlsplit(value)
+        if url.scheme != "https" or not url.hostname or url.username or url.password or url.query or url.fragment:
+            return False
+        if url.hostname == "localhost" or url.hostname.endswith((".localhost", ".local")):
+            return False
+        try:
+            if not ipaddress.ip_address(url.hostname).is_global:
+                return False
+        except ValueError:
+            pass
+        return url.port in (None, 443)
+    except ValueError:
+        return False
 
 
 class Settings(BaseSettings):
@@ -26,6 +45,9 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     APP_ENV: str = "development"
     DEBUG: bool = False
+    AUTH_ADMISSION_STORE: Literal["database", "memory"] = "database"
+    AUTH_PEER_LIMIT: int = Field(default=30, ge=1, le=10000)
+    AUTH_GLOBAL_LIMIT: int = Field(default=300, ge=1, le=100000)
 
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
@@ -215,6 +237,16 @@ class Settings(BaseSettings):
             return self
 
         errors: list[str] = []
+        if self.AUTH_ADMISSION_STORE != "database":
+            errors.append("AUTH_ADMISSION_STORE must use the shared database in production")
+        if self.ALGORITHM != "HS256":
+            errors.append("ALGORITHM must be HS256 for the configured symmetric signing key")
+        if not public_https(self.FRONTEND_URL):
+            errors.append("FRONTEND_URL must be a public HTTPS URL")
+        if any(not public_https(origin) or urlsplit(origin).path for origin in self.CORS_ORIGINS):
+            errors.append("CORS_ORIGINS must be public HTTPS origins without paths")
+        if self.GOOGLE_CLIENT_ID and (not self.GOOGLE_CLIENT_SECRET or not public_https(self.GOOGLE_REDIRECT_URI)):
+            errors.append("Configured Google OAuth requires a secret and public HTTPS callback")
         insecure_secrets = {
             "",
             "change-me-in-production",

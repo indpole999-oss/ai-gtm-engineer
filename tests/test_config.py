@@ -20,8 +20,10 @@ def production_settings(**overrides):
         "DATABASE_URL": "postgresql+asyncpg://app:password@database.internal/app",
         "ALLOW_LEGACY_ENV_CREDENTIALS": False,
         "DEBUG": False,
+        "AUTH_ADMISSION_STORE": "database",
         "AUTO_CREATE_TABLES": False,
         "CORS_ORIGINS": ["https://app.example.com"],
+        "FRONTEND_URL": "https://app.example.com",
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -37,8 +39,14 @@ def production_settings(**overrides):
         {"DATABASE_URL": "postgresql+asyncpg:///missing-host"},
         {"ALLOW_LEGACY_ENV_CREDENTIALS": True},
         {"DEBUG": True},
+        {"AUTH_ADMISSION_STORE": "memory"},
         {"AUTO_CREATE_TABLES": True},
         {"CORS_ORIGINS": ["*"]},
+        {"FRONTEND_URL": "http://localhost:3000"},
+        {"CORS_ORIGINS": ["https://127.0.0.1"]},
+        {"CORS_ORIGINS": ["https://app.example.com/path"]},
+        {"GOOGLE_CLIENT_ID": "configured", "GOOGLE_CLIENT_SECRET": ""},
+        {"ALGORITHM": "none"},
     ],
 )
 def test_unsafe_production_configuration_is_rejected(override):

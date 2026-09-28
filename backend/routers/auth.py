@@ -10,7 +10,7 @@ import bcrypt
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,8 +31,15 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=72)
     full_name: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def bounded_password(cls, value):
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password exceeds supported UTF-8 length")
+        return value
 
 
 class Token(BaseModel):

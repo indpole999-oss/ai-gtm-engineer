@@ -69,6 +69,7 @@ async def get_workspace_db(request: Request, ctx=Depends(get_current_workspace),
     if previous and previous != ctx.workspace_id:
         raise HTTPException(403, "Cannot change workspace within a session")
     db.info.update(workspace_id=ctx.workspace_id, workspace_role=ctx.role)
+    request.state.workspace_id = str(ctx.workspace_id)
     # Auth may already have opened the transaction before this dependency ran.
     if db.bind.dialect.name == "postgresql":
         await db.execute(text("SELECT set_config('app.workspace_id', :workspace, true)"),

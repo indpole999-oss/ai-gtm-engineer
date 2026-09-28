@@ -27,6 +27,9 @@ def test_postgres_rls_and_composite_relationships():
         result = subprocess.run([sys.executable,"-m","alembic","upgrade","head"],
                                 cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
         assert result.returncode == 0, result.stdout + result.stderr
+        admission = subprocess.run([sys.executable, str(Path(__file__).with_name("postgres_admission_probe.py"))],
+                                   env=env, capture_output=True, text=True)
+        assert admission.returncode == 0, admission.stdout + admission.stderr
         db = psycopg2.connect(url.render_as_string(hide_password=False))
         db.autocommit = True
         try:
@@ -89,7 +92,7 @@ def test_postgres_rls_and_composite_relationships():
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
                     cursor.execute("INSERT INTO contacts(id,email,workspace_id,company_id) VALUES(%s,'bad@example.com',%s,%s)",(str(uuid4()),a,cb))
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone()[0] == "20260926_0012"
+                assert cursor.fetchone()[0] == "20260928_0013"
             probe = Path(__file__).with_name("postgres_worker_probe.py").read_text()
             result = subprocess.run([sys.executable, "-c", probe, a, ca, va, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr

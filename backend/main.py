@@ -13,7 +13,10 @@ import time
 import uuid
 import re
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from backend.abuse import auth_limiter
+from backend.admission import allow_auth
+import asyncio
 
 from backend.config import settings
 from backend.database import engine, Base
@@ -63,6 +66,12 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(RequestValidationError)
+async def safe_validation_error(request, error):
+    # Pydantic error input/context may echo credentials or uploaded source content.
+    return JSONResponse({"detail": "Invalid request"}, status_code=422)
+
+
 # ==============================
 # CORS
 # ==============================
@@ -89,9 +98,17 @@ async def request_context_middleware(request: Request, call_next):
     started = time.perf_counter()
     status_code = 500
     try:
-        if request.method == "POST" and request.url.path.rstrip("/") in {"/api/v1/auth/login", "/api/v1/auth/register"} and not auth_limiter.allow(request.client.host if request.client else "unknown"):
-            response = JSONResponse({"detail": "Too many authentication attempts"}, status_code=429, headers={"Retry-After": "60"})
-        else:
+        response = None
+        if request.method == "POST" and request.url.path.rstrip("/") in {"/api/v1/auth/login", "/api/v1/auth/register"}:
+            peer = request.client.host if request.client else "unknown"
+            try:
+                allowed = (await asyncio.wait_for(allow_auth(peer), timeout=3)
+                           if settings.AUTH_ADMISSION_STORE == "database" else auth_limiter.allow(peer))
+                if not allowed:
+                    response = JSONResponse({"detail": "Too many authentication attempts"}, status_code=429, headers={"Retry-After": "60"})
+            except Exception:
+                response = JSONResponse({"detail": "Authentication temporarily unavailable"}, status_code=503, headers={"Retry-After": "60"})
+        if response is None:
             try:
                 response = await call_next(request)
             except Exception:
@@ -109,6 +126,7 @@ async def request_context_middleware(request: Request, call_next):
                 "path": getattr(request.scope.get("route"), "path", "unmatched"),
                 "status_code": status_code,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                "workspace_id": getattr(request.state, "workspace_id", None),
             },
         )
         request_id_context.reset(token)
