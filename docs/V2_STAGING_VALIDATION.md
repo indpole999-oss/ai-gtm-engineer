@@ -4,6 +4,11 @@ No isolated live-provider staging environment is currently confirmed. Do not use
 production data/accounts or spend provider credits to substitute for this gate.
 No secret values belong in chat, tickets, screenshots, test logs or PR comments.
 
+The 2026-09-29 zero-cost topology decision and exact configuration are in
+`docs/V2_STAGING_TOPOLOGY.md`. Its selected local-process + separate Supabase
+rehearsal covers only the explicitly identified gates; the hosted acceptance
+matrix below is unchanged. No resource or live validation is implied by preparation.
+
 ## Minimum isolated setup
 
 1. An isolated API + frontend + separate durable worker, PostgreSQL database,

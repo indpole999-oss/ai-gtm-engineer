@@ -1,5 +1,26 @@
 # AI GTM Engineer V2 implementation progress
 
+## Zero-cost staging architecture decision — 2026-09-29
+
+Prepared V2_STAGING_TOPOLOGY.md and a non-secret local environment template.
+Reused completed read-only account results: existing Render workspace confirmed,
+Supabase Free organization quoted a separate new project at $0/month; requested
+Render staging service names were absent. No resources or secrets were created.
+
+Selected an attended local-process rehearsal (frontend, two APIs, independent
+durable worker and loopback-only Ollama) with separate Supabase staging PostgreSQL.
+Incremental platform estimate is $0 within Free limits and existing hardware.
+All-Render is deferred: no Free worker, shared Free web hours, and model hosting
+is unprovisioned. Combining API/worker or CI cron cannot satisfy independent
+worker lifecycle/availability. No production architecture was changed.
+
+The decision records precise environment/URL/role/migration preparation, model
+and credential gates, and local-versus-hosted evidence limits. Actual model
+capacity, hosted restore, live-provider journey, Render supervision/edge and
+notification delivery remain unvalidated. Retention remains unset. No production
+service/database/settings, charges, deploys or main merge. Configuration/document
+checks only; existing green runtime CI is not repeated for this preparation.
+
 ## New-laptop continuation — 2026-09-29
 
 Fetched GitHub and fast-forwarded the V2 checkout from 5723a13 to confirmed
