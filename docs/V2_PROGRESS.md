@@ -1,5 +1,20 @@
 # AI GTM Engineer V2 implementation progress
 
+## Laptop capacity gate — 2026-09-29
+
+Completed read-only host inspection from 503f8fe: Windows 11 25H2 build
+26200.9550, i3-1215U (6 cores/8 threads), 8 GiB installed RAM with only
+1.12–1.15 GiB available, and 267.76 GiB free disk. No usable Ollama/Docker,
+WSL installation, local model inventory or running Ollama endpoint was found.
+Exact evidence and installation prerequisites are in V2_STAGING_TOPOLOGY.md.
+
+Full model-backed rehearsal is blocked by current memory headroom and missing
+Ollama/model, plus the not-yet-created isolated staging database. No install,
+settings change, app termination, resource creation or paid call occurred.
+Prefer another already-owned host with adequate RAM for the unchanged topology;
+non-model tests on this laptop cannot stand in for model acceptance. No model
+benchmark or staging success is claimed. Provider writes remain disabled.
+
 ## Zero-cost staging architecture decision — 2026-09-29
 
 Prepared V2_STAGING_TOPOLOGY.md and a non-secret local environment template.

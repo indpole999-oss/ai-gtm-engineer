@@ -34,10 +34,66 @@ deployment-parity gate. No cheaper substitute is silently accepted as that gate.
   deploy settings, domains, or shared billing settings.
 - Never connect to or alter Supabase `qjkcqdiznthffbqmltrr`, including restoring,
   resuming, branching, reading its data, or copying its credentials.
-- Local Python and Node are available. Ollama and Docker were not found on PATH;
-  this does not prove they are uninstalled. The attempted RAM inventory was denied,
-  so memory/GPU capacity and model readiness are unverified. No software/model was
-  installed or downloaded. No machine settings were changed.
+- Local Python and Node are available. The subsequent authorized read-only host
+  inspection below resolves the earlier sandbox-denied hardware inventory.
+  No software/model was installed or downloaded. No machine settings were changed.
+
+## Laptop capacity inspection — 2026-09-29
+
+Inspection started from clean checkpoint 503f8fe. WMI/CIM required read-only
+sandbox escalation; no installation, process termination, service start, machine
+configuration change, or external account recheck was performed.
+
+| Item | Observed result |
+|---|---|
+| Windows | Windows 11 Home Single Language, 25H2, 64-bit; build 26200.9550. The registry's legacy ProductName says Windows 10, but CIM Caption identifies Windows 11. |
+| CPU | Intel Core i3-1215U (12th generation), 6 cores / 8 logical processors |
+| RAM | 8.00 GiB installed, 7.69 GiB OS-visible; 1.12–1.15 GiB available during inspection |
+| Graphics | Intel UHD integrated graphics; no discrete GPU observed. Do not treat reported AdapterRAM as dedicated model memory or assume acceleration. |
+| Disk C: | 267.76 GiB free of 454.94 GiB |
+| Python / Node | Existing project Python 3.12.14 and bundled Node executable available |
+| Docker | Not found on PATH, standard Docker Desktop executable path, uninstall inventory, or matching running processes/services; no usable engine discovered |
+| WSL | wsl.exe exists, but wsl --status reports WSL is not installed |
+| Ollama / version | No PATH executable, standard user/system executable, uninstall entry or running process/service found; loopback /api/version unavailable. Version not available. |
+| Local models | No default model manifest directory, no configured OLLAMA_MODELS path, and loopback /api/tags unavailable. No available models discovered. |
+
+**Decision: do not run the complete model-backed rehearsal under current memory
+pressure.** This is a capacity assessment, not a measured model benchmark or a
+claim that this CPU can never run a 4B model. The configured qwen3:4b Q4_K_M
+artifact alone is listed at 2.5 GB; inference adds context/runtime memory before
+the browser, frontend, two APIs and worker are counted. Paging is not evidence of
+adequate capacity, and the existing 90-second request deadline is unverified.
+Disk and Windows compatibility are adequate; CPU is plausible for the non-model
+services, but inference latency has not been measured. All-process headroom is
+currently insufficient for a responsible readiness run.
+
+Native Python/Node processes do not require Docker or WSL; do not install either
+to perform this rehearsal. Connecting to remote Supabase does not require a local
+database server, but the isolated project and its credentials are still absent,
+so connectivity/roles/TLS have not been tested. Do not probe the production project.
+
+If a model trial is later authorized after establishing sufficient headroom, the
+exact missing software is the free **Ollama native Windows x64 application** from
+the official installer, followed by **qwen3:4b** (for example, `ollama pull qwen3:4b`).
+Ollama documents at least 4 GB of installation disk space, plus model storage.
+Keep OLLAMA_HOST=127.0.0.1:11434 and OLLAMA_NO_CLOUD=1; record the actual version
+and model digest. Do not install yet, use a smaller model as acceptance evidence,
+extend timeouts to manufacture a pass, change paging settings, or close user apps.
+Sources: [Windows installation](https://docs.ollama.com/windows),
+[exact model artifact](https://ollama.com/library/qwen3:4b).
+
+Safest free alternative: use another already-owned non-production computer with
+more available RAM for this same separate-process topology, keeping Ollama on
+loopback. A **16 GiB or larger host is a practical planning target**, not a verified
+minimum or a performance guarantee; benchmark the original workload and deadline.
+Moving the whole rehearsal there avoids exposing Ollama to the network. No host
+is assumed to exist and no hardware purchase is authorized. This laptop may still
+be used for bounded non-model tests after freeing headroom voluntarily, but those
+tests cannot complete model/live-provider or hosted deployment acceptance.
+
+No staging services were started, resources created, credentials requested, paid
+calls made, or provider writes enabled. Model/version, simultaneous resource use,
+Supabase connectivity and the primary staging journey remain NOT RUN/BLOCKED.
 
 ## Options considered
 
