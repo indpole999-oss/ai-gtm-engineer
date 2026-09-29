@@ -91,6 +91,11 @@ was updated separately; this does not change the application requirements.
 8. Validate backup restoration and populated production-like PostgreSQL upgrades
    under separate migration/runtime roles. CI disposable databases are not a
    substitute for restoration evidence or production configuration review.
+   A dedicated synthetic pg_dump/pg_restore CI rehearsal now covers populated
+   0012 restoration followed by additive 0013 upgrade, repeated upgrade and
+   runtime-role tenant isolation. It does not prove encrypted backup/key custody,
+   full evidence-chain recovery, least-privilege migration ownership or scale.
+   See the ordered operator rehearsal in V2_STAGING_VALIDATION.md.
 
 ## Required configuration and integrations
 

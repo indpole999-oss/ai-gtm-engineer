@@ -1,5 +1,28 @@
 # AI GTM Engineer V2 implementation progress
 
+## New-laptop continuation — 2026-09-29
+
+Fetched GitHub and fast-forwarded the V2 checkout from 5723a13 to confirmed
+511f634a0567b9ca04078d6cf87babb2c83756ae. All pre-existing tracked/untracked
+changes remain in local stash `new-laptop-preserved-before-v2-sync-2026-09-29`;
+this alternative hardening implementation was not reapplied over remote code.
+GitHub run 36467618613 confirms backend, empty migration, PostgreSQL security,
+frontend contracts/TypeScript/build/lint all successful at 511f634.
+
+Added a narrowly scoped synthetic PostgreSQL dump/restore/populated additive
+upgrade rehearsal to the PostgreSQL CI job. Local collection passes with the
+expected skip because no disposable PostgreSQL service/tools are configured on
+this laptop; CI must execute the test before this checkpoint is accepted.
+No full already-green local regression was repeated. The staging document now
+includes ordered setup/credential gates, restore evidence limits and an actual
+notification/recovery drill. Checkpoint CI evidence is recorded on PR #2.
+
+Phase 11 remains incomplete. Disabled live transports and provider telemetry are
+implementation gaps, not merely missing credentials. Isolated staging, reviewed
+retention policy, least-privilege recovery and real provider/UI evidence remain
+required. No accounts connected, purchases, paid calls, deployment, production
+data changes or merge. Retention durations remain unset.
+
 ## Latest Phase 11 offline follow-up — 2026-09-29
 
 Final logging review also disabled raw Uvicorn/Gunicorn access records and HTTP

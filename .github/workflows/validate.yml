@@ -69,3 +69,10 @@ jobs:
       - run: python -m pytest -q tests/test_postgres_boundary.py
         env:
           POSTGRES_TEST_URL: postgresql://postgres:isolated-ci-only@localhost:5432/postgres
+      - name: Install matching PostgreSQL backup tools
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client-16
+      - name: Synthetic backup restoration and populated upgrade
+        run: python -m pytest -q tests/test_postgres_restore.py
+        env:
+          POSTGRES_TEST_URL: postgresql://postgres:isolated-ci-only@localhost:5432/postgres
+          PG_BIN: /usr/lib/postgresql/16/bin
