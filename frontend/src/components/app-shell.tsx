@@ -33,17 +33,16 @@ export const NAV = [
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav aria-label="Customer navigation" className="space-y-1">
+    <nav aria-label="Customer navigation" className="space-y-1.5">
       {NAV.map(({ to, label, icon: Icon }) => (
         <Link
           key={to}
           to={to}
           preload="intent"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="g-nav"
           activeProps={{
-            className:
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+            className: "g-nav",
           }}
         >
           <Icon className="size-4 shrink-0" aria-hidden />
@@ -73,30 +72,30 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const brand = (
     <div className="flex items-center gap-2.5">
-      <span className="flex size-8 items-center justify-center rounded-md bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">
+      <span className="flex size-9 items-center justify-center rounded-xl bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground shadow-sm">
         G
       </span>
       <div className="leading-tight">
-        <p className="text-sm font-semibold text-sidebar-foreground">GAPS AI</p>
+        <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">GAPS AI</p>
         <p className="text-[11px] text-sidebar-foreground/60">Your growth, with clarity.</p>
       </div>
     </div>
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="g-app-frame flex bg-background">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:z-50 focus:bg-card focus:p-4"
       >
         Skip to content
       </a>
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r bg-sidebar md:flex">
-        <div className="px-5 py-5">{brand}</div>
+      <aside className="g-sidebar sticky top-0 hidden h-[calc(100vh-1.5rem)] w-[17rem] shrink-0 flex-col border-r border-sidebar-border md:flex">
+        <div className="px-5 py-6">{brand}</div>
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           <NavLinks />
         </div>
-        <div className="border-t border-sidebar-border px-3 py-3">
+        <div className="border-t border-sidebar-border/70 px-3 py-4">
           <p className="truncate px-2 text-sm font-medium text-sidebar-foreground">
             {displayName(user)}
           </p>
@@ -113,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-3 border-b bg-card px-4 py-3 md:hidden">
+        <header className="g-topbar flex items-center justify-between gap-3 border-b px-4 py-3 md:hidden">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon" aria-label="Open navigation">
@@ -134,14 +133,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LogOut className="size-4" aria-hidden />
           </Button>
         </header>
-        <div className="flex items-center justify-end border-b bg-card px-5 py-4">
+        <div className="g-topbar flex items-center justify-end border-b px-5 py-3.5">
           <label className="flex items-center gap-3 text-xs text-muted-foreground">
             Workspace
             <select
               aria-label="Current workspace"
               value={workspace.id}
               onChange={(e) => select(e.target.value)}
-              className="max-w-52 rounded-lg border bg-card px-3 py-2 text-sm text-foreground"
+              className="g-input max-w-56 py-2 text-sm"
             >
               {workspaces.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -154,9 +153,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="min-w-0 flex-1 px-5 py-8 md:px-10 md:py-12"
+          className="min-w-0 flex-1 px-5 py-8 md:px-10 md:py-10 xl:px-14"
         >
-          <div key={location.pathname} className="g-page mx-auto max-w-7xl space-y-8">
+          <div key={location.pathname} className="g-page mx-auto max-w-[92rem] space-y-8">
             {internal && !operator ? (
               <section className="g-panel">
                 <h1 className="text-2xl font-semibold">This page is not part of your workspace</h1>
