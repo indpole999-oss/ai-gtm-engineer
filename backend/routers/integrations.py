@@ -29,7 +29,7 @@ class IntegrationUpdate(BaseModel):
 def integration_response(row):
     return {"id":str(row.id), "workspace_id":str(row.workspace_id), "user_id":str(row.user_id),
             "category":row.category, "provider":row.provider, "auth_type":row.auth_type,
-            "config":{k:v for k,v in (row.config or {}).items() if k in {"calendar_id","instance_url","from_email"}},
+            "config":{k:v for k,v in (row.config or {}).items() if k in {"calendar_id","instance_url","from_email","tool_name"}},
             "status":row.status, "health":row.health, "scopes":row.scopes,
             "token_expires_at":row.token_expires_at, "reconnect_required":row.reconnect_required,
             "last_connected_at":row.last_connected_at, "last_error_at":row.last_error_at,
