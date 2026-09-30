@@ -61,7 +61,7 @@ async def test_connection(db, row, actor_id):
         credentials = await refresh_if_needed(db, row, actor_id)
         health = await providers.get_provider(row.category, row.provider).verify(credentials, row.config or {})
         row.health = health.status
-        row.status = "connected" if health.status == "healthy" else "disconnected"
+        row.status = "connected" if health.status in {"healthy", "configured_unverified"} else "disconnected"
         row.scopes = health.scopes
         row.last_error = None
         row.reconnect_required = False
