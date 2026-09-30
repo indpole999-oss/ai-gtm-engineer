@@ -41,6 +41,11 @@ CONTRACTS = {
     ("email", "resend"): ProviderContract("email", "resend", ("api_key", "bearer"), ("from_email",)),
     ("search", "serper"): ProviderContract("search", "serper", ("api_key",)),
     ("enrichment", "apollo"): ProviderContract("enrichment", "apollo", ("api_key",)),
+    ("calendar", "custom"): ProviderContract("calendar", "custom", ("oauth2", "api_key", "bearer"), ("tool_name", "instance_url")),
+    ("crm", "custom"): ProviderContract("crm", "custom", ("oauth2", "api_key", "bearer"), ("tool_name", "instance_url")),
+    ("email", "custom"): ProviderContract("email", "custom", ("oauth2", "api_key", "bearer"), ("tool_name", "instance_url")),
+    ("search", "custom"): ProviderContract("search", "custom", ("oauth2", "api_key", "bearer"), ("tool_name", "instance_url")),
+    ("enrichment", "custom"): ProviderContract("enrichment", "custom", ("oauth2", "api_key", "bearer"), ("tool_name", "instance_url")),
 }
 
 
@@ -65,6 +70,8 @@ def validate_connection(category, provider, auth_type, credentials, config):
         raise ProviderError("credential_required")
     if provider == "salesforce":
         salesforce_origin(config.get("instance_url"))
+    if provider == "custom" and not str(config.get("tool_name", "")).strip():
+        raise ProviderError("tool_name_required")
     return contract
 
 
@@ -100,6 +107,8 @@ class HttpProvider:
             "resend": "https://api.resend.com/domains",
             "apollo": "https://api.apollo.io/api/v1/auth/health",
         }
+        if self.provider == "custom":
+            return ProviderHealth(status="configured_unverified")
         if self.provider == "salesforce":
             endpoint = salesforce_origin(config.get("instance_url")) + "/services/data/v61.0/limits"
         elif self.provider == "serper":
