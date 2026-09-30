@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from backend.database import engine
 
-EXPECTED_REVISION = "20260930_0014"
+EXPECTED_REVISION = "20260928_0013"
 
 router = APIRouter()
 
