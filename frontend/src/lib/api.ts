@@ -1,6 +1,35 @@
 import { API_BASE_URL, TOKEN_STORAGE_KEY } from "./api-config";
+
+const WORKSPACE_STORAGE_KEY = "gaps_ai_workspace_id";
 let workspaceId: string | null = null;
-export function setWorkspaceId(id: string | null) { workspaceId = id; }
+
+export function getWorkspaceId(): string | null {
+  if (workspaceId) return workspaceId;
+  if (typeof window === "undefined") return null;
+
+  try {
+    workspaceId = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  } catch {
+    workspaceId = null;
+  }
+
+  return workspaceId;
+}
+
+export function setWorkspaceId(id: string | null) {
+  workspaceId = id;
+  if (typeof window === "undefined") return;
+
+  try {
+    if (id) {
+      window.localStorage.setItem(WORKSPACE_STORAGE_KEY, id);
+    } else {
+      window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+    }
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 export type Json =
   | string
@@ -48,7 +77,9 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null) {
-  workspaceId = null;
+  // A new sign-in must not inherit another user's workspace.
+  // Refreshes do not call setToken, so the current workspace remains restorable.
+  setWorkspaceId(null);
   if (typeof window === "undefined") return;
 
   try {
@@ -103,7 +134,14 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
-  if (workspaceId && !path.startsWith("/api/v1/auth/") && path !== "/api/v1/workspaces") headers.set("X-Workspace-ID", workspaceId);
+  const activeWorkspaceId = getWorkspaceId();
+  if (
+    activeWorkspaceId &&
+    !path.startsWith("/api/v1/auth/") &&
+    path !== "/api/v1/workspaces"
+  ) {
+    headers.set("X-Workspace-ID", activeWorkspaceId);
+  }
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
