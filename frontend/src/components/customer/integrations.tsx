@@ -76,7 +76,7 @@ function displayName(provider: Provider, connection?: Integration) {
 function ProviderMark({ name }: { name: string }) {
   return (
     <div
-      className="flex size-11 items-center justify-center rounded-2xl border border-white/70 bg-white/75 text-sm font-semibold shadow-sm"
+      className="flex size-11 items-center justify-center rounded-xl border border-white/8 bg-white/[.035] text-sm font-semibold text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,.035)]"
       aria-hidden
     >
       {name.slice(0, 1).toUpperCase()}
@@ -146,7 +146,7 @@ export function IntegrationsPage() {
     <>
       <Heading
         title="Integrations"
-        description="Bring your own GTM stack. Connect a supported provider or choose Other / Custom when your team uses something different."
+        description="Connect the tools your AI GTM employee uses. Choose a supported provider or Other / Custom when your team uses something different."
       />
       <Feedback message={message} />
 
@@ -161,7 +161,7 @@ export function IntegrationsPage() {
           return (
             <section key={category} className="g-panel">
               <div className="mb-6 flex items-start gap-4">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-accent text-primary">
+                <div className="flex size-11 items-center justify-center rounded-xl border border-primary/10 bg-primary/10 text-primary">
                   <Icon className="size-5" aria-hidden />
                 </div>
                 <div>
@@ -250,7 +250,7 @@ export function IntegrationsPage() {
       </div>
 
       {selected && canApprove && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
           <div className="g-panel max-h-[90vh] w-full max-w-xl overflow-y-auto">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
@@ -352,7 +352,7 @@ export function IntegrationsPage() {
         </div>
       )}
 
-      <div className="flex items-start gap-3 rounded-2xl border border-white/70 bg-white/45 p-4 text-xs leading-5 text-muted-foreground">
+      <div className="flex items-start gap-3 rounded-xl border border-white/7 bg-white/[.025] p-4 text-xs leading-5 text-muted-foreground">
         <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
         <p>
           Connected does not mean permission to act. GAPS AI still requires the appropriate review and approval before outbound email, CRM writes or calendar actions.
