@@ -25,15 +25,19 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!list.data || selected || restoreChecked) return;
 
     const storedId = getWorkspaceId();
-    if (storedId) {
-      const restored = list.data.find((workspace) => workspace.id === storedId);
-      if (restored) {
-        setWorkspaceId(restored.id);
-        setSelected(restored);
-      } else {
-        // Membership may have changed; never keep a stale workspace identifier.
-        setWorkspaceId(null);
-      }
+    const restored =
+      (storedId ? list.data.find((workspace) => workspace.id === storedId) : undefined) ??
+      list.data[0] ??
+      null;
+
+    if (restored) {
+      // Always restore an authorized workspace before rendering the routed page.
+      // A valid stored choice wins; otherwise default to the first workspace so
+      // browser refresh never drops the user into the workspace chooser.
+      setWorkspaceId(restored.id);
+      setSelected(restored);
+    } else {
+      setWorkspaceId(null);
     }
 
     setRestoreChecked(true);
