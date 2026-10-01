@@ -1,39 +1,38 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Building2,
-  LayoutDashboard,
+  BarChart3,
+  Command,
+  Inbox,
   LogOut,
-  Mail,
   Menu,
+  Plug,
+  Send,
   Settings,
   Target,
-  Inbox,
-  Plug,
-  ChartNoAxesCombined,
+  Workflow,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { useWorkspace } from "@/lib/workspace";
-import { useLocation } from "@tanstack/react-router";
 import { displayName, useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export const NAV = [
-  { to: "/dashboard", label: "AI GTM", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Command Center", icon: Command },
   { to: "/prospects", label: "Prospects", icon: Target },
-  { to: "/outreach", label: "Outreach", icon: Mail },
+  { to: "/outreach", label: "Outreach", icon: Send },
   { to: "/inbox", label: "Inbox", icon: Inbox },
-  { to: "/pipeline", label: "Pipeline", icon: Building2 },
-  { to: "/insights", label: "Insights", icon: ChartNoAxesCombined },
+  { to: "/pipeline", label: "Pipeline", icon: Workflow },
+  { to: "/insights", label: "Insights", icon: BarChart3 },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav aria-label="Customer navigation" className="space-y-1.5">
+    <nav aria-label="Customer navigation" className="space-y-1">
       {NAV.map(({ to, label, icon: Icon }) => (
         <Link
           key={to}
@@ -41,15 +40,27 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           preload="intent"
           onClick={onNavigate}
           className="g-nav"
-          activeProps={{
-            className: "g-nav",
-          }}
+          activeProps={{ className: "g-nav" }}
         >
-          <Icon className="size-4 shrink-0" aria-hidden />
+          <Icon className="size-[17px] shrink-0" strokeWidth={1.7} aria-hidden />
           {label}
         </Link>
       ))}
     </nav>
+  );
+}
+
+function Brand() {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex size-8 items-center justify-center rounded-[9px] bg-primary text-[13px] font-bold text-primary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,.15)]">
+        G
+      </span>
+      <div className="leading-tight">
+        <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">GAPS AI</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">AI GTM employee</p>
+      </div>
+    </div>
   );
 }
 
@@ -70,18 +81,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     navigate({ to: "/login", replace: true });
   }
 
-  const brand = (
-    <div className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-xl bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground shadow-sm">
-        G
-      </span>
-      <div className="leading-tight">
-        <p className="text-sm font-semibold tracking-tight text-sidebar-foreground">GAPS AI</p>
-        <p className="text-[11px] text-sidebar-foreground/60">Your growth, with clarity.</p>
-      </div>
-    </div>
-  );
-
   return (
     <div className="g-app-frame flex bg-background">
       <a
@@ -90,57 +89,24 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <aside className="g-sidebar sticky top-0 hidden h-[calc(100vh-1.5rem)] w-[17rem] shrink-0 flex-col border-r border-sidebar-border md:flex">
-        <div className="px-5 py-6">{brand}</div>
-        <div className="flex-1 overflow-y-auto px-3 pb-4">
+
+      <aside className="g-sidebar sticky top-0 hidden h-screen w-[15.5rem] shrink-0 flex-col border-r border-sidebar-border md:flex">
+        <div className="px-[22px] py-6">
+          <Brand />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3.5 pb-4 pt-3">
           <NavLinks />
         </div>
-        <div className="border-t border-sidebar-border/70 px-3 py-4">
-          <p className="truncate px-2 text-sm font-medium text-sidebar-foreground">
-            {displayName(user)}
-          </p>
-          <p className="px-2 text-xs text-muted-foreground">{workspace.role} access</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            onClick={handleSignOut}
-          >
-            <LogOut className="size-4" aria-hidden /> Sign out
-          </Button>
-        </div>
-      </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="g-topbar flex items-center justify-between gap-3 border-b px-4 py-3 md:hidden">
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="Open navigation">
-                <Menu className="size-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 bg-sidebar p-0">
-              <SheetHeader className="px-5 py-5">
-                <SheetTitle asChild>{brand}</SheetTitle>
-              </SheetHeader>
-              <div className="px-3">
-                <NavLinks onNavigate={() => setMobileOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
-          <span className="text-sm font-semibold">GAPS AI</span>
-          <Button variant="ghost" size="sm" onClick={handleSignOut} aria-label="Sign out">
-            <LogOut className="size-4" aria-hidden />
-          </Button>
-        </header>
-        <div className="g-topbar flex items-center justify-end border-b px-5 py-3.5">
-          <label className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="border-t border-sidebar-border px-4 py-4">
+          <label className="block text-[10px] font-semibold uppercase tracking-[.12em] text-muted-foreground">
             Workspace
             <select
               aria-label="Current workspace"
               value={workspace.id}
               onChange={(e) => select(e.target.value)}
-              className="g-input max-w-56 py-2 text-sm"
+              className="g-input mt-2 py-2 text-xs"
             >
               {workspaces.map((w) => (
                 <option key={w.id} value={w.id}>
@@ -149,21 +115,90 @@ export function AppShell({ children }: { children: ReactNode }) {
               ))}
             </select>
           </label>
+
+          <div className="mt-4 flex items-center gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
+              {displayName(user)
+                .split(" ")
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join("")
+                .toUpperCase() || "A"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium text-sidebar-foreground">
+                {displayName(user)}
+              </p>
+              <p className="truncate text-[10px] text-muted-foreground">{workspace.role} access</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              onClick={handleSignOut}
+              aria-label="Sign out"
+            >
+              <LogOut className="size-4" aria-hidden />
+            </Button>
+          </div>
         </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="g-topbar flex h-16 items-center justify-between gap-3 border-b px-4 md:hidden">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Open navigation"
+                className="text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <Menu className="size-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0">
+              <SheetHeader className="border-b border-sidebar-border px-5 py-5">
+                <SheetTitle asChild>
+                  <div>
+                    <Brand />
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
+              <div className="px-3 py-4">
+                <NavLinks onNavigate={() => setMobileOpen(false)} />
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <Brand />
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            aria-label="Sign out"
+            className="text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <LogOut className="size-4" aria-hidden />
+          </Button>
+        </header>
+
         <main
           id="main-content"
           tabIndex={-1}
-          className="min-w-0 flex-1 px-5 py-8 md:px-10 md:py-10 xl:px-14"
+          className="min-w-0 flex-1 px-5 py-8 sm:px-8 md:px-10 md:py-12 xl:px-14"
         >
-          <div key={location.pathname} className="g-page mx-auto max-w-[92rem] space-y-8">
+          <div key={location.pathname} className="g-page mx-auto max-w-[92rem] space-y-9">
             {internal && !operator ? (
-              <section className="g-panel">
-                <h1 className="text-2xl font-semibold">This page is not part of your workspace</h1>
-                <p className="my-4 text-muted-foreground">
-                  Your customer tools are available in the navigation.
+              <section className="g-panel max-w-2xl">
+                <p className="eyebrow">WORKSPACE</p>
+                <h1 className="mt-3 text-2xl font-semibold">This page is not part of your workspace</h1>
+                <p className="my-4 text-sm leading-6 text-muted-foreground">
+                  Your customer tools are available from the main navigation.
                 </p>
                 <Link to="/dashboard" className="g-button">
-                  Return to AI GTM
+                  Return to Command Center
                 </Link>
               </section>
             ) : (
