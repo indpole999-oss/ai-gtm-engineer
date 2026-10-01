@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     APP_ENV: str = "development"
     DEBUG: bool = False
+    # Opt in only for the attended, single-service Free staging topology.
+    EMBEDDED_EXECUTION_WORKER: bool = False
     AUTH_ADMISSION_STORE: Literal["database", "memory"] = "database"
     AUTH_PEER_LIMIT: int = Field(default=30, ge=1, le=10000)
     AUTH_GLOBAL_LIMIT: int = Field(default=300, ge=1, le=100000)

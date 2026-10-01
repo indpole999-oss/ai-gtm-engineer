@@ -1,5 +1,43 @@
 # AI GTM Engineer V2 implementation progress
 
+## Early Access repair checkpoint — 2026-10-01
+
+Resumed the existing V2 branch from remote `a661b22239780c1739cad2777886cf341d4c3f35`
+after a clean fast-forward; no prior phase was restarted. Remote CI run
+36859780717 failed backend/TypeScript while PostgreSQL boundary and restore/
+populated-upgrade checks passed. The hosted staging services now exist; the
+older laptop-capacity section below is historical, not current service status.
+
+This checkpoint repairs unconditional embedded-worker startup during test setup,
+adds supervisor restart with sanitized logs, and makes embedded execution
+explicitly opt-in (`EMBEDDED_EXECUTION_WORKER=true` on the staging API only).
+Strict hosted settings can remain enabled independently of that topology flag.
+Production defaults and the independent worker entrypoint remain unchanged.
+
+Planning now selects the same configured Groq provider as research, with local
+Ollama retained when no hosted key is configured. Both hosted schemas include all
+nested properties required by strict mode; local Pydantic/evidence validation
+remains authoritative. AI-generated plans cannot expand the read-only action
+policy. Fixed the integration page TypeScript index access. Robots wildcard
+matching uses literal segments to avoid malicious regex backtracking.
+
+Focused validations: 39 worker/admission/robots/research tests; 21 hosted-model/
+planning tests; 4 frontend contract tests; TypeScript and targeted lint passed
+(lint has 4 Fast Refresh warnings). Full backend regression: 265 passed, 2
+PostgreSQL-only skips; final worker opt-in revision: 6 passed separately.
+New-commit CI is pending at preparation time. Windows client/SSR build passed; final Nitro
+packaging hit EPERM reading C:/Users/WELCOME. Linux CI is the build gate.
+All model tests use fake HTTP; no live model quality/delivery is claimed.
+
+User explicitly chose to keep hosted AI paused. GROQ keys alone no longer
+authorize requests: GTM_HOSTED_AI_ENABLED defaults to false and must be explicitly
+enabled only after separate authorization. Both adapters reject before HTTP when
+paused; synthetic tests opt in against a mock transport only.
+
+See V2_EARLY_ACCESS_BACKLOG.md for remaining gates. Authenticated browser QA is
+waiting for a staging-only user session. No production changes, password/role
+changes, migrations against staging, paid calls, or live provider writes.
+
 ## Laptop capacity gate — 2026-09-29
 
 Completed read-only host inspection from 503f8fe: Windows 11 25H2 build

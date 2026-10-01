@@ -2,7 +2,6 @@
 import hashlib
 import http.client
 import ipaddress
-import re
 import socket
 import ssl
 from html.parser import HTMLParser
@@ -100,10 +99,29 @@ def _robots_rule_matches(pattern, target):
     anchored = pattern.endswith("$")
     if anchored:
         pattern = pattern[:-1]
-    expression = "^" + ".*".join(re.escape(part) for part in pattern.split("*"))
+    # Literal segments avoid regex backtracking on attacker-controlled robots
+    # files (for example many alternating stars and repeated characters).
+    segments = pattern.split("*")
+    if len(segments) == 1:
+        return target == pattern if anchored else target.startswith(pattern)
+    if not target.startswith(segments[0]):
+        return False
+    position, end = len(segments[0]), len(target)
+    remaining = segments[1:]
     if anchored:
-        expression += "$"
-    return re.match(expression, target) is not None
+        suffix = segments[-1]
+        if not target.endswith(suffix):
+            return False
+        end -= len(suffix)
+        if end < position:
+            return False
+        remaining = segments[1:-1]
+    for segment in remaining:
+        found = target.find(segment, position, end)
+        if found < 0:
+            return False
+        position = found + len(segment)
+    return True
 
 
 def check_robots(url):

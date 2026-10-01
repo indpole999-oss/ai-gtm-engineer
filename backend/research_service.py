@@ -12,6 +12,7 @@ from backend.brain_models import CompanyBrainVersion
 from backend.database import Company
 from backend.research_models import ResearchJob, SourceFetch, EvidenceItem, ResearchClaim, AccountIntelligence
 from backend.retrieval import retrieve, RetrievalError
+from backend.hosted_model import groq_configured, groq_output
 
 
 class ExtractedClaim(BaseModel):
@@ -82,43 +83,10 @@ class GroqResearchProvider:
     """Hosted staging provider using Groq's OpenAI-compatible API."""
 
     async def analyze(self, profile, sources, target):
-        api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ-API-KEY", "")
-        if not api_key:
-            raise ValueError("GROQ_API_KEY is not configured")
-
-        model = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
-        base_url = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
-        prompt = research_prompt(profile, sources, target)
-
-        async with httpx.AsyncClient(timeout=90, follow_redirects=False) as client:
-            response = await client.post(
-                base_url + "/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "temperature": 0,
-                    "messages": [
-                        {"role": "system", "content": RESEARCH_SYSTEM_PROMPT},
-                        {"role": "user", "content": json.dumps(prompt)},
-                    ],
-                    "response_format": {
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": "research_output",
-                            "strict": True,
-                            "schema": ResearchOutput.model_json_schema(),
-                        },
-                    },
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
-            content = payload["choices"][0]["message"]["content"]
-            result = ResearchOutput.model_validate_json(content)
-            return result, f"groq:{model}"[:100]
+        return await groq_output(
+            ResearchOutput, "research_output", RESEARCH_SYSTEM_PROMPT,
+            research_prompt(profile, sources, target),
+        )
 
 
 class LocalResearchProvider:
@@ -148,7 +116,7 @@ class LocalResearchProvider:
 
 
 def research_provider():
-    if os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ-API-KEY"):
+    if groq_configured():
         return GroqResearchProvider()
     return LocalResearchProvider()
 

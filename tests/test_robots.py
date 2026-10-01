@@ -32,3 +32,20 @@ def test_source_storage_optout_is_respected(monkeypatch, content, header):
     monkeypatch.setattr(retrieval, "fetch_public", lambda url: (200,"text/html",content,header))
     with pytest.raises(retrieval.RetrievalError):
         retrieval.retrieve("https://example.com/")
+
+
+@pytest.mark.parametrize("pattern,target,matches", [
+    ("/private*", "/private/report", True),
+    ("/*.pdf$", "/report.pdf", True),
+    ("/*.pdf$", "/report.pdf?download=1", False),
+    ("/a*a$", "/a", False),
+    ("/a*a$", "/aa", True),
+    ("/a*b*c", "/abc/more", True),
+    ("/a*b*c$", "/abc/more", False),
+    ("/*", "/", True),
+    ("/*$", "/anything", True),
+    ("/private%20file$", "/private%20file", True),
+    ("/" + "*a" * 200 + "b$", "/" + "a" * 1900, False),
+])
+def test_wildcard_rules_are_bounded_literal_matches(pattern, target, matches):
+    assert retrieval._robots_rule_matches(pattern, target) is matches

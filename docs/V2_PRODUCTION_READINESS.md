@@ -1,5 +1,36 @@
 # Phase 11 production-readiness gate
 
+## Current hosted staging checkpoint — 2026-10-01
+
+The existing Free staging API and frontend are now deployed on Render. This
+supersedes earlier statements that these services did not exist; it does not
+close the production release gates. Current URLs and validation backlog are in
+V2_EARLY_ACCESS_BACKLOG.md. Authenticated browser/live-model evidence is pending.
+
+The staging API may explicitly set `EMBEDDED_EXECUTION_WORKER=true` after this
+checkpoint. Default is false; tests never start it. This flag is independent of
+APP_ENV, so hosted deployments can retain production-strength validation. The
+supervisor restarts after failures with a five-second delay and safe logs.
+Free-service suspension also suspends execution: this is attended staging,
+not an independently available production worker or availability guarantee.
+
+Groq planning/research use GROQ_API_KEY (legacy GROQ-API-KEY accepted), optional
+GROQ_MODEL (default openai/gpt-oss-120b) and existing GROQ_BASE_URL override.
+Store keys only in the staging service secret environment. Confirm Free-tier
+limits before live calls. No live call was made by this repair checkpoint.
+Schema compatibility is tested with synthetic HTTP, not provider acceptance.
+User chose to keep hosted AI paused. Leave GTM_HOSTED_AI_ENABLED=false (default)
+and EMBEDDED_EXECUTION_WORKER=false on staging until execution is authorized.
+Both hosted adapters reject before opening HTTP when paused; no local fallback
+silently replaces a paused configured provider. Future opt-in requires confirmed
+free-only usage, synthetic inputs and explicit execution authorization.
+Reference: https://console.groq.com/docs/structured-outputs
+
+Robots wildcard and end-anchor rules are now supported conservatively using
+bounded literal matching. Crawl-delay/request-rate policies still fail closed.
+Retention durations for customer evidence, inbox content, audit records and
+backups remain explicit, unapproved release decisions; no purge policy is set.
+
 Status: **NOT READY FOR PRODUCTION DEPLOYMENT**. This is an operational-hardening
 checkpoint, not authorization to deploy. Phases 1–10 remain completed history.
 
@@ -48,8 +79,8 @@ checkpoint, not authorization to deploy. Phases 1–10 remain completed history.
   Passwords are bounded by bcrypt UTF-8 limits; validation errors never echo input.
 - Public evidence retrieval checks bounded, DNS-pinned robots.txt before sources;
   unavailable/redirected policies fail closed, 404/410 means absent policy.
-  Matching denies override allows conservatively across groups. Unsupported
-  wildcard/end-anchor and crawl-delay/rate policies are rejected, not ignored.
+  Matching denies override allows conservatively across groups. Wildcard/end-anchor
+  rules use bounded literal matching; crawl-delay/rate policies fail closed.
   X-Robots-Tag and HTML meta noarchive/noai/none prevent evidence storage.
 - Owner/admin `/api/v1/retention` reports counts and explicitly unset durations.
   There is no purge endpoint or timer. Referenced deletes return safe 409 and

@@ -69,7 +69,7 @@ const DISPLAY_NAMES: Record<string, string> = {
 };
 
 function displayName(provider: Provider, connection?: Integration) {
-  if (provider.provider === "custom" && connection?.config?.tool_name) return connection.config.tool_name;
+  if (provider.provider === "custom" && connection?.config?.["tool_name"]) return connection.config["tool_name"];
   return DISPLAY_NAMES[provider.provider] || provider.provider.replaceAll("_", " ");
 }
 

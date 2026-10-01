@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from backend.database import Integration, Meeting, CRMRecord
 from backend.planning_models import Goal, PlanVersion, ExecutionCycle, StepRun, ActionCommand, DomainEvent
 from backend import planning_service as service
+from backend.hosted_model import HostedAIPaused
 from backend.execution_worker import approved
 from backend.research_service import scoped_record
 from backend.tenancy import get_current_workspace, get_workspace_db
@@ -77,8 +78,13 @@ async def generate(goal_id: UUID, body: GenerateInput, db=Depends(get_workspace_
                    "pipeline_state": {"crm_records": await db.scalar(select(func.count(CRMRecord.id)))}}
         try:
             document, method = await service.planner_provider().plan(context)
+            document = service.PlanDocument.model_validate(document)
+            if any(step.action != "research" for step in document.steps):
+                raise ValueError("Generated plans must follow the read-only workspace policy")
+        except HostedAIPaused:
+            raise HTTPException(409, "AI planning is paused in this environment. You can review a research template; no execution was started.") from None
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
-            raise HTTPException(503, "The local planner could not produce a valid plan. No execution was started.") from None
+            raise HTTPException(503, "The AI planner could not produce a valid plan. No execution was started.") from None
     return plan_response(await service.save_plan(db, goal, document, method))
 
 
