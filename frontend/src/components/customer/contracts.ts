@@ -120,6 +120,13 @@ export function sendLabel(message: {
 export function canApproveRole(role: string) {
   return role === "owner" || role === "admin";
 }
+export function connectionLabel(connection: { status: string; health: string; reconnect_required: boolean }) {
+  if (connection.reconnect_required) return "Reconnect required";
+  if (connection.status === "connected" && connection.health === "healthy") return "Provider verified";
+  if (connection.health === "configured_unverified") return "Saved · verification unavailable";
+  if (connection.status === "error" || connection.health === "error") return "Needs attention";
+  return "Not verified";
+}
 export function percent(metric: Metric) {
   return metric.rate === null ? "Not enough data" : `${(metric.rate * 100).toFixed(1)}%`;
 }

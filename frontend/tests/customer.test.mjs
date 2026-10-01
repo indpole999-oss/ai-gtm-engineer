@@ -8,7 +8,15 @@ async function load(path, transform = s => s) {
   const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } });
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 }
-const { sendLabel, canApproveRole, percent } = await load('../src/components/customer/contracts.ts');
+const { sendLabel, canApproveRole, percent, connectionLabel } = await load('../src/components/customer/contracts.ts');
+
+test('saved credentials cannot imply a verified provider connection', () => {
+  assert.equal(connectionLabel({status:'connected',health:'configured_unverified',reconnect_required:false}), 'Saved · verification unavailable');
+  assert.equal(connectionLabel({status:'connected',health:'healthy',reconnect_required:false}), 'Provider verified');
+  assert.equal(connectionLabel({status:'connected',health:'healthy',reconnect_required:true}), 'Reconnect required');
+  assert.equal(connectionLabel({status:'disconnected',health:'healthy',reconnect_required:false}), 'Not verified');
+  assert.equal(connectionLabel({status:'error',health:'provider_unavailable',reconnect_required:false}), 'Needs attention');
+});
 
 test('a sent label needs both provider identity and acceptance evidence', () => {
   assert.equal(sendLabel({state:'sent'}), 'Confirmation unavailable');
@@ -31,7 +39,8 @@ test('workspace headers, authentication reset, cancellation and failures', async
   const storage = new Map();
   const originalFetch = globalThis.fetch;
   const originalWindow = globalThis.window;
-  globalThis.window = {localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}};
+  const events=[];
+  globalThis.window = {dispatchEvent:e=>events.push(e.type),localStorage:{getItem:k=>storage.get(k) ?? null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}};
   const calls=[];
   globalThis.fetch = async (url,init) => {calls.push({url,...init});return new Response('{}',{status:200});};
   try {
@@ -53,5 +62,20 @@ test('workspace headers, authentication reset, cancellation and failures', async
     await assert.rejects(()=>api.apiFetch('/api/v1/outreach/messages'),e=>e.status===403);
     globalThis.fetch=async()=>{throw new Error('offline');};
     await assert.rejects(()=>api.apiFetch('/api/v1/companies/'),e=>e.status===0);
+    api.setToken('expired-test-only'); api.setWorkspaceId('workspace-a');
+    globalThis.fetch=async()=>new Response('{"detail":"Token expired"}',{status:401});
+    await assert.rejects(()=>api.apiFetch('/api/v1/companies/'),e=>e.status===401);
+    assert.equal(api.getToken(),null);
+    assert.equal(api.getWorkspaceId(),null);
+    assert.deepEqual(events,['gaps:session-expired']);
+    api.setToken('old-test-session');
+    let reply;
+    globalThis.fetch=()=>new Promise(resolve=>{reply=resolve;});
+    const stale=api.apiFetch('/api/v1/companies/');
+    api.setToken('new-test-session');
+    reply(new Response('{}',{status:401}));
+    await assert.rejects(()=>stale,e=>e.status===401);
+    assert.equal(api.getToken(),'new-test-session');
+    assert.equal(events.length,1);
   } finally {globalThis.fetch=originalFetch;globalThis.window=originalWindow;}
 });

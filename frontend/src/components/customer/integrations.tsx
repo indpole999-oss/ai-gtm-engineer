@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import {
   Heading,
   Panel,
@@ -22,7 +23,7 @@ import {
   friendlyError,
   useData,
 } from "./ui";
-import type { Integration } from "./contracts";
+import { connectionLabel, type Integration } from "./contracts";
 
 type Provider = { category: string; provider: string; auth_types: string[]; config_keys: string[] };
 
@@ -92,6 +93,7 @@ export function IntegrationsPage() {
   const [selected, setSelected] = useState<Provider | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [disconnect, setDisconnect] = useState<Integration | null>(null);
 
   const grouped = useMemo(() => {
     const list = providers.data || [];
@@ -103,10 +105,16 @@ export function IntegrationsPage() {
 
   async function act(path: string, method: string, body?: unknown) {
     setBusy(true);
+    setMessage("");
     try {
-      await apiFetch(path, { method, body: body === undefined ? null : JSON.stringify(body) });
+      const result = await apiFetch<Integration | { integration?: Integration }>(path, {
+        method, body: body === undefined ? null : JSON.stringify(body),
+      });
       await cache.invalidateQueries({ queryKey: ["customer"] });
-      setMessage("Connection updated.");
+      const connection = "health" in result ? result : result.integration;
+      setMessage(method === "DELETE"
+        ? "Local connection removed. Revoke access at the provider if needed."
+        : connection ? connectionLabel(connection) : "Connection updated. Check its status below.");
       setSelected(null);
     } catch (error) {
       setMessage(friendlyError(error));
@@ -187,16 +195,14 @@ export function IntegrationsPage() {
                     <article key={provider.category + provider.provider} className="g-provider-tile">
                       <div className="flex items-start justify-between gap-3">
                         <ProviderMark name={name} />
-                        {primary ? <Status value={primary.status} /> : null}
+                        {primary ? <Status value={connectionLabel(primary)} /> : null}
                       </div>
                       <h3 className="mt-5 text-base font-semibold capitalize">{name}</h3>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {provider.provider === "custom"
                           ? "Use the tool your team already has."
                           : primary
-                            ? primary.health === "configured_unverified"
-                              ? "Connected · provider verification unavailable"
-                              : "Connection available"
+                            ? connectionLabel(primary)
                             : "Not connected"}
                       </p>
 
@@ -221,7 +227,7 @@ export function IntegrationsPage() {
                                 disabled={busy}
                                 className="g-button g-button-secondary"
                                 onClick={() =>
-                                  void act(`/api/v1/integrations/${integration.id}`, "DELETE")
+                                  setDisconnect(integration)
                                 }
                               >
                                 Disconnect
@@ -278,7 +284,6 @@ export function IntegrationsPage() {
                 event.preventDefault();
                 const form = new FormData(event.currentTarget);
                 const auth = String(form.get("auth_type"));
-                const isCustom = selected.provider === "custom";
                 const config = Object.fromEntries(
                   selected.config_keys
                     .map((key) => [key, String(form.get(key) || "").trim()])
@@ -295,7 +300,6 @@ export function IntegrationsPage() {
                   config,
                 });
                 event.currentTarget.reset();
-                if (isCustom) setMessage("Custom connection saved. Provider verification depends on a native connector.");
               }}
             >
               {selected.provider === "custom" && (
@@ -351,6 +355,19 @@ export function IntegrationsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={disconnect !== null}
+        onOpenChange={(open) => { if (!open) setDisconnect(null); }}
+        title="Remove this connection?"
+        description="This removes the saved connection from this workspace. You may also need to revoke access directly at the provider."
+        confirmLabel="Remove connection"
+        destructive
+        onConfirm={() => {
+          if (disconnect) void act(`/api/v1/integrations/${disconnect.id}`, "DELETE");
+          setDisconnect(null);
+        }}
+      />
 
       <div className="flex items-start gap-3 rounded-xl border border-white/7 bg-white/[.025] p-4 text-xs leading-5 text-muted-foreground">
         <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />

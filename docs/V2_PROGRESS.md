@@ -1,5 +1,28 @@
 # AI GTM Engineer V2 implementation progress
 
+## Customer session and integration feedback — 2026-10-02
+
+Checkpoint 4021e72 passed all GitHub CI jobs in run 36891654467: 269 backend
+tests passed, two PostgreSQL-only skips covered by separate PostgreSQL security
+and restore/populated-upgrade jobs, empty migration reached 20260928_0013, and
+frontend contracts/TypeScript/Linux production build/targeted lint passed.
+
+Authenticated staging browser inspection found a dashboard showing expired-token
+errors without returning to sign-in. API 401 now invalidates only the same
+session that sent the request, not a newer login, and notifies auth to clear
+account caches and return to sign-in. Login/logout also clear cached queries;
+late profile responses cannot restore a replaced session.
+
+Integration feedback now waits for the response and distinguishes saved,
+unverified credentials from a provider-verified connection. Removed premature
+custom-connection success and added confirmation before local disconnection,
+including a reminder that provider-side revocation may still be required.
+Five frontend contract tests cover these truthfulness and expired/stale-session
+cases. TypeScript and changed-file lint are the focused gates.
+
+Hosted AI remains paused by explicit user direction. No production, paid calls,
+database changes or external provider writes are authorized by this checkpoint.
+
 ## Early Access repair checkpoint — 2026-10-01
 
 Resumed the existing V2 branch from remote `a661b22239780c1739cad2777886cf341d4c3f35`

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL, AUTH_ENDPOINTS } from "./api-config";
 import { ApiError, apiFetch, getToken, setToken } from "./api";
 
@@ -20,24 +21,30 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const cache = useQueryClient();
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profileUnavailable, setProfileUnavailable] = useState(false);
 
   const loadProfile = useCallback(async () => {
-    if (!getToken()) {
+    const token = getToken();
+    if (!token) {
       setUser(null);
       setStatus("anonymous");
       return;
     }
     try {
       const me = await apiFetch<AuthUser>(AUTH_ENDPOINTS.me);
+      if (getToken() !== token) return;
       setUser(me ?? null);
       setProfileUnavailable(false);
       setStatus("authenticated");
     } catch (error) {
+      if (getToken() !== token) return;
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         setToken(null);
+        void cache.cancelQueries();
+        cache.clear();
         setUser(null);
         setStatus("anonymous");
         return;
@@ -47,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setStatus("authenticated");
     }
-  }, []);
+  }, [cache]);
 
   useEffect(() => {
     void loadProfile();
@@ -103,9 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new ApiError(response.status, "The backend did not return an access_token.");
       }
       setToken(token);
+      void cache.cancelQueries();
+      cache.clear();
       await loadProfile();
     },
-    [loadProfile],
+    [loadProfile, cache],
   );
 
   const signUp = useCallback(
@@ -118,17 +127,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new ApiError(200, "The backend did not return an access_token.");
       }
       setToken(payload.access_token);
+      void cache.cancelQueries();
+      cache.clear();
       await loadProfile();
     },
-    [loadProfile],
+    [loadProfile, cache],
   );
 
   const signOut = useCallback(() => {
     setToken(null);
+    void cache.cancelQueries();
+    cache.clear();
     setUser(null);
     setProfileUnavailable(false);
     setStatus("anonymous");
-  }, []);
+  }, [cache]);
+
+  useEffect(() => {
+    window.addEventListener("gaps:session-expired", signOut);
+    return () => window.removeEventListener("gaps:session-expired", signOut);
+  }, [signOut]);
 
   const value = useMemo(
     () => ({ status, user, profileUnavailable, signIn, signUp, signOut, refresh: loadProfile }),

@@ -188,6 +188,11 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
+    // A late response from a previous session must not sign out a new user.
+    if (response.status === 401 && token && getToken() === token) {
+      setToken(null);
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("gaps:session-expired"));
+    }
     const detail =
       payload &&
       typeof payload === "object" &&

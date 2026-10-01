@@ -22,6 +22,12 @@
 
 ## P1 — remaining inspection and acceptance
 
+2026-10-02: browser confirmed an expired-session dashboard. Fixed same-session
+401 invalidation, stale-response protection and cache clearing. Integration UI
+no longer reports custom-save success before the response, labels unverified
+configuration truthfully, and confirms local disconnect. Browser verification of
+the deployed fixes remains open. All CI for 4021e72 passed (run 36891654467).
+
 - Verify workspace membership/role refresh and logout/login cache isolation.
 - Improve safely classified research/provider failures and persisted run feedback.
 - Verify all visible routes/actions, errors, empty states, responsive layout and
