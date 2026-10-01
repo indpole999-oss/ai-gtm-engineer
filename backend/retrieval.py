@@ -2,6 +2,7 @@
 import hashlib
 import http.client
 import ipaddress
+import re
 import socket
 import ssl
 from html.parser import HTMLParser
@@ -92,6 +93,19 @@ def fetch_public(url, limit=1000000):
         connection.close()
 
 
+def _robots_rule_matches(pattern, target):
+    """Match Google's common * wildcard and trailing $ anchor conservatively."""
+    pattern = unquote(pattern)
+    target = unquote(target)
+    anchored = pattern.endswith("$")
+    if anchored:
+        pattern = pattern[:-1]
+    expression = "^" + ".*".join(re.escape(part) for part in pattern.split("*"))
+    if anchored:
+        expression += "$"
+    return re.match(expression, target) is not None
+
+
 def check_robots(url):
     parts = urlsplit(url)
     robots_url = f"https://{parts.netloc}/robots.txt"
@@ -100,20 +114,21 @@ def check_robots(url):
         return
     if status != 200 or mime != "text/plain":
         raise RetrievalError("Robots policy unavailable; source not retrieved")
-    # The stdlib parser does not implement wildcard/end-anchor extensions. Reject
-    # those policies rather than silently interpreting them as permission.
+    target = parts.path + ("?" + parts.query if parts.query else "")
     for line in content.splitlines():
         key, _, value = line.partition("#")[0].partition(":")
         key, value = key.strip().lower(), value.strip()
-        if key in {"allow", "disallow"} and ("*" in value or "$" in value):
-            raise RetrievalError("Robots policy requires unsupported pattern handling")
         if key in {"crawl-delay", "request-rate"} and value:
             raise RetrievalError("Robots policy requires a scheduled crawler")
-        target = parts.path + ("?" + parts.query if parts.query else "")
-        # Conservative across groups/Allow ordering: never override a matching
-        # deny with a less-specific Allow in the stdlib's first-match parser.
-        if key == "disallow" and value and unquote(target).startswith(unquote(value)):
-            raise RetrievalError("Source disallowed by conservative robots policy")
+        # Keep the existing conservative posture across groups: any matching
+        # Disallow is honored. Wildcards and trailing $ are handled explicitly
+        # instead of rejecting an otherwise permitted site wholesale.
+        if key == "disallow" and value:
+            if ("*" in value or value.endswith("$")):
+                if _robots_rule_matches(value, target):
+                    raise RetrievalError("Source disallowed by conservative robots policy")
+            elif unquote(target).startswith(unquote(value)):
+                raise RetrievalError("Source disallowed by conservative robots policy")
     policy = RobotFileParser(robots_url)
     policy.parse(content.splitlines())
     if not policy.can_fetch("GapsEvidence", url):
