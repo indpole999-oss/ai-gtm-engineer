@@ -117,7 +117,7 @@ export function GtmCommandCenter() {
       outcome.data.content_hash ===
         plan?.document.plan.steps.find((s) => s.outcome_id)?.outcome_hash,
     );
-  const style = "mt-1 w-full rounded border bg-background p-2 text-sm";
+  const style = "g-input mt-2 w-full text-sm";
   async function run(work: () => Promise<void>) {
     setBusy(true);
     setMessage("");
@@ -185,7 +185,7 @@ export function GtmCommandCenter() {
     );
   }
   return (
-    <section className="g-panel space-y-5" aria-labelledby="gtm-center">
+    <section className="g-command-surface space-y-6 p-5 sm:p-6" aria-labelledby="gtm-center">
       <h2 id="gtm-center" className="text-xl font-semibold">
         Plan & execution
       </h2>
@@ -282,7 +282,7 @@ export function GtmCommandCenter() {
         ))}
       </div>
       {plan && (
-        <article className="space-y-3 rounded border p-4">
+        <article className="g-panel-subtle space-y-3">
           <h3 className="font-semibold">
             Plan version {plan.number} · {plan.status}
             {dirty ? " · unsaved revision" : ""}
@@ -333,7 +333,7 @@ export function GtmCommandCenter() {
           ))}
           <ol className="space-y-3">
             {plan.document.plan.steps.map((s, index) => (
-              <li key={index} className="rounded border p-3">
+              <li key={index} className="g-panel-subtle">
                 <p className="font-medium">
                   {index + 1}.{" "}
                   {s.action === "outreach_send"
@@ -374,7 +374,7 @@ export function GtmCommandCenter() {
             ))}
           </div>
           {outcomeId && (
-            <div className="rounded border p-3">
+            <div className="g-panel-subtle">
               <h4 className="font-medium">External action to review</h4>
               {outcomeReady ? (
                 <ActionDetails value={outcome.data?.payload} />
@@ -462,7 +462,7 @@ export function GtmCommandCenter() {
         ))}
       </div>
       {cycle.data && (
-        <article className="space-y-3 rounded border p-4">
+        <article className="g-panel-subtle space-y-3">
           <h3 className="font-semibold">Execution: {cycle.data.status}</h3>
           {cycle.data.stop_reason && <p>{cycle.data.stop_reason.replaceAll("_", " ")}</p>}
           <ol className="list-inside list-decimal text-sm">
