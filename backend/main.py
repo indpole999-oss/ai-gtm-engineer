@@ -46,16 +46,28 @@ security = HTTPBearer()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events"""
+    """Startup and shutdown events."""
     logger.info("Starting AI GTM Engineer backend...")
 
     # Schema evolution is performed only by Alembic release commands.
-
     logger.info("Database initialization complete.")
 
-    yield
+    # Staging runs the durable execution loop in the same single-instance API
+    # process so approved plans can execute without a separate paid worker.
+    from backend.execution_worker import main as execution_worker_main
 
-    logger.info("Shutting down...")
+    worker_task = asyncio.create_task(execution_worker_main(), name="execution-worker")
+    logger.info("Execution worker started.")
+    try:
+        yield
+    finally:
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Execution worker stopped.")
+        logger.info("Shutting down...")
 
 
 app = FastAPI(
