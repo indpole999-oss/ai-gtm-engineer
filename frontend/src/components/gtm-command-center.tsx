@@ -1,5 +1,10 @@
 import { ActionDetails } from "./customer/action-details";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  executionSearch,
+  readExecutionSelection,
+  planAuthorLabel,
+} from "./customer/execution-selection";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWorkspace } from "@/lib/workspace";
 import { friendlyError } from "@/components/customer/ui";
@@ -68,15 +73,49 @@ export function GtmCommandCenter() {
   const [brain, setBrain] = useState("");
   const [company, setCompany] = useState("");
   const [urls, setUrls] = useState("");
-  const [plan, setPlan] = useState<Plan | null>(null);
+  const [draft, setDraft] = useState<Plan | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState("");
+  const [emptyGoal, setEmptyGoal] = useState<string | null>(null);
   const [selectedCycle, setSelectedCycle] = useState("");
   const [dirty, setDirty] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    const restore = () => {
+      const selection = readExecutionSelection(window.location.search, workspace.id);
+      setSelectedPlan(selection.plan);
+      setSelectedCycle(selection.cycle);
+      setDraft(null);
+      setDirty(false);
+      setReviewed(false);
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    return () => {
+      mounted.current = false;
+      window.removeEventListener("popstate", restore);
+    };
+  }, [workspace.id]);
+  function remember(planId: string, cycleId: string) {
+    if (!mounted.current) return;
+    const url = new URL(window.location.href);
+    url.search = executionSearch(url.search, workspace.id, planId, cycleId);
+    window.history.replaceState(window.history.state, "", url);
+  }
+  const savedPlan = useQuery({
+    queryKey: ["gtm-plan", workspace.id, selectedPlan],
+    queryFn: ({ signal }) => apiFetch<Plan>(`/api/v1/gtm/plans/${selectedPlan}`, { signal }),
+    enabled: Boolean(selectedPlan),
+    retry: false,
+  });
+  const plan = draft ?? savedPlan.data ?? null;
   const goals = useQuery({
     queryKey: ["customer", workspace.id, "/api/v1/gtm/goals"],
-    queryFn: () => apiFetch<{ id: string; objective: string }[]>("/api/v1/gtm/goals"),
+    queryFn: ({ signal }) =>
+      apiFetch<{ id: string; objective: string }[]>("/api/v1/gtm/goals", { signal }),
   });
   const brains = useQuery({
     queryKey: ["customer", workspace.id, "/api/v1/company-brain"],
@@ -95,14 +134,15 @@ export function GtmCommandCenter() {
     refetchInterval: 5000,
   });
   const cycle = useQuery({
-    queryKey: ["gtm-cycle", selectedCycle],
-    queryFn: () => apiFetch<CycleDetail>(`/api/v1/gtm/cycles/${selectedCycle}`),
+    queryKey: ["gtm-cycle", workspace.id, selectedCycle],
+    queryFn: ({ signal }) =>
+      apiFetch<CycleDetail>(`/api/v1/gtm/cycles/${selectedCycle}`, { signal }),
     enabled: Boolean(selectedCycle),
     refetchInterval: 3000,
   });
   const outcomeId = plan?.document.plan.steps.find((s) => s.outcome_id)?.outcome_id;
   const outcome = useQuery({
-    queryKey: ["outcome-review", outcomeId],
+    queryKey: ["outcome-review", workspace.id, outcomeId],
     queryFn: () =>
       apiFetch<{ id: string; content_hash: string; payload: Record<string, unknown> }>(
         `/api/v1/outcomes/actions/${outcomeId}`,
@@ -124,19 +164,24 @@ export function GtmCommandCenter() {
     try {
       await work();
     } catch (e) {
-      setMessage(friendlyError(e));
+      if (mounted.current) setMessage(friendlyError(e));
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   function selectPlan(next: Plan) {
-    setPlan(next);
+    if (!mounted.current) return;
+    cache.setQueryData(["gtm-plan", workspace.id, next.id], next);
+    setSelectedPlan(next.id);
+    setDraft(null);
+    setEmptyGoal(null);
+    remember(next.id, selectedCycle);
     setDirty(false);
     setReviewed(false);
   }
   function edit(document: Document) {
     if (plan) {
-      setPlan({ ...plan, document: { ...plan.document, plan: document } });
+      setDraft({ ...plan, document: { ...plan.document, plan: document } });
       setDirty(true);
       setReviewed(false);
     }
@@ -159,13 +204,24 @@ export function GtmCommandCenter() {
         ],
       }),
     });
+    if (!mounted.current) return;
+    setEmptyGoal(goal.id);
+    setSelectedPlan("");
+    setDraft(null);
+    setDirty(false);
+    setReviewed(false);
+    remember("", selectedCycle);
+    await cache.invalidateQueries({ queryKey: ["customer", workspace.id, "/api/v1/gtm/goals"] });
+    if (!mounted.current) return;
+    await prepareSavedGoal(goal.id, mode);
+  }
+  async function prepareSavedGoal(goalId: string, mode: "local_ai" | "research_template") {
     selectPlan(
-      await apiFetch<Plan>(`/api/v1/gtm/goals/${goal.id}/plans`, {
+      await apiFetch<Plan>(`/api/v1/gtm/goals/${goalId}/plans`, {
         method: "POST",
         body: JSON.stringify({ mode }),
       }),
     );
-    await cache.invalidateQueries({ queryKey: ["customer", workspace.id, "/api/v1/gtm/goals"] });
   }
   async function approve() {
     if (!canApprove || !plan || dirty || !reviewed || !outcomeReady) return;
@@ -173,8 +229,10 @@ export function GtmCommandCenter() {
       method: "POST",
       body: JSON.stringify({ content_hash: plan.content_hash, reviewed: true }),
     });
+    if (!mounted.current) return;
     selectPlan({ ...plan, status: "approved" });
     setSelectedCycle(result.id);
+    remember(plan.id, result.id);
     await cache.invalidateQueries({ queryKey: ["customer", workspace.id, "/api/v1/gtm/cycles"] });
     setMessage(
       outcomeId
@@ -257,9 +315,18 @@ export function GtmCommandCenter() {
         brains.error ||
         companies.error ||
         cycles.error ||
-        cycle.error) && (
+        cycle.error ||
+        savedPlan.error) && (
         <p role="status" className="text-sm">
-          {message || friendlyError(goals.error || brains.error || companies.error || cycles.error || cycle.error)}
+          {message ||
+            friendlyError(
+              goals.error ||
+                brains.error ||
+                companies.error ||
+                cycles.error ||
+                cycle.error ||
+                savedPlan.error,
+            )}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
@@ -272,8 +339,18 @@ export function GtmCommandCenter() {
             onClick={() =>
               void run(async () => {
                 const list = await apiFetch<Plan[]>(`/api/v1/gtm/goals/${g.id}/plans`);
+                if (!mounted.current) return;
                 if (list[0]) selectPlan(list[0]);
-                else setMessage("This goal has no saved plan yet. Generate a plan to continue.");
+                else {
+                  setSelectedPlan("");
+                  setDraft(null);
+                  setReviewed(false);
+                  remember("", selectedCycle);
+                  setEmptyGoal(g.id);
+                  setMessage(
+                    "This goal is saved, but has no plan yet. Prepare a guided plan without calling AI.",
+                  );
+                }
               })
             }
           >
@@ -281,6 +358,25 @@ export function GtmCommandCenter() {
           </Button>
         ))}
       </div>
+      {emptyGoal && canEdit && (
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => void run(() => prepareSavedGoal(emptyGoal, "research_template"))}
+        >
+          Prepare guided plan for saved goal
+        </Button>
+      )}
+      {selectedPlan && savedPlan.isPending && <p role="status">Restoring saved plan…</p>}
+      {savedPlan.isError && (
+        <Button
+          variant="outline"
+          disabled={savedPlan.isFetching}
+          onClick={() => void savedPlan.refetch()}
+        >
+          Retry loading saved plan
+        </Button>
+      )}
       {plan && (
         <article className="g-panel-subtle space-y-3">
           <h3 className="font-semibold">
@@ -288,15 +384,7 @@ export function GtmCommandCenter() {
             {dirty ? " · unsaved revision" : ""}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Created by{" "}
-            {plan.author_method.startsWith("ollama:")
-              ? "local AI"
-              : plan.author_method === "explicit_research_template"
-                ? "research template"
-                : ["reviewed_outreach", "reviewed_outcome"].includes(plan.author_method)
-                  ? "reviewed external action"
-                  : "customer revision"}
-            .{" "}
+            Created by {planAuthorLabel(plan.author_method)}.{" "}
           </p>
           <label className="block text-sm">
             Objective
@@ -414,6 +502,19 @@ export function GtmCommandCenter() {
               >
                 Save revised plan
               </Button>
+              {dirty && (
+                <Button
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => {
+                    setDraft(null);
+                    setDirty(false);
+                    setReviewed(false);
+                  }}
+                >
+                  Discard unsaved revision
+                </Button>
+              )}
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -456,7 +557,14 @@ export function GtmCommandCenter() {
       )}
       <div className="flex flex-wrap gap-2">
         {cycles.data?.map((c, i) => (
-          <Button key={c.id} variant="outline" onClick={() => setSelectedCycle(c.id)}>
+          <Button
+            key={c.id}
+            variant="outline"
+            onClick={() => {
+              setSelectedCycle(c.id);
+              remember(selectedPlan, c.id);
+            }}
+          >
             Execution {cycles.data.length - i} · {c.status}
           </Button>
         ))}
@@ -465,6 +573,14 @@ export function GtmCommandCenter() {
         <article className="g-panel-subtle space-y-3">
           <h3 className="font-semibold">Execution: {cycle.data.status}</h3>
           {cycle.data.stop_reason && <p>{cycle.data.stop_reason.replaceAll("_", " ")}</p>}
+          {cycle.data.commands
+            .filter((command) => command.error_code)
+            .map((command) => (
+              <p key={command.id} className="text-sm">
+                Attempt {command.attempts}: {command.status.replaceAll("_", " ")} ·{" "}
+                {command.error_code?.replaceAll("_", " ")}. No provider success is implied.
+              </p>
+            ))}
           <ol className="list-inside list-decimal text-sm">
             {cycle.data.steps.map((s) => (
               <li key={s.position}>
@@ -492,7 +608,9 @@ export function GtmCommandCenter() {
                         method: "POST",
                         body: JSON.stringify({ action }),
                       });
-                      await cache.invalidateQueries({ queryKey: ["gtm-cycle", selectedCycle] });
+                      await cache.invalidateQueries({
+                        queryKey: ["gtm-cycle", workspace.id, selectedCycle],
+                      });
                       await cache.invalidateQueries({
                         queryKey: ["customer", workspace.id, "/api/v1/gtm/cycles"],
                       });

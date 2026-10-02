@@ -54,3 +54,17 @@ the deployed fixes remains open. All CI for 4021e72 passed (run 36891654467).
 Not ready for Early Access acceptance or production deployment. Green local
 tests alone cannot close authenticated-browser, real-provider, operational or
 privacy/retention gates. No schema migration is introduced by this repair batch.
+## 2026-10-02 — guided-plan refresh continuation
+
+Resumed the existing `0e498b5` checkpoint; its GitHub CI is green. Authenticated staging reproduced a saved guided plan disappearing from view after refresh (the record itself remained persisted).
+
+Changes in this checkpoint:
+- Restore selected saved plan and execution by opaque, workspace-scoped URL IDs; fetch persisted records through authorized APIs. Approval acknowledgement and unsaved edits never persist in the URL.
+- Restore saved revisions, offer explicit discard of unsaved edits, and recover goals whose plan preparation failed without creating another goal or calling AI.
+- Refresh workspace membership every 30 seconds/on focus; role changes reset routed controls and clear account data caches. Revoked workspace membership removes the active view.
+- Scope account research queries to workspace, cancel reads, enforce viewer controls and refresh the actual shared goals cache.
+- Replace hardcoded identity, fabricated goal progress and zero-connection success labels with authenticated identity and persisted evidence. Distinguish guided, local and hosted plan provenance; show persisted command failure codes.
+
+Validation: seven frontend contract tests and TypeScript passed; changed-file lint passed with one existing Fast Refresh warning. Disposable local SQLite browser fixture (synthetic account, all provider settings excluded, hosted AI and worker disabled) proved saved plan v1 and revised v2 survive refresh, approval resets, and discard restores the saved revision. No plan was approved or queued. Client/SSR production compilation passed; Windows Nitro packaging still hits the known EPERM readlink limitation. Linux CI is required before staging rollout.
+
+This is frontend/offline evidence, not live model, provider delivery, production-like worker or PostgreSQL rehearsal evidence. Hosted AI remains paused. Staging deployment and further browser checks are recorded separately when completed.

@@ -489,3 +489,7 @@ Preserve this Phase 10 requirement exactly:
 Keep approvals, workspace isolation/RBAC, suppression, immutable versions and
 quarantine intact. No real side effects, paid services, deployment, production
 changes or merge are implied. Phase 11 is now authorized; deployment and merging are not.
+
+### 2026-10-02 — resumed guided-plan refresh investigation
+
+The `0e498b5` baseline passed GitHub CI. Authenticated staging reproduced lost plan selection on refresh while the guided plan remained saved. The continuation repairs workspace-scoped plan/execution restoration, revision recovery, role refresh, account-research cache/permissions and truthful dashboard status. See `V2_EARLY_ACCESS_BACKLOG.md` for precise offline browser evidence and outstanding hosted gates. Hosted AI and embedded execution remain paused; no provider writes or production changes.

@@ -17,8 +17,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const list = useQuery({
     queryKey: ["workspaces"],
-    queryFn: () => apiFetch<Workspace[]>("/api/v1/workspaces"),
+    queryFn: ({ signal }) => apiFetch<Workspace[]>("/api/v1/workspaces", { signal }),
     retry: false,
+    refetchInterval: 30000,
   });
 
   useEffect(() => {
@@ -42,6 +43,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     setRestoreChecked(true);
   }, [list.data, selected, restoreChecked]);
+
+  const current = list.data?.find((w) => w.id === selected?.id) ?? null;
+  useEffect(() => {
+    if (!selected || !list.data) return;
+    if (current && current.role === selected.role && current.name === selected.name) return;
+    void cache.cancelQueries({ predicate: (q) => q.queryKey[0] !== "workspaces" });
+    cache.removeQueries({ predicate: (q) => q.queryKey[0] !== "workspaces" });
+    setWorkspaceId(current?.id ?? null);
+    setSelected(current);
+  }, [current, selected, list.data, cache]);
 
   function select(id: string) {
     const next = list.data?.find((w) => w.id === id);
@@ -83,7 +94,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!selected) {
+  if (!current) {
     return (
       <main className="mx-auto max-w-lg space-y-5 p-8">
         <p className="eyebrow">GAPS AI</p>
@@ -112,8 +123,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Context.Provider value={{ workspace: selected, workspaces: list.data || [], select }}>
-      <div key={selected.id}>{children}</div>
+    <Context.Provider value={{ workspace: current, workspaces: list.data || [], select }}>
+      <div key={`${current.id}:${current.role}`}>{children}</div>
     </Context.Provider>
   );
 }

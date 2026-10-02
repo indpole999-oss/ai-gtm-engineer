@@ -9,6 +9,27 @@ async function load(path, transform = s => s) {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 }
 const { sendLabel, canApproveRole, percent, connectionLabel } = await load('../src/components/customer/contracts.ts');
+const { readExecutionSelection, executionSearch, planAuthorLabel } = await load('../src/components/customer/execution-selection.ts');
+
+test('refresh selection is workspace scoped and preserves unrelated query parameters', () => {
+  const plan = '11111111-1111-4111-8111-111111111111';
+  const cycle = '22222222-2222-4222-8222-222222222222';
+  const search = executionSearch('?filter=active', 'workspace-a', plan, cycle);
+  assert.deepEqual(readExecutionSelection(search, 'workspace-a'), {plan, cycle});
+  assert.deepEqual(readExecutionSelection(search, 'workspace-b'), {plan:'', cycle:''});
+  assert.equal(new URLSearchParams(search).get('filter'), 'active');
+  const cleared = executionSearch(search, 'workspace-a', '', 'invalid-id');
+  assert.deepEqual(readExecutionSelection(cleared, 'workspace-a'), {plan:'', cycle:''});
+  assert.deepEqual([...new URLSearchParams(search).keys()], ['filter', 'gtm_workspace', 'gtm_plan', 'gtm_cycle']);
+  assert.deepEqual(readExecutionSelection('?gtm_workspace=workspace-a&gtm_plan=private-content', 'workspace-a'), {plan:'',cycle:''});
+});
+
+test('plan provenance distinguishes templates, local AI and hosted AI', () => {
+  assert.equal(planAuthorLabel('explicit_research_template'), 'guided research template');
+  assert.equal(planAuthorLabel('ollama:qwen3:4b'), 'local AI');
+  assert.equal(planAuthorLabel('groq:test-model'), 'hosted AI');
+  assert.equal(planAuthorLabel('unexpected'), 'unknown author method');
+});
 
 test('saved credentials cannot imply a verified provider connection', () => {
   assert.equal(connectionLabel({status:'connected',health:'configured_unverified',reconnect_required:false}), 'Saved · verification unavailable');

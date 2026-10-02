@@ -5,8 +5,10 @@ import { GtmCommandCenter } from "@/components/gtm-command-center";
 import { Heading, Panel, Status, Loading, ErrorState, useData } from "./ui";
 import type { Insights, Integration } from "./contracts";
 import { RecommendationCard } from "./insights";
+import { displayName, useAuth } from "@/lib/auth";
 
 export function DashboardPage() {
+  const { user } = useAuth();
   const [range] = useState(() => ({
     start: new Date(Date.now() - 30 * 86400000).toISOString(),
     end: new Date().toISOString(),
@@ -37,7 +39,9 @@ export function DashboardPage() {
   const published = brains.data?.versions.find((v) => v.status === "published");
   const currentBrain = brains.data?.versions.find((v) => v.id === goal?.brain_version_id);
   const healthyConnections =
-    integrations.data?.integrations.filter((i) => i.health === "healthy").length ?? 0;
+    integrations.data?.integrations.filter(
+      (i) => i.status === "connected" && i.health === "healthy" && !i.reconnect_required,
+    ).length ?? 0;
 
   const next = !published
     ? {
@@ -54,7 +58,9 @@ export function DashboardPage() {
       : {
           text: active?.stop_reason
             ? "Execution needs your attention before the next step can continue."
-            : "Your plan is ready for review. You stay in control before anything external happens.",
+            : latestPlan
+              ? "Your saved plan is available below. Review its current status before approving work."
+              : "Your goal is saved. Prepare a guided plan below; no AI call is required.",
           action: "Review prospects",
           to: "/prospects" as const,
         };
@@ -65,8 +71,8 @@ export function DashboardPage() {
   return (
     <>
       <Heading
-        eyebrow="AI EMPLOYEE ACTIVE"
-        title="Good afternoon, Anil"
+        eyebrow="YOUR GTM WORKSPACE"
+        title={`Welcome, ${displayName(user)}`}
         description="Direct your AI GTM employee, review what it plans, and keep control over every customer-facing action."
       />
 
@@ -95,9 +101,9 @@ export function DashboardPage() {
                   {goal?.objective || "What should your AI GTM employee do next?"}
                 </p>
               </div>
-              <Link to="/prospects" className="g-button shrink-0">
+              <a href="#gtm-center" className="g-button shrink-0">
                 {goal ? "Review goal" : "Create goal"}
-              </Link>
+              </a>
             </div>
           </section>
 
@@ -178,10 +184,19 @@ export function DashboardPage() {
                     integrations.isError
                       ? "Integration health is temporarily unavailable."
                       : `${healthyConnections} provider-reported healthy connections.`,
-                    integrations.isError ? "Check" : "Connected",
+                    integrations.isPending
+                      ? "Checking"
+                      : integrations.isError
+                        ? "Unavailable"
+                        : healthyConnections
+                          ? "Verified"
+                          : "Not connected",
                   ],
                 ].map(([title, body, state]) => (
-                  <div key={title} className="g-list-row grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div
+                    key={title}
+                    className="g-list-row grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  >
                     <div>
                       <p className="text-sm font-medium text-foreground">{title}</p>
                       <p className="mt-1 text-xs leading-5 text-muted-foreground">{body}</p>
@@ -200,12 +215,6 @@ export function DashboardPage() {
                 <p className="mt-3 text-[15px] font-medium leading-6 text-foreground">
                   {goal?.objective || "No goal has been created yet."}
                 </p>
-                <div className="mt-5 h-1 overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: goal ? (latestPlan ? "68%" : "34%") : "8%" }}
-                  />
-                </div>
                 <p className="mt-4 text-xs leading-5 text-muted-foreground">{next.text}</p>
                 <Link to={next.to} className="g-button mt-5 w-full">
                   {next.action}
