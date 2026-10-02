@@ -123,6 +123,9 @@ export function ProspectsPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const queries = [accounts, contacts, pipelines, jobs];
+  const matchingAccounts = accounts.data?.filter((account) =>
+    `${account.name} ${account.domain || ""}`.toLowerCase().includes(search.trim().toLowerCase()),
+  );
   async function add(form: HTMLFormElement) {
     setBusy(true);
     try {
@@ -214,88 +217,93 @@ export function ProspectsPage() {
           Add an account, then prepare a research plan in AI GTM. Qualified prospects will appear
           here with supporting evidence.
         </Empty>
+      ) : !matchingAccounts?.length ? (
+        <Empty title="No accounts match your search">
+          <p>Try a different company name or domain.</p>
+          <button className="g-button g-button-secondary mt-4" onClick={() => setSearch("")}>
+            Clear search
+          </button>
+        </Empty>
       ) : (
         <div className="space-y-4">
-          {accounts.data
-            .filter((a) => `${a.name} ${a.domain}`.toLowerCase().includes(search.toLowerCase()))
-            .map((a) => {
-              const p = pipelines.data?.find((p) => p.company_id === a.id && !p.contact_id);
-              const job = jobs.data?.find((j) => j.company_id === a.id && j.status === "completed");
-              return (
-                <Panel key={a.id}>
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="eyebrow">ACCOUNT</p>
-                      <h2 className="mt-2 text-xl font-semibold">{a.name}</h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {a.domain || "Domain unknown"}
-                      </p>
-                    </div>
-                    <Status value={p?.stage || "unknown"} />
+          {matchingAccounts.map((a) => {
+            const p = pipelines.data?.find((p) => p.company_id === a.id && !p.contact_id);
+            const job = jobs.data?.find((j) => j.company_id === a.id && j.status === "completed");
+            return (
+              <Panel key={a.id}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="eyebrow">ACCOUNT</p>
+                    <h2 className="mt-2 text-xl font-semibold">{a.name}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {a.domain || "Domain unknown"}
+                    </p>
                   </div>
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    {job
-                      ? "Research evidence is available for review."
-                      : "Qualification is not yet supported by completed research."}
-                  </p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {contacts.data
-                      ?.filter((c) => c.company_id === a.id)
-                      .map((c) => (
-                        <span key={c.id} className="g-status">
-                          {c.first_name} {c.last_name} · {c.title || "Role unknown"}
-                        </span>
-                      ))}
-                  </div>
-                  <button
-                    aria-expanded={expanded === a.id}
-                    className="mt-6 text-sm font-semibold text-primary"
-                    onClick={() => setExpanded(expanded === a.id ? "" : a.id)}
-                  >
-                    {expanded === a.id ? "Close details" : "Explore account & evidence →"}
-                  </button>
-                  {expanded === a.id && canEdit && (
-                    <details className="mt-5">
-                      <summary className="text-sm font-medium">Add a contact</summary>
-                      <form
-                        className="mt-4 grid gap-4 md:grid-cols-2"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          void addContact(e.currentTarget, a.id);
-                        }}
-                      >
-                        <Field label="First name">
-                          <input name="first_name" className="g-input" required maxLength={100} />
-                        </Field>
-                        <Field label="Last name">
-                          <input name="last_name" className="g-input" required maxLength={100} />
-                        </Field>
-                        <Field label="Email">
-                          <input name="email" type="email" className="g-input" required />
-                        </Field>
-                        <Field label="Job title">
-                          <input name="title" className="g-input" maxLength={255} />
-                        </Field>
-                        <p className="text-xs text-muted-foreground">
-                          Manually entered contact details are not independently verified.
-                        </p>
-                        <button className="g-button" disabled={busy}>
-                          Save contact
-                        </button>
-                      </form>
-                    </details>
-                  )}
-                  {expanded === a.id &&
-                    (job ? (
-                      <Evidence job={job} />
-                    ) : (
-                      <p className="mt-4 text-sm">
-                        No completed research. Use AI GTM to review and approve a research plan.
-                      </p>
+                  <Status value={p?.stage || "unknown"} />
+                </div>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  {job
+                    ? "Research evidence is available for review."
+                    : "Qualification is not yet supported by completed research."}
+                </p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {contacts.data
+                    ?.filter((c) => c.company_id === a.id)
+                    .map((c) => (
+                      <span key={c.id} className="g-status">
+                        {c.first_name} {c.last_name} · {c.title || "Role unknown"}
+                      </span>
                     ))}
-                </Panel>
-              );
-            })}
+                </div>
+                <button
+                  aria-expanded={expanded === a.id}
+                  className="mt-6 text-sm font-semibold text-primary"
+                  onClick={() => setExpanded(expanded === a.id ? "" : a.id)}
+                >
+                  {expanded === a.id ? "Close details" : "Explore account & evidence →"}
+                </button>
+                {expanded === a.id && canEdit && (
+                  <details className="mt-5">
+                    <summary className="text-sm font-medium">Add a contact</summary>
+                    <form
+                      className="mt-4 grid gap-4 md:grid-cols-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void addContact(e.currentTarget, a.id);
+                      }}
+                    >
+                      <Field label="First name">
+                        <input name="first_name" className="g-input" required maxLength={100} />
+                      </Field>
+                      <Field label="Last name">
+                        <input name="last_name" className="g-input" required maxLength={100} />
+                      </Field>
+                      <Field label="Email">
+                        <input name="email" type="email" className="g-input" required />
+                      </Field>
+                      <Field label="Job title">
+                        <input name="title" className="g-input" maxLength={255} />
+                      </Field>
+                      <p className="text-xs text-muted-foreground">
+                        Manually entered contact details are not independently verified.
+                      </p>
+                      <button className="g-button" disabled={busy}>
+                        Save contact
+                      </button>
+                    </form>
+                  </details>
+                )}
+                {expanded === a.id &&
+                  (job ? (
+                    <Evidence job={job} />
+                  ) : (
+                    <p className="mt-4 text-sm">
+                      No completed research. Use AI GTM to review and approve a research plan.
+                    </p>
+                  ))}
+              </Panel>
+            );
+          })}
         </div>
       )}
     </>

@@ -81,7 +81,7 @@ export function WorkspaceStatus() {
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
-                  className="g-button-secondary"
+                  className="g-button g-button-secondary"
                   disabled={operations.isFetching}
                   onClick={() => void operations.refetch()}
                 >

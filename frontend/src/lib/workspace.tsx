@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, getWorkspaceId, setWorkspaceId } from "./api";
+import { useAuth } from "./auth";
 
 type Workspace = { id: string; name: string; role: string };
 
@@ -12,6 +13,7 @@ const Context = createContext<{
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const cache = useQueryClient();
+  const { signOut } = useAuth();
   const [selected, setSelected] = useState<Workspace | null>(null);
   const [restoreChecked, setRestoreChecked] = useState(false);
 
@@ -87,9 +89,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             Try again
           </button>
         </div>
-        <a className="text-sm underline" href="/login">
+        <button className="text-sm underline" onClick={signOut}>
           Back to sign in
-        </a>
+        </button>
       </main>
     );
   }
@@ -115,9 +117,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             </button>
           ))
         )}
-        <a className="text-sm underline" href="/login">
+        <button className="text-sm underline" onClick={signOut}>
           Back to sign in
-        </a>
+        </button>
       </main>
     );
   }

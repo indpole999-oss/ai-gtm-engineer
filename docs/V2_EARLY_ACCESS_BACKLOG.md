@@ -1,5 +1,16 @@
 # V2 Early Access verification backlog
 
+## Remaining acceptance continuation — 2026-10-03
+
+`5aecd6d` CI passed all jobs. Local real-application browser checks now cover two
+synthetic users/workspaces, viewer cache isolation, restore, automatic role
+downgrade and revocation, logout and protected routes. A P1 no-workspace recovery
+loop was reproduced and fixed: Back to sign in must sign out rather than merely
+linking to a login page that redirects an authenticated session. New no-match
+prospect search/clear behavior passes in browser. Seven frontend contracts,
+TypeScript and targeted lint pass. No backend/schema/provider changes. Detailed
+evidence and remaining live gates are in V2_EARLY_ACCESS_QA.md.
+
 ## Validated staging checkpoint `38edc63` — 2026-10-02
 
 - CI run `37028129904` is green: **272 backend tests passed, 2 PostgreSQL-only

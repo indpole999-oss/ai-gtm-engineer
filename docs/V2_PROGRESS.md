@@ -1,5 +1,22 @@
 # AI GTM Engineer V2 implementation progress
 
+## Remaining browser acceptance — 2026-10-03
+
+Resumed `5aecd6d`; CI run 37029464204 passed all jobs. Disposable local browser
+rehearsal (real frontend/API, isolated SQLite, two users/workspaces, no provider
+credentials) validates workspace cache isolation, viewer restrictions, refresh,
+automatic role downgrade, revoked membership, different-user login and protected
+routes after logout. It does not substitute for live PostgreSQL multi-user evidence.
+
+Found and fixed a P1 recovery loop: Back to sign in on workspace failure/no-access
+screens preserved authentication and bounced back to dashboard. It now uses the
+existing sign-out path to clear session/workspace/cache. The no-membership browser
+test reaches Sign in and another synthetic user can enter normally. Also added an
+explicit zero-match prospect search state with Clear search, and corrected the
+activity refresh button's shared styling. TypeScript, seven frontend contracts
+and targeted lint pass (one existing Fast Refresh warning). Full acceptance matrix
+and remaining HOLD decision are in V2_EARLY_ACCESS_QA.md. Hosted AI stays paused.
+
 ## Checkpoint `38edc63` deployed and verified — 2026-10-02
 
 CI run 37028129904 passed: 272 backend tests, two separate PostgreSQL-only skips,
