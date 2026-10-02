@@ -9,6 +9,7 @@ Supports both SQLite (local development) and PostgreSQL/Supabase (production).
 
 import uuid
 import logging
+from starlette.exceptions import HTTPException
 
 from datetime import datetime
 
@@ -595,6 +596,12 @@ async def get_db():
             yield session
 
             await session.commit()
+
+        except HTTPException:
+            # Expected request rejection is already recorded by access logging.
+            # It must roll back, but is not evidence of a database outage.
+            await session.rollback()
+            raise
 
         except Exception as e:
 

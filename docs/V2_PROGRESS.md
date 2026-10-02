@@ -1,5 +1,24 @@
 # AI GTM Engineer V2 implementation progress
 
+## Resumed checkpoint and workspace diagnostics — 2026-10-02
+
+Safely synchronized to remote `0be2df8` after preserving unfinished local work.
+Reused its green CI run `36981076689` and deployed its frontend to existing Free
+staging. Authenticated browser confirmed truthful dashboard state and the existing
+synthetic guided plan survives refresh with approval unchecked and disabled.
+No new records or execution were requested in this continuation.
+
+Recovered only unique local logging/mobile-workspace fixes. A browser-discovered
+execution/plan selection mismatch now loads the correct associated plan and
+resets review. Settings gains owner/admin-only visibility into existing operational
+and retention inventories, with manual refresh and honest unavailable cost/worker
+assurance. Retention durations remain explicit unapproved release decisions.
+
+Focused backend: 6 passed. Frontend contracts: 7 passed. TypeScript and targeted
+lint passed. No migration, provider call, production access or main change.
+Follow-up CI/deployment evidence is maintained in V2_EARLY_ACCESS_BACKLOG.md.
+Hosted AI and embedded worker remain paused; full live acceptance stays blocked.
+
 ## Customer session and integration feedback — 2026-10-02
 
 Checkpoint 4021e72 passed all GitHub CI jobs in run 36891654467: 269 backend

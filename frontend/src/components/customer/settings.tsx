@@ -1,8 +1,9 @@
 import { CompanyBrainEditor } from "@/components/company-brain";
 import { useWorkspace } from "@/lib/workspace";
 import { Heading, Panel } from "./ui";
+import { WorkspaceStatus } from "./workspace-status";
 export function SettingsPage() {
-  const { workspace } = useWorkspace();
+  const { workspace, canApprove } = useWorkspace();
   return (
     <>
       <Heading
@@ -32,6 +33,7 @@ export function SettingsPage() {
           Viewers have read-only access.
         </p>
       </Panel>
+      {canApprove && <WorkspaceStatus />}
     </>
   );
 }

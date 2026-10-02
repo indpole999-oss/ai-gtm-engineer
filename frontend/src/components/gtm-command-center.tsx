@@ -130,7 +130,7 @@ export function GtmCommandCenter() {
   });
   const cycles = useQuery({
     queryKey: ["customer", workspace.id, "/api/v1/gtm/cycles"],
-    queryFn: () => apiFetch<Cycle[]>("/api/v1/gtm/cycles"),
+    queryFn: () => apiFetch<(Cycle & { plan_id: string })[]>("/api/v1/gtm/cycles"),
     refetchInterval: 5000,
   });
   const cycle = useQuery({
@@ -175,7 +175,8 @@ export function GtmCommandCenter() {
     setSelectedPlan(next.id);
     setDraft(null);
     setEmptyGoal(null);
-    remember(next.id, selectedCycle);
+    setSelectedCycle("");
+    remember(next.id, "");
     setDirty(false);
     setReviewed(false);
   }
@@ -560,9 +561,14 @@ export function GtmCommandCenter() {
           <Button
             key={c.id}
             variant="outline"
+            disabled={busy || dirty}
             onClick={() => {
+              setSelectedPlan(c.plan_id);
+              setDraft(null);
+              setEmptyGoal(null);
+              setReviewed(false);
               setSelectedCycle(c.id);
-              remember(selectedPlan, c.id);
+              remember(c.plan_id, c.id);
             }}
           >
             Execution {cycles.data.length - i} · {c.status}

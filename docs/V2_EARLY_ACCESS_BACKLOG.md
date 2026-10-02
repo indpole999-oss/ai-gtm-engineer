@@ -1,5 +1,37 @@
 # V2 Early Access verification backlog
 
+## Current continuation — 2026-10-02
+
+- Resumed remote `0be2df8` without repeating its implementation. CI run
+  `36981076689` passed. Older local unfinished changes remain preserved in a
+  named stash; only non-overlapping fixes were recovered.
+- Validated frontend deployed to the existing Free staging service:
+  `dep-davsjp67bikc73faant0` is live on `0be2df8`. API remains on `0e498b5`
+  (backend code is identical between those checkpoints). No environment changes.
+- Authenticated in-app browser verified actual identity, truthful zero healthy
+  connections, existing synthetic guided draft v1 and restoration after full
+  refresh. Approval remains unchecked/disabled. No new goal, approval, execution
+  or provider call occurred during this continuation. Old executions remain failed.
+- P1 found in-browser: selecting an older execution leaves an unrelated draft
+  above it. Follow-up loads its associated plan, resets review and blocks selection
+  during unsaved edits. Selecting a plan clears the previous execution selection.
+- Recovered fixes: mobile workspace selector; expected HTTP rejections roll back
+  without misleading database-outage logs; unexpected failures retain exception
+  type without raw credential-bearing detail.
+- Useful P2: owner/admin Settings surfaces existing tenant-scoped execution and
+  approval inventory plus retention decisions. Manual refresh and failure/lease/
+  queue alerts; no invented cost, worker-health assertion or retention policy.
+- Focused backend: **6 passed** (rollback/log safety, operations tenant/RBAC,
+  retention). Frontend: **7 contract tests passed**, TypeScript and changed-file
+  lint passed. Follow-up CI and deployed-browser validation are recorded separately.
+
+### Still open, not waived
+
+Hosted AI and embedded worker remain paused. Live-model quality, worker
+availability and email/CRM/calendar delivery are not validated. Live-provider
+acceptance, operational/backup rehearsal and retention/privacy release decisions
+remain required. Earlier sections below are historical evidence.
+
 ## Scope and evidence — 2026-10-01
 
 - Repository: indpole999-oss/ai-gtm-engineer, existing V2 branch and draft PR #2.

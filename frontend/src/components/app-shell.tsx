@@ -167,6 +167,24 @@ export function AppShell({ children }: { children: ReactNode }) {
               </SheetHeader>
               <div className="px-3 py-4">
                 <NavLinks onNavigate={() => setMobileOpen(false)} />
+                <label className="mt-6 block text-xs font-semibold">
+                  Workspace
+                  <select
+                    aria-label="Current workspace"
+                    value={workspace.id}
+                    onChange={(event) => {
+                      select(event.target.value);
+                      setMobileOpen(false);
+                    }}
+                    className="g-input mt-2 w-full"
+                  >
+                    {workspaces.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             </SheetContent>
           </Sheet>
@@ -193,7 +211,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             {internal && !operator ? (
               <section className="g-panel max-w-2xl">
                 <p className="eyebrow">WORKSPACE</p>
-                <h1 className="mt-3 text-2xl font-semibold">This page is not part of your workspace</h1>
+                <h1 className="mt-3 text-2xl font-semibold">
+                  This page is not part of your workspace
+                </h1>
                 <p className="my-4 text-sm leading-6 text-muted-foreground">
                   Your customer tools are available from the main navigation.
                 </p>

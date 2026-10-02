@@ -1,5 +1,22 @@
 # Phase 11 production-readiness gate
 
+## Authenticated staging follow-up — 2026-10-02
+
+Frontend `0be2df8` is live on the existing Free staging service, with green CI.
+Authenticated browser verified actual user identity, truthful integration health,
+saved guided-plan restoration and an unchecked approval gate after refresh.
+These are browser/read-only workflow checks, not live AI or provider acceptance.
+
+The follow-up exposes existing owner/admin operational and retention snapshots
+in Settings, fixes mobile workspace selection and associates selected executions
+with their saved plans. Expected HTTP request rejections are no longer logged as
+database outages; unexpected session failures log only exception class. Relevant
+focused regressions pass. No schema change or database operation is introduced.
+
+All live and privacy/retention gates below remain open. Hosted AI and embedded
+worker remain explicitly disabled. No market-ready or production-ready claim is
+made from this partial, attended Free staging rehearsal.
+
 ## Current hosted staging checkpoint — 2026-10-01
 
 The existing Free staging API and frontend are now deployed on Render. This
