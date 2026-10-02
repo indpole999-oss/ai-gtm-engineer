@@ -1,5 +1,34 @@
 # V2 Early Access verification backlog
 
+## Validated staging checkpoint `38edc63` — 2026-10-02
+
+- CI run `37028129904` is green: **272 backend tests passed, 2 PostgreSQL-only
+  skips**; separate PostgreSQL boundary and populated backup-restore/upgrade jobs
+  passed; empty migration reached `20260928_0013`; seven frontend contracts,
+  TypeScript, Linux production build and targeted lint passed.
+- Existing Free staging web deploy `dep-davt0flg1s2s73bp6t5g` and API deploy
+  `dep-davt0me0tbcc73f9llkg` are live on `38edc630d07fa2bab0d8829c8ccac26d1f5027d7`.
+  Health and readiness both returned 200 after API deployment. No API error logs
+  in the inspected 15:42:16–15:43:07 UTC window; this is not an uptime guarantee.
+- Authenticated browser verified an old failed execution opens its own approved
+  Vercel plan. Switching back to the synthetic draft clears the old execution.
+  Unsaved local edits disable execution switching and approval; discard restores
+  the persisted draft. No revisions, approvals or executions were submitted.
+- Owner Settings loads canonical inventory (2 draft plans, 0 queued/running
+  actions, 2 failed actions), safe failure alert, explicit unavailable spend and
+  unapproved retention decisions. Manual refresh works. No horizontal overflow
+  at 390px or 1280px. Mobile navigation exposes the existing workspace selector.
+  Only one authorized workspace was present, so switching between two memberships
+  was not demonstrated in this live browser session; API tenant tests remain green.
+- Hosted AI and embedded worker stay paused. No environment, migration, role,
+  credential, provider or production changes were made. Source code is clean;
+  the pre-sync preservation stash remains available.
+
+Next acceptance priorities: second-user/workspace browser RBAC rehearsal; an
+explicitly authorized free-only model/worker rehearsal; dedicated live provider
+contracts; operational/backup and approved privacy/retention decisions. Do not
+mark market-ready or production-ready until their evidence exists.
+
 ## Current continuation — 2026-10-02
 
 - Resumed remote `0be2df8` without repeating its implementation. CI run

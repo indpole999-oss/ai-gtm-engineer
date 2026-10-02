@@ -1,5 +1,22 @@
 # AI GTM Engineer V2 implementation progress
 
+## Checkpoint `38edc63` deployed and verified — 2026-10-02
+
+CI run 37028129904 passed: 272 backend tests, two separate PostgreSQL-only skips,
+PostgreSQL boundary and restore/populated upgrade, empty migration to
+20260928_0013, seven frontend contracts, TypeScript, Linux production build and
+lint. Both existing Free staging services are live on this SHA. Post-deploy health
+and readiness returned 200.
+
+Authenticated browser verified execution/plan association, selection clearing,
+unsaved-edit protection, draft restore, mobile workspace control, owner activity
+and retention inventory, manual refresh and 390px/1280px layouts. Live multi-user
+workspace switching still requires another authorized staging membership. No
+records were saved, approved or executed during these checks. Hosted AI and worker
+remain paused. Full acceptance remains open; detailed evidence and next gates are
+in V2_EARLY_ACCESS_BACKLOG.md. This entry is documentation only; deployed code SHA
+remains 38edc630d07fa2bab0d8829c8ccac26d1f5027d7.
+
 ## Resumed checkpoint and workspace diagnostics — 2026-10-02
 
 Safely synchronized to remote `0be2df8` after preserving unfinished local work.

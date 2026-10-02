@@ -1,5 +1,13 @@
 # Phase 11 production-readiness gate
 
+Latest validated application: `38edc630d07fa2bab0d8829c8ccac26d1f5027d7`, live on
+both existing Free staging services. CI run `37028129904` passed all jobs (272
+backend tests; PostgreSQL isolation/restore/upgrade; frontend production build).
+Post-deploy health/readiness returned 200. Authenticated desktop/mobile checks
+cover saved plan review, execution association, unsaved-edit protection and the
+owner/admin inventory surfaces. These checks do not close live model/provider,
+independent worker, multi-user browser, operational or privacy/retention gates.
+
 ## Authenticated staging follow-up — 2026-10-02
 
 Frontend `0be2df8` is live on the existing Free staging service, with green CI.
