@@ -126,3 +126,41 @@ authorization failure, token rotation/reuse, tenant isolation and admin enforcem
 These use mocked Google HTTP responses; live event creation/readback and refresh
 evidence will be recorded separately after staging rollout. Do not treat this
 paragraph as live-provider acceptance.
+
+### Live staging evidence — Calendar test event
+
+Implementation `54ffc440b7aa78bfd83a78e729c11692cd5ca7d5` passed all jobs in
+[CI run 37122170110](https://github.com/indpole999-oss/ai-gtm-engineer/actions/runs/37122170110).
+Existing Free staging API deployment `dep-db0f44c9v7es73b5l4gg` and web deployment
+`dep-db0f45m0tbcc73fiklqg` became live on this SHA with auto-deploy off.
+
+Browser action: Integrations → Create test calendar event → reviewed confirmation
+→ Create real test event. Google returned confirmed event
+`a8dc0553d0b253788166c49f6d8b7841`, revision `3582059926963742`, for
+2026-10-03 12:29:18–12:39:18 UTC (17:59:18–18:09:18 Asia/Kolkata).
+Title: “GAPS AI — test calendar connection”. No attendees or invitations.
+
+Read-only SQL against isolated staging project `xhjkahbtckrrhuzamysr` independently
+confirmed Meeting `a8dc0553-d0b2-5378-8166-c49f6d8b7841` has status `confirmed`,
+the matching Google ID, stored receipt/revision/link, null contact and ten-minute
+duration. Initial verification: 12:19:25 UTC. Browser refresh retained the result;
+“Verify same event with Google” performed another live read at 12:20:31 UTC.
+Google ID and revision were unchanged; SQL counted exactly one test-event row
+and two `calendar_test_event_verified` audits.
+
+Saved authorization was reused without redirect/reconsent: OAuth audit count
+remained one from 11:51:36 UTC. The access token was not expired (expiry 12:51:29
+UTC), so **live expiry-driven token rotation is not claimed**. Persisted rotation
+and refreshed-token reuse are covered by the offline contract test.
+
+Browser expansion of “Previously saved connections (3)” showed the two Apollo
+records and HubSpot record, with setup unavailable and no credential-entry or
+connect controls. Read-only metadata shows their update timestamps unchanged
+from October 1–2. Credentials were not read or modified. The follow-up UI copy
+describes saved-event verification rather than promising a new future event.
+
+This acceptance proves a real attendee-free Calendar write/readback through the
+staging frontend and backend. It does not claim live customer invitation delivery,
+approved-worker scheduling, Google Meet conference creation, or completion of the
+remaining GTM/provider gates. Hosted AI remains paused. No production, main,
+schema, retention or paid changes.

@@ -64,8 +64,9 @@ function CalendarVerification({
     <div className="space-y-3 border-t pt-3">
       <h4 className="font-medium">Verify event creation</h4>
       <p className="text-sm">
-        Create one real 10-minute test event on this calendar, starting 10 minutes from now. No
-        attendees, invitations, reminders or prospect updates. Retries reuse the same event.
+        {event
+          ? "The saved test event is shown below. Verification reads the same event from Google; it does not schedule another meeting."
+          : "Create one real 10-minute test event on this calendar, starting 10 minutes from now. No attendees, invitations, reminders or prospect updates. Retries reuse the same event."}
       </p>
       <Feedback message={message} />
       {event && (

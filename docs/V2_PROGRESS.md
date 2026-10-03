@@ -565,3 +565,10 @@ scheduling boundaries remain intact. CRM setup remains hidden and saved Apollo/
 HubSpot credentials are preserved. Offline checks are recorded in
 `V2_EARLY_ACCESS_QA.md`; live staging acceptance is pending rollout. Hosted AI stays
 paused; no production deployment, main merge or paid actions.
+
+Live acceptance at implementation `54ffc44`: browser-created Google event
+`a8dc0553d0b253788166c49f6d8b7841` persisted with matching revision; reload and a
+second provider read reused the same event and existing authorization. Read-only
+staging SQL confirms one event row and two verification audits. Full evidence and
+the distinction between live token reuse and offline token rotation are recorded
+in `V2_EARLY_ACCESS_QA.md`. Existing saved Apollo/HubSpot records remain unchanged.
