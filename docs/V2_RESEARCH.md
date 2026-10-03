@@ -39,9 +39,13 @@ evidence, claims, reviews and reports are immutable in ORM and SQL. No legacy da
 is reassigned. Validate an isolated restored database; recovery uses verified backup
 restore rather than a destructive downgrade.
 
-Phase boundary: the explicit research-run endpoint is synchronous and read-only
-externally. A terminated request rolls back to queued. Phase 5 must replace this
-execution path with durable leased worker execution before production. Further
+Execution now requires the approved plan and durable leased worker. The public
+research-run endpoint rejects attempts to bypass that approval path. Real source
+captures persist before analysis and remain reviewable if model output fails;
+retries reuse those immutable captures. No report or qualification is accepted on
+analysis failure. Provider pauses are explicit blockers. See
+`V2_CORE_JOURNEY_ACCEPTANCE.md` for the current browser/backend evidence and the
+unaccepted live-provider gate. Further
 production hardening includes source-fetch total deadlines, parser isolation,
 rate limits, model prompt-injection evaluations, and real local-model/staging smoke
 tests. CI uses deterministic providers and does not establish live model quality.

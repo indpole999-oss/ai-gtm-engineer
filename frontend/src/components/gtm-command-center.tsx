@@ -1,4 +1,6 @@
 import { ActionDetails } from "./customer/action-details";
+import { ResearchReadinessNotice } from "./customer/research-readiness";
+import { useResearchReadiness } from "./customer/research-provider";
 import { useEffect, useRef, useState } from "react";
 import {
   executionSearch,
@@ -69,6 +71,7 @@ type CycleDetail = Cycle & {
 export function GtmCommandCenter() {
   const cache = useQueryClient();
   const { canEdit, canApprove, workspace } = useWorkspace();
+  const readiness = useResearchReadiness();
   const [objective, setObjective] = useState("");
   const [brain, setBrain] = useState("");
   const [company, setCompany] = useState("");
@@ -252,6 +255,7 @@ export function GtmCommandCenter() {
         Set a clear goal, review the proposed work, then approve the saved plan. Preparation and
         approval do not imply provider-confirmed success.
       </p>
+      <ResearchReadinessNotice />
       <fieldset disabled={busy || !canEdit} className="grid gap-3 md:grid-cols-2">
         <label className="text-sm md:col-span-2">
           Business goal
@@ -295,11 +299,17 @@ export function GtmCommandCenter() {
       <div className="flex flex-wrap gap-2">
         <Button
           disabled={
-            busy || !canEdit || objective.trim().length < 10 || !brain || !company || !urls.trim()
+            busy ||
+            !canEdit ||
+            !readiness.data?.can_attempt ||
+            objective.trim().length < 10 ||
+            !brain ||
+            !company ||
+            !urls.trim()
           }
           onClick={() => void run(() => generate("local_ai"))}
         >
-          Prepare a plan
+          Prepare AI plan
         </Button>
         <Button
           variant="outline"
@@ -526,7 +536,15 @@ export function GtmCommandCenter() {
                 I reviewed this saved plan, targets, constraints and risks.
               </label>
               <Button
-                disabled={!canApprove || !reviewed || dirty || busy || !outcomeReady}
+                disabled={
+                  !canApprove ||
+                  !reviewed ||
+                  dirty ||
+                  busy ||
+                  !outcomeReady ||
+                  (plan.document.plan.steps.some((s) => s.action === "research") &&
+                    !readiness.data?.can_attempt)
+                }
                 onClick={() => void run(approve)}
               >
                 Approve and queue plan
@@ -538,6 +556,7 @@ export function GtmCommandCenter() {
             disabled={
               busy ||
               !canEdit ||
+              !readiness.data?.can_attempt ||
               dirty ||
               ["reviewed_outreach", "reviewed_outcome"].includes(plan.author_method)
             }
@@ -606,7 +625,13 @@ export function GtmCommandCenter() {
               {(["pause", "resume", "cancel"] as const).map((action) => (
                 <Button
                   key={action}
-                  disabled={busy || !canApprove}
+                  disabled={
+                    busy ||
+                    !canApprove ||
+                    (action === "resume" &&
+                      plan?.document.plan.steps.some((s) => s.action === "research") &&
+                      !readiness.data?.can_attempt)
+                  }
                   variant="outline"
                   onClick={() =>
                     void run(async () => {

@@ -81,12 +81,13 @@ def test_evidence_chain_exact_brain_and_no_false_contact_verification(client, fa
     assert client.post(path + "/run", headers=a).status_code == 409
 
 
-@pytest.mark.parametrize("tamper", ["quote", "icp", "reference", "buyer", "verified"])
+@pytest.mark.parametrize("tamper", ["quote", "icp", "reference", "buyer", "title", "verified"])
 def test_reject_unsupported_model_output_without_partial_report(client, fake_research, tamper):
     if tamper == "quote": fake_research["claims"][0]["excerpt"] = "Invented evidence"
     if tamper == "icp": fake_research["icp_used"] = "wrong ICP"
     if tamper == "reference": fake_research["why_company"]["claim_indices"] = [999]
     if tamper == "buyer": fake_research["buyers"][0]["email"] = "invented@example.com"
+    if tamper == "title": fake_research["buyers"][0]["title"] = "Invented role"
     if tamper == "verified": fake_research["claims"][0]["kind"] = "verified_fact"
     a = signup(client, "invalid-model@example.com")
     job = create_job(client, a)
@@ -95,6 +96,70 @@ def test_reject_unsupported_model_output_without_partial_report(client, fake_res
     assert response.status_code == 422, response.text
     report = client.get(path, headers=a).json()
     assert report["status"] == "failed" and report["intelligence"] is None and report["claims"] == []
+    assert report["error_code"] == "model_output_validation_failed"
+    assert len(report["sources"]) == 1
+    assert report["sources"][0]["content_hash"] == hashlib.sha256(report["sources"][0]["content"].encode()).hexdigest()
+
+
+def test_paused_research_stops_before_retrieval_and_persists_exact_blocker(client, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "synthetic-only")
+    monkeypatch.setenv("GTM_HOSTED_AI_ENABLED", "false")
+    monkeypatch.setattr(research_service, "retrieve", lambda _: pytest.fail("Paused research must not retrieve sources"))
+    a = signup(client, "paused-research@example.com")
+    job = create_job(client, a)
+    response = execute_job(client, a, job["id"])
+    assert response.status_code == 409
+    report = client.get("/api/v1/research/jobs/" + job["id"], headers=a).json()
+    assert report["status"] == "blocked" and report["error_code"] == "hosted_ai_paused"
+    assert report["sources"] == report["claims"] == [] and report["intelligence"] is None
+
+
+def test_failed_model_retains_captures_and_retry_reuses_them(client, fake_research, monkeypatch):
+    a = signup(client, "capture-retry@example.com")
+    job = create_job(client, a)
+    original_provider = research_service.research_provider
+    class Offline:
+        async def analyze(self, *args):
+            raise httpx.ConnectError("private transport detail")
+    monkeypatch.setattr(research_service, "research_provider", Offline)
+    assert execute_job(client, a, job["id"]).status_code == 422
+    path = "/api/v1/research/jobs/" + job["id"]
+    first = client.get(path, headers=a).json()
+    assert first["error_code"] == "model_provider_unavailable" and len(first["sources"]) == 1
+    assert first["claims"] == [] and first["intelligence"] is None
+    async def reset():
+        async with AsyncSessionLocal() as db:
+            db.info.update(workspace_id=UUID(a["X-Workspace-ID"]), workspace_role="admin")
+            row = await db.scalar(select(ResearchJob).where(ResearchJob.id == UUID(job["id"])))
+            row.status, row.error_code = "queued", None
+            await db.commit()
+    client.portal.call(reset)
+    monkeypatch.setattr(research_service, "research_provider", original_provider)
+    monkeypatch.setattr(research_service, "retrieve", lambda _: pytest.fail("Retry must reuse immutable capture"))
+    assert execute_job(client, a, job["id"]).status_code == 200
+    assert client.get(path, headers=a).json()["sources"] == first["sources"]
+
+
+def test_account_fit_does_not_qualify_unobserved_contacts(client, fake_research):
+    a = signup(client, "buyer-qualification@example.com")
+    account = company(client, a)
+    for first, email in [("Jane", "jane@example.com"), ("Other", "other@example.com")]:
+        assert client.post("/api/v1/contacts/", headers=a, json={"company_id": account["id"], "first_name": first, "last_name": "Buyer", "email": email}).status_code == 200
+    job = create_job(client, a, account=account)
+    assert execute_job(client, a, job["id"]).status_code == 200
+    contacts = {c["id"]: c for c in client.get("/api/v1/contacts/", headers=a).json()}
+    rows = client.get("/api/v1/outcomes/pipeline", headers=a).json()
+    for row in rows:
+        if not row["contact_id"]:
+            assert row["stage"] == "qualified"
+        elif contacts[row["contact_id"]]["first_name"] == "Jane":
+            assert row["stage"] == "qualified"
+        else:
+            assert row["stage"] == "discovered"
+            response = client.post(f"/api/v1/outcomes/pipeline/{row['id']}/stage", headers=a, json={
+                "stage": "qualified", "expected_revision": row["revision"], "reviewed": True,
+                "reason": "Review this account fit as buyer qualification", "evidence_kind": "research", "evidence_id": job["id"]})
+            assert response.status_code == 409 and "buyer observation" in response.text
 
 
 def test_research_cross_tenant_direct_collection_relationships_and_actions(client, fake_research):

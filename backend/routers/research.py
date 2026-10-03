@@ -13,6 +13,12 @@ from backend.tenancy import get_current_workspace, get_workspace_db
 router = APIRouter()
 
 
+@router.get("/readiness")
+async def readiness(ctx=Depends(get_current_workspace)):
+    from backend.research_readiness import model_readiness
+    return await model_readiness()
+
+
 class VerificationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reviewed_text: str = Field(min_length=1, max_length=3000)
@@ -78,6 +84,7 @@ async def report(job_id: UUID, db=Depends(get_workspace_db)):
     intelligence = await db.scalar(select(AccountIntelligence).where(AccountIntelligence.job_id == job.id))
     claims = (await db.scalars(select(ResearchClaim).where(ResearchClaim.job_id == job.id))).all()
     evidence = []
+    captures = (await db.scalars(select(SourceFetch).where(SourceFetch.job_id == job.id).order_by(SourceFetch.retrieved_at, SourceFetch.id))).all()
     for claim in claims:
         review = await db.scalar(select(ClaimVerification).where(ClaimVerification.claim_id == claim.id).order_by(ClaimVerification.created_at.desc(), ClaimVerification.id.desc()).limit(1))
         item = await scoped_record(db, EvidenceItem, claim.evidence_id) if claim.evidence_id else None
@@ -91,4 +98,8 @@ async def report(job_id: UUID, db=Depends(get_workspace_db)):
                          "retrieved_at": fetch.retrieved_at if fetch else None, "freshness": "stale" if age_days is not None and age_days > 30 else "recent_capture" if fetch else "unknown",
                          "content_hash": fetch.content_hash if fetch else None})
     return {"id": job.id, "status": job.status, "error_code": job.error_code,
+            "brain_version_id": job.brain_version_id, "source_urls": job.source_urls,
+            "sources": [{"id": row.id, "url": row.url, "title": row.title, "publisher": row.publisher,
+                         "retrieved_at": row.retrieved_at, "content_hash": row.content_hash,
+                         "extractor_version": row.extractor_version, "content": row.content} for row in captures],
             "intelligence": intelligence.result if intelligence else None, "claims": evidence}

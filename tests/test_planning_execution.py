@@ -64,6 +64,25 @@ def test_no_execution_before_approval_and_durable_completion(client, fake_resear
     assert {e["kind"] for e in state["events"]} >= {"plan_approved", "command_claimed", "command_succeeded"}
 
 
+def test_paused_hosted_provider_blocks_approval_and_pauses_existing_work(client, monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ-API-KEY", raising=False)
+    monkeypatch.setenv("GTM_HOSTED_AI_ENABLED", "false")
+    a = signup(client, "paused-worker@example.com")
+    plan = proposal(client, a)
+    cycle = approve(client, a, plan)
+    next_plan = client.post(f"/api/v1/gtm/goals/{plan['goal_id']}/plans", headers=a, json={"mode": "research_template"}).json()
+    monkeypatch.setenv("GROQ_API_KEY", "synthetic-key")
+    response = client.post(f"/api/v1/gtm/plans/{next_plan['id']}/approve", headers=a, json={"content_hash": next_plan["content_hash"], "reviewed": True})
+    assert response.status_code == 409 and "paused" in response.text
+    assert client.portal.call(worker.run_once, UUID(a["X-Workspace-ID"]))
+    state = client.get(f"/api/v1/gtm/cycles/{cycle['id']}", headers=a).json()
+    assert state["status"] == "paused" and state["stop_reason"] == "hosted_ai_paused"
+    assert state["commands"][0]["attempts"] == 1 and state["steps"][0]["output"] is None
+    assert not client.portal.call(worker.run_once, UUID(a["X-Workspace-ID"]))
+    assert client.post(f"/api/v1/gtm/cycles/{cycle['id']}/control", headers=a, json={"action": "resume"}).status_code == 409
+
+
 def test_pause_resume_cancel_and_cross_tenant_access(client, fake_research):
     a, b = signup(client, "control-a@example.com"), signup(client, "control-b@example.com")
     plan = proposal(client, a)

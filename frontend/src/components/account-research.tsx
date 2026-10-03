@@ -4,6 +4,8 @@ import { apiFetch } from "@/lib/api";
 import { useWorkspace } from "@/lib/workspace";
 import { friendlyError } from "./customer/ui";
 import { Button } from "@/components/ui/button";
+import { ResearchReadinessNotice } from "./customer/research-readiness";
+import { executionSearch } from "./customer/execution-selection";
 
 type Job = { id: string; status: string; error_code: string | null };
 type Explanation = { reasoning: string; claim_indices: number[] };
@@ -22,6 +24,14 @@ type Claim = {
   model_version: string;
 };
 type Report = Job & {
+  sources?: {
+    id: string;
+    url: string;
+    title: string;
+    content: string;
+    content_hash: string;
+    retrieved_at: string;
+  }[];
   claims: Claim[];
   intelligence: null | {
     fit: string;
@@ -50,6 +60,7 @@ export function AccountResearch({ companyId }: { companyId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [planLink, setPlanLink] = useState("/dashboard");
   const versions = useQuery({
     queryKey: ["customer", workspace.id, "/api/v1/company-brain"],
     queryFn: ({ signal }) =>
@@ -64,9 +75,10 @@ export function AccountResearch({ companyId }: { companyId: string }) {
       apiFetch<Job[]>(`/api/v1/research/jobs?company_id=${companyId}`, { signal }),
   });
   const report = useQuery({
-    queryKey: ["research-report", workspace.id, selected],
-    queryFn: ({ signal }) => apiFetch<Report>(`/api/v1/research/jobs/${selected}`, { signal }),
-    enabled: Boolean(selected),
+    queryKey: ["research-report", workspace.id, selected || jobs.data?.[0]?.id],
+    queryFn: ({ signal }) =>
+      apiFetch<Report>(`/api/v1/research/jobs/${selected || jobs.data?.[0]?.id}`, { signal }),
+    enabled: Boolean(selected || jobs.data?.[0]?.id),
   });
   const intelligence = report.data?.intelligence;
   async function run() {
@@ -92,10 +104,11 @@ export function AccountResearch({ companyId }: { companyId: string }) {
         }),
       });
       await cache.invalidateQueries({ queryKey: ["customer", workspace.id, "/api/v1/gtm/goals"] });
-      await apiFetch(`/api/v1/gtm/goals/${goal.id}/plans`, {
+      const plan = await apiFetch<{ id: string }>(`/api/v1/gtm/goals/${goal.id}/plans`, {
         method: "POST",
         body: JSON.stringify({ mode: "research_template" }),
       });
+      setPlanLink(`/dashboard?${executionSearch("", workspace.id, plan.id, "")}#gtm-center`);
       setMessage(
         "Research plan drafted. Review and approve it in the command center before execution.",
       );
@@ -127,6 +140,7 @@ export function AccountResearch({ companyId }: { companyId: string }) {
         Prepare a guided research plan using a published Company Brain. Execution requires separate
         approval and an available AI provider. Evidence-backed suggestions still require review.
       </p>
+      <ResearchReadinessNotice />
       <label className="block text-sm">
         Company Brain version
         <select
@@ -159,7 +173,7 @@ export function AccountResearch({ companyId }: { companyId: string }) {
       {message && (
         <p role="status" className="text-sm">
           {message}{" "}
-          <a href="/dashboard" className="text-primary underline">
+          <a href={planLink} className="mt-2 block w-fit text-primary underline">
             Open command center
           </a>
         </p>
@@ -170,6 +184,16 @@ export function AccountResearch({ companyId }: { companyId: string }) {
         </p>
       )}
       <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          disabled={busy || jobs.isFetching}
+          onClick={() => {
+            void jobs.refetch();
+            if (selected || jobs.data?.[0]?.id) void report.refetch();
+          }}
+        >
+          Refresh research
+        </Button>
         {jobs.data?.map((job, index) => (
           <Button
             key={job.id}
@@ -185,9 +209,26 @@ export function AccountResearch({ companyId }: { companyId: string }) {
       {report.data && (
         <p className="text-sm">
           Status: {report.data.status}
-          {report.data.error_code ? " — no validated report was produced" : ""}
+          {report.data.error_code
+            ? ` — ${report.data.error_code.replaceAll("_", " ")}. No validated qualification report was produced.`
+            : ""}
         </p>
       )}
+      {report.data?.sources?.map((source) => (
+        <details key={source.id} className="rounded border p-3">
+          <summary>Captured source: {source.title}</summary>
+          <p className="break-all text-xs">
+            {source.url} · Captured: {source.retrieved_at}
+          </p>
+          <p className="break-all text-xs">SHA-256: {source.content_hash}</p>
+          <p className="mt-2 text-xs">
+            Source capture alone does not establish account fit or buyer relevance.
+          </p>
+          <blockquote className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-sm">
+            {source.content}
+          </blockquote>
+        </details>
+      ))}
       {intelligence && (
         <>
           <p className="text-sm font-medium">

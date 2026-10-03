@@ -52,11 +52,21 @@ async def qualification(db, job):
     if job.status != "completed" or not report or report.result.get("fit") != "potential_fit":
         return
     rows = [await ensure(db, job.company_id)]
+    # Account fit does not establish the relevance of every manually saved buyer.
+    buyers = report.result.get("buyers", [])
     for contact in (await db.scalars(select(Contact).where(Contact.company_id == job.company_id))).all():
-        rows.append(await ensure(db, job.company_id, contact.id))
+        if buyer_supported(buyers, contact):
+            rows.append(await ensure(db, job.company_id, contact.id))
     for row in rows:
         await transition(db, row, "qualified", "research", "research:" + str(job.id), "Persisted ICP potential-fit qualification; not independent verification",
             evidence={"research_job_id": str(job.id), "brain_version_id": str(job.brain_version_id)})
+
+
+def buyer_supported(buyers, contact):
+    return bool(contact.email) and any(
+        b.get("email") and b["email"].casefold() == contact.email.casefold()
+        and b.get("name", "").casefold() == f"{contact.first_name} {contact.last_name}".strip().casefold()
+        for b in buyers)
 
 
 async def outbound(db, message, draft, cycle):
@@ -98,6 +108,10 @@ async def manual(db, row, ctx, stage, expected_revision, reason, evidence_kind=N
         report = await db.scalar(select(AccountIntelligence).where(AccountIntelligence.job_id == job.id)) if job else None
         if not job or job.company_id != row.company_id or job.status != "completed" or not report or report.result.get("fit") != "potential_fit":
             raise HTTPException(409, "Supported qualification required")
+        if row.contact_id:
+            contact = await scoped_record(db, Contact, row.contact_id)
+            if not buyer_supported(report.result.get("buyers", []), contact):
+                raise HTTPException(409, "Contact qualification requires a matching source-backed buyer observation")
     elif stage == "contacted":
         from backend.outreach_models import Message, MessageDraft
         message = await scoped_record(db, Message, evidence_id) if evidence_kind == "outbound" and evidence_id else None

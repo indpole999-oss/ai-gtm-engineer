@@ -12,7 +12,13 @@ from backend.brain_models import CompanyBrainVersion
 from backend.database import Company
 from backend.research_models import ResearchJob, SourceFetch, EvidenceItem, ResearchClaim, AccountIntelligence
 from backend.retrieval import retrieve, RetrievalError
-from backend.hosted_model import groq_configured, groq_output
+from backend.hosted_model import groq_configured, groq_output, HostedAIPaused
+
+
+class ResearchExecutionBlocked(HTTPException):
+    def __init__(self, code, message):
+        self.code = code
+        super().__init__(409, message)
 
 
 class ExtractedClaim(BaseModel):
@@ -132,15 +138,31 @@ async def execute_research(db, job):
     job_id = job.id
     if job.status != "queued":
         raise HTTPException(409, "Research job already started")
-    # The caller holds the job row lock. Phase 5 will reuse this service under a
-    # durable worker lease; a killed process currently rolls back to queued.
+    # Execution is authorized by the durable worker's approved command lease.
+    # Captures commit independently; a retry reuses them without inventing a report.
     brain = await scoped_record(db, CompanyBrainVersion, job.brain_version_id)
     if brain.status != "published":
         raise HTTPException(409, "Research requires published Company Brain")
     try:
         company = await scoped_record(db, Company, job.company_id)
-        captures = [await run_in_threadpool(retrieve, url) for url in job.source_urls]
-        output, model_version = await research_provider().analyze(
+        provider = research_provider()
+        from backend.research_readiness import hosted_ai_enabled
+        if isinstance(provider, GroqResearchProvider) and not hosted_ai_enabled():
+            raise HostedAIPaused("Hosted AI execution is paused")
+        previous = (await db.scalars(select(SourceFetch).where(SourceFetch.job_id == job.id))).all()
+        by_url = {row.url: row for row in previous}
+        captures, fetches = [], []
+        for url in job.source_urls:
+            row = by_url.get(url)
+            if row is None:
+                capture = await run_in_threadpool(retrieve, url)
+                row = SourceFetch(job_id=job.id, **capture)
+                db.add(row)
+                await db.commit()
+                by_url[url] = row
+            captures.append({"url": row.url, "content": row.content})
+            fetches.append(row)
+        output, model_version = await provider.analyze(
             brain.profile,
             captures,
             {"name": company.name, "domain": company.domain},
@@ -163,18 +185,12 @@ async def execute_research(db, job):
                 raise ValueError("Provider assertions must quote the source; paraphrases are model inferences")
         for buyer in output.buyers:
             excerpts = "\n".join(output.claims[i].excerpt for i in buyer.claim_indices)
-            if buyer.name not in excerpts or (buyer.email and buyer.email not in excerpts):
+            if not buyer.name.strip() or buyer.name not in excerpts or not buyer.title.strip() or buyer.title not in excerpts or (buyer.email and buyer.email not in excerpts):
                 raise ValueError("Unsupported buyer observation")
         if output.fit != "unknown" and not any(
             output.claims[i].kind != "unknown" for i in output.why_company.claim_indices
         ):
             raise ValueError("Qualification cannot rely only on unknown claims")
-        fetches = []
-        for capture in captures:
-            row = SourceFetch(job_id=job.id, **capture)
-            db.add(row)
-            await db.flush()
-            fetches.append(row)
         claim_ids = []
         for item in output.claims:
             evidence = None
@@ -208,7 +224,7 @@ async def execute_research(db, job):
                 "Observed in a source; mailbox ownership and deliverability have not been verified"
             )
         db.add(AccountIntelligence(job_id=job.id, result=result))
-        job.status, job.completed_at = "completed", datetime.utcnow()
+        job.status, job.completed_at, job.error_code = "completed", datetime.utcnow(), None
         from backend.outreach_service import lock_workspace
         from backend.pipeline_service import qualification
 
@@ -216,10 +232,17 @@ async def execute_research(db, job):
         await db.flush()
         await qualification(db, job)
         await db.commit()
-    except (RetrievalError, httpx.HTTPError, ValueError, KeyError, TypeError):
+    except HostedAIPaused:
+        await db.rollback()
+        blocked = await scoped_record(db, ResearchJob, job_id)
+        blocked.status, blocked.error_code = "blocked", "hosted_ai_paused"
+        await db.commit()
+        raise ResearchExecutionBlocked("hosted_ai_paused", "Hosted AI is paused. No qualification report was created. Explicit operator authorization is required.") from None
+    except (RetrievalError, httpx.HTTPError, ValueError, KeyError, TypeError) as error:
         await db.rollback()
         failed = await scoped_record(db, ResearchJob, job_id)
-        failed.status, failed.error_code = "failed", "retrieval_or_model_validation_failed"
+        failed.status = "failed"
+        failed.error_code = "source_retrieval_failed" if isinstance(error, RetrievalError) else "model_provider_unavailable" if isinstance(error, httpx.HTTPError) else "model_output_validation_failed"
         await db.commit()
         raise HTTPException(
             422,

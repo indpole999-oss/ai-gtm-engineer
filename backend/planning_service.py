@@ -155,6 +155,10 @@ async def approve_plan(db, plan, ctx, expected_hash):
     if plan.document["brain_hash"] != brain.content_hash:
         raise HTTPException(409, "Company Brain hash changed; regenerate and review")
     document = PlanDocument.model_validate(plan.document["plan"])
+    if any(step.action == "research" for step in document.steps):
+        from backend.research_readiness import hosted_ai_enabled
+        if groq_configured() and not hosted_ai_enabled():
+            raise HTTPException(409, "Hosted AI is paused. Save and review the plan; research cannot be queued until explicitly authorized.")
     for spec in document.steps:
         if spec.action == "outreach_send":
             from backend.outreach_service import valid_message

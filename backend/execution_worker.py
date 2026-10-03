@@ -18,7 +18,7 @@ from backend import outreach_models  # noqa: F401; standalone worker metadata
 from backend import outcome_models  # noqa: F401
 from backend import inbox_models  # noqa: F401; standalone worker metadata
 from backend.research_models import ResearchJob
-from backend.research_service import execute_research
+from backend.research_service import execute_research, ResearchExecutionBlocked
 
 
 def bind(db, workspace_id):
@@ -191,7 +191,10 @@ async def finish(workspace_id, claim, result=None, error=None):
             command.status, step.status = "cancelled", "cancelled"
         elif error:
             command.error_code = error
-            if command.attempts < claim["max_attempts"]:
+            if error == "hosted_ai_paused":
+                command.status, step.status = "queued", "pending"
+                cycle.status, cycle.stop_reason = "paused", error
+            elif command.attempts < claim["max_attempts"]:
                 command.status, step.status = "queued", "pending"
                 command.due_at = datetime.utcnow() + timedelta(seconds=min(300, 2 ** command.attempts))
             else:
@@ -226,6 +229,9 @@ async def run_once(workspace_id):
         result = await asyncio.wait_for(perform(workspace_id, claim), timeout=claim["timeout"])
     except asyncio.CancelledError:
         raise  # Leave the lease for restart recovery; no false acknowledgement.
+    except ResearchExecutionBlocked as error:
+        await finish(workspace_id, claim, error=error.code)
+        outcome = "blocked"
     except Exception:
         await finish(workspace_id, claim, error="command_execution_failed")
         outcome = "execution_error"

@@ -143,8 +143,13 @@ async def control(cycle_id: UUID, body: ControlInput, ctx=Depends(get_current_wo
     if row.status in {"completed", "cancelled", "failed"}:
         raise HTTPException(409, "Cycle is terminal; create and review a new plan version")
     if body.action == "resume":
-        if not await approved(db, row):
+        plan = await approved(db, row)
+        if not plan:
             raise HTTPException(409, "Approval is no longer valid")
+        from backend.research_readiness import hosted_ai_enabled
+        from backend.hosted_model import groq_configured
+        if any(s["action"] == "research" for s in plan.document["plan"]["steps"]) and groq_configured() and not hosted_ai_enabled():
+            raise HTTPException(409, "Hosted AI remains paused. Explicit operator authorization is required before resuming research.")
         pending = await db.scalar(select(StepRun.id).where(StepRun.cycle_id == row.id, StepRun.status != "succeeded").limit(1))
         row.status = "running" if pending else "completed"
     elif body.action == "pause":

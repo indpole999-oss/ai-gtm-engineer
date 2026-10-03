@@ -15,102 +15,10 @@ import {
   friendlyError,
   useData,
 } from "./ui";
+import { AccountResearch } from "@/components/account-research";
 import type { Company, Contact, Pipeline } from "./contracts";
 
-type Research = { id: string; company_id: string; status: string };
-type Report = {
-  intelligence: {
-    fit: string;
-    why_company: { reasoning: string };
-    why_now: { reasoning: string };
-    buyers: {
-      name: string;
-      title: string;
-      email: string | null;
-      reasoning: string;
-      verification_status: string;
-    }[];
-    brain_version_id: string;
-  } | null;
-  claims: {
-    id: string;
-    text: string;
-    excerpt: string;
-    confidence: number | null;
-    url: string | null;
-    kind: string;
-    freshness: string;
-  }[];
-};
-function Evidence({ job }: { job: Research }) {
-  const q = useData<Report>(`/api/v1/research/jobs/${job.id}`);
-  if (q.isPending) return <Loading />;
-  if (q.isError) return <ErrorState error={q.error} retry={() => void q.refetch()} />;
-  const r = q.data;
-  return (
-    <div className="mt-5 space-y-5">
-      {r?.intelligence ? (
-        <>
-          <div className="grid gap-5 md:grid-cols-2">
-            <div>
-              <h3 className="font-semibold">Why this company</h3>
-              <p className="mt-2 text-sm leading-6">{r.intelligence.why_company.reasoning}</p>
-            </div>
-            <div>
-              <h3 className="font-semibold">Why now</h3>
-              <p className="mt-2 text-sm leading-6">{r.intelligence.why_now.reasoning}</p>
-            </div>
-          </div>
-          <h3 className="font-semibold">Recommended buyers</h3>
-          {r.intelligence.buyers.map((b, i) => (
-            <div key={i} className="rounded-xl bg-muted p-4">
-              <p className="font-medium">
-                {b.name} · {b.title}
-              </p>
-              <p className="mt-2 text-sm">{b.reasoning}</p>
-              <p className="mt-2 text-xs">
-                {b.email || "Email unknown"} · Verification: {b.verification_status}
-              </p>
-            </div>
-          ))}
-          <p className="break-all text-xs text-muted-foreground">
-            Company Brain version: {r.intelligence.brain_version_id}
-          </p>
-        </>
-      ) : (
-        <p>Research is not complete. No qualification or buyer information is inferred.</p>
-      )}
-      <details>
-        <summary className="text-sm font-medium">Supporting evidence</summary>
-        <div className="mt-4 space-y-4">
-          {r?.claims.map((c) => (
-            <article key={c.id} className="border-t pt-4">
-              <p className="text-sm">{c.text}</p>
-              <blockquote className="my-3 border-l-2 pl-4 text-sm text-muted-foreground">
-                {c.excerpt || "No source excerpt"}
-              </blockquote>
-              <p className="text-xs">
-                {c.kind.replaceAll("_", " ")} · Confidence{" "}
-                {c.confidence === null ? "unknown" : c.confidence} ·{" "}
-                {c.freshness.replaceAll("_", " ")}
-              </p>
-              {c.url && /^https?:\/\//i.test(c.url) && (
-                <a
-                  className="mt-2 block break-all text-sm text-primary underline"
-                  href={c.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  View source
-                </a>
-              )}
-            </article>
-          ))}
-        </div>
-      </details>
-    </div>
-  );
-}
+type Research = { id: string; company_id: string; status: string; error_code: string | null };
 export function ProspectsPage() {
   const { canEdit } = useWorkspace();
   const cache = useQueryClient();
@@ -228,7 +136,7 @@ export function ProspectsPage() {
         <div className="space-y-4">
           {matchingAccounts.map((a) => {
             const p = pipelines.data?.find((p) => p.company_id === a.id && !p.contact_id);
-            const job = jobs.data?.find((j) => j.company_id === a.id && j.status === "completed");
+            const job = jobs.data?.find((j) => j.company_id === a.id);
             return (
               <Panel key={a.id}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -243,7 +151,7 @@ export function ProspectsPage() {
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
                   {job
-                    ? "Research evidence is available for review."
+                    ? `Latest research: ${job.status.replaceAll("_", " ")}${job.error_code ? ` � ${job.error_code.replaceAll("_", " ")}` : ""}. ${job.status === "completed" ? "Review the saved fit assessment and evidence below." : "No qualification is inferred from this attempt."}`
                     : "Qualification is not yet supported by completed research."}
                 </p>
                 <div className="mt-5 flex flex-wrap gap-2">
@@ -293,14 +201,7 @@ export function ProspectsPage() {
                     </form>
                   </details>
                 )}
-                {expanded === a.id &&
-                  (job ? (
-                    <Evidence job={job} />
-                  ) : (
-                    <p className="mt-4 text-sm">
-                      No completed research. Use AI GTM to review and approve a research plan.
-                    </p>
-                  ))}
+                {expanded === a.id && <AccountResearch key={a.id} companyId={a.id} />}
               </Panel>
             );
           })}
