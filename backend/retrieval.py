@@ -4,6 +4,7 @@ import http.client
 import ipaddress
 import socket
 import ssl
+from contextvars import ContextVar
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, unquote
 from urllib.robotparser import RobotFileParser
@@ -11,6 +12,16 @@ from urllib.robotparser import RobotFileParser
 
 class RetrievalError(Exception):
     pass
+
+
+# Opt-in internal tracing; never changes retrieval or policy decisions.
+retrieval_trace = ContextVar("retrieval_trace", default=None)
+
+
+def trace_event(**event):
+    trace = retrieval_trace.get()
+    if trace is not None:
+        trace.append(event)
 
 
 def public_target(url):
@@ -21,6 +32,7 @@ def public_target(url):
             raise ValueError()
         host = parts.hostname.encode("idna").decode("ascii")
         addresses = sorted({item[4][0] for item in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)})
+        trace_event(stage="dns", host=host, addresses=addresses)
         if not addresses or any(not ipaddress.ip_address(address).is_global or ipaddress.ip_address(address).is_multicast or ipaddress.ip_address(address).is_reserved for address in addresses):
             raise ValueError()
         return host, addresses[0], (parts.path or "/") + ("?" + parts.query if parts.query else "")
@@ -74,6 +86,8 @@ def fetch_public(url, limit=1000000):
             raise
         connection.request("GET", path, headers={"Host": host, "Accept": "text/html,text/plain", "Accept-Encoding": "identity", "User-Agent": "GapsEvidence/2.0"})
         response = connection.getresponse()
+        trace_event(stage="http", host=host, path=path, address=address,
+                    status=response.status, mime=response.getheader("Content-Type", ""))
         if response.getheader("Content-Encoding", "identity") != "identity":
             raise RetrievalError("Compressed responses are not accepted")
         mime = response.getheader("Content-Type", "").split(";")[0].lower()
@@ -86,7 +100,8 @@ def fetch_public(url, limit=1000000):
         return response.status, mime, text, response.getheader("X-Robots-Tag", "")
     except RetrievalError:
         raise
-    except (OSError, http.client.HTTPException, ValueError):
+    except (OSError, http.client.HTTPException, ValueError) as error:
+        trace_event(stage="transport", error_type=type(error).__name__)
         raise RetrievalError("Source retrieval failed") from None
     finally:
         connection.close()

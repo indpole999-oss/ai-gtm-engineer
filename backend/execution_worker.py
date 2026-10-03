@@ -6,6 +6,7 @@ come from deployment-global provider variables. Only approved commands execute.
 import asyncio
 import logging
 import time
+import json
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4, uuid5
 from sqlalchemy import select, update, or_, and_, func
@@ -244,12 +245,26 @@ async def run_once(workspace_id):
 
 
 async def main():
-    while True:
-        async with AsyncSessionLocal() as db:
-            workspaces = (await db.scalars(select(Workspace.id).where(Workspace.status == "active"))).all()
-        for workspace_id in workspaces:
-            await run_once(workspace_id)
-        await asyncio.sleep(1)
+    logger = logging.getLogger(__name__)
+    boot_id, started, last_heartbeat, polls = str(uuid4()), time.monotonic(), None, 0
+    logger.info("worker_started " + json.dumps({"boot_id": boot_id}))
+    try:
+        while True:
+            async with AsyncSessionLocal() as db:
+                workspaces = (await db.scalars(select(Workspace.id).where(Workspace.status == "active"))).all()
+            for workspace_id in workspaces:
+                await run_once(workspace_id)
+            polls += 1
+            now = time.monotonic()
+            # Only a completed database/queue sweep establishes a heartbeat.
+            if last_heartbeat is None or now - last_heartbeat >= 30:
+                logger.info("worker_heartbeat " + json.dumps({"boot_id": boot_id,
+                    "completed_polls": polls, "workspaces": len(workspaces),
+                    "uptime_seconds": round(now - started, 2)}))
+                last_heartbeat = now
+            await asyncio.sleep(1)
+    finally:
+        logger.info("worker_stopped " + json.dumps({"boot_id": boot_id, "completed_polls": polls}))
 
 
 if __name__ == "__main__":

@@ -53,8 +53,8 @@ async def staging_execution_loop():
             await execution_worker_main()
         except asyncio.CancelledError:
             raise
-        except Exception:
-            logger.error("staging_worker_unavailable")
+        except Exception as error:
+            logger.error("staging_worker_unavailable", extra={"error_type": type(error).__name__})
         else:
             logger.warning("staging_worker_exited")
         await asyncio.sleep(5)
@@ -71,12 +71,20 @@ async def lifespan(app: FastAPI):
     # Staging runs the durable execution loop in the same single-instance API
     # process so approved plans can execute without a separate paid worker.
     worker_task = None
+    from backend.staging_dependency_probe import probe_enabled, run as run_source_probe
+    probe_task = asyncio.create_task(run_source_probe()) if probe_enabled() else None
     if settings.EMBEDDED_EXECUTION_WORKER and settings.APP_ENV.strip().lower() != "test":
         worker_task = asyncio.create_task(staging_execution_loop(), name="execution-worker")
         logger.info("Staging execution worker started.")
     try:
         yield
     finally:
+        if probe_task is not None:
+            probe_task.cancel()
+            try:
+                await probe_task
+            except asyncio.CancelledError:
+                pass
         if worker_task is not None:
             worker_task.cancel()
             try:
