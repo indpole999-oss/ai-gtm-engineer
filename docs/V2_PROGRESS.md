@@ -555,3 +555,13 @@ repair removes unsupported connection offers, preserves existing credentials,
 prevents new duplicate records, targets reconnects and requires Calendar API
 verification before healthy status. Detailed test evidence and unresolved real
 provider gates are recorded in `V2_EARLY_ACCESS_QA.md`. Hosted AI stays paused.
+
+### 2026-10-03 — executable Google Calendar connection
+
+Continue from `1dc9e74` after live OAuth/access verification. Google create-only
+execution and an explicit attendee-free connection test now persist real provider
+receipts and reconcile the same event across retries. Existing approved customer
+scheduling boundaries remain intact. CRM setup remains hidden and saved Apollo/
+HubSpot credentials are preserved. Offline checks are recorded in
+`V2_EARLY_ACCESS_QA.md`; live staging acceptance is pending rollout. Hosted AI stays
+paused; no production deployment, main merge or paid actions.

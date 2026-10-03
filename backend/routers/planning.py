@@ -74,7 +74,7 @@ async def generate(goal_id: UUID, body: GenerateInput, db=Depends(get_workspace_
                    "targets": goal.target_inputs,
                    "integrations": [{"category": i.category, "provider": i.provider, "health": i.health} for i in integrations],
                    "workspace_policy": {"approval_required": True, "paid_budget_cents": 0, "max_steps": 20, "allowed_actions": ["research"]},
-                   "historical_outcomes": {"completed_cycles": await db.scalar(select(func.count(ExecutionCycle.id)).where(ExecutionCycle.status == "completed")), "meetings": await db.scalar(select(func.count(Meeting.id)))},
+                   "historical_outcomes": {"completed_cycles": await db.scalar(select(func.count(ExecutionCycle.id)).where(ExecutionCycle.status == "completed")), "meetings": await db.scalar(select(func.count(Meeting.id)).where(Meeting.contact_id.is_not(None), Meeting.google_event_id.is_not(None)))},
                    "pipeline_state": {"crm_records": await db.scalar(select(func.count(CRMRecord.id)))}}
         try:
             document, method = await service.planner_provider().plan(context)

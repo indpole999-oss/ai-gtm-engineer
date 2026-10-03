@@ -129,4 +129,5 @@ async def health(integration_id: UUID, db=Depends(get_workspace_db)):
     from backend.database import Integration
     from backend.routers.integrations import integration_response
     row = await scoped_record(db, Integration, integration_id)
-    return {"integration": integration_response(row), "live_outcome_writes_enabled": False}
+    return {"integration": integration_response(row), "live_outcome_writes_enabled":
+        (row.category, row.provider) == ("calendar", "google")}

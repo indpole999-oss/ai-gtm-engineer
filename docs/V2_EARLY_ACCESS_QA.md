@@ -95,3 +95,34 @@ acceptance remains OPEN. No hosted AI or outbound provider transport is enabled.
 No schema migration, retention decision or production change is included.
 
 Existing outreach/outcome regression suites: 54 passed (fake-provider execution only). Frontend contracts: seven passed.
+
+## Calendar execution continuation — 2026-10-03
+
+Baseline `1dc9e74`; user confirmed live Google consent/access, and authenticated
+staging shows one provider-verified Google primary calendar. Three legacy Apollo/
+HubSpot records remain preserved. Unsupported setup/credential forms stay hidden.
+
+Implemented Google Calendar create-only transport with UUID event identity,
+private operation/request fingerprints, authoritative GET readback, exact ID and
+ETag confirmation, lost-response/409 reconciliation, and sanitized provider errors.
+Existing customer scheduling still requires intent, approval and durable dispatch.
+CRM and hosted AI remain disabled. Google documents client-generated IDs and their
+distributed collision caveat at
+https://developers.google.com/workspace/calendar/api/v3/reference/events/insert .
+This is stable-ID reconciliation, not a claim of a distributed exactly-once guarantee.
+
+An explicit admin-reviewed connection test creates one 10-minute event without
+attendees, invitations, reminders, customer intent or pipeline transitions. Existing
+Meeting storage retains intent before the call and the verified Google receipt
+afterward; no migration is required. Browser reload reads the saved result, and
+verification reuses the same ID and saved OAuth connection. Reconnect cannot
+silently copy an old event to a new account. Test meetings are excluded from
+planner historical customer-meeting counts.
+
+Offline validation: 69 focused integration/outcome/HTTP-contract tests passed;
+TypeScript and changed-page lint passed. HTTP-contract cases include success,
+lost acknowledgment, 409, cancelled/modified/missing events, wrong namespace,
+authorization failure, token rotation/reuse, tenant isolation and admin enforcement.
+These use mocked Google HTTP responses; live event creation/readback and refresh
+evidence will be recorded separately after staging rollout. Do not treat this
+paragraph as live-provider acceptance.

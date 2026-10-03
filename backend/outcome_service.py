@@ -157,7 +157,7 @@ async def create_action(db, ctx, body, kind):
     await db.flush()
     content_hash = digest(payload)
     document = PlanDocument(objective=goal.objective, success_metrics=["Authoritative provider confirmation"], target_segment=brain.profile["icp"],
-        constraints=["Exact reviewed payload", "No live provider writes enabled", "Zero paid APIs"], assumptions=[], risks=["Remote conflicts or lost acknowledgements require reconciliation"],
+        constraints=["Exact reviewed payload", "Google Calendar creates only; CRM writes disabled", "Zero paid APIs"], assumptions=[], risks=["Remote conflicts or lost acknowledgements require reconciliation"],
         steps=[PlanStep(action=kind, outcome_id=action_id, outcome_hash=content_hash, target_index=0, side_effect="external_write",
             rationale="Explicit customer request", expected_output="Persisted provider confirmation")],
         stop_conditions=["Approval revoked", "Remote version conflict", "Integration changed"], review_checkpoint="Review the exact external action and provider state")

@@ -13,6 +13,123 @@ type Provider = {
   execution_available: boolean;
 };
 
+type CalendarTest = {
+  id: string;
+  status: string;
+  title: string;
+  provider_event_id: string | null;
+  start: { dateTime: string };
+  end: { dateTime: string };
+  verified_at: string | null;
+  receipt: { html_link?: string | null; version: string } | null;
+};
+
+function CalendarVerification({
+  connection,
+  canApprove,
+}: {
+  connection: Integration;
+  canApprove: boolean;
+}) {
+  const path = `/api/v1/integrations/${connection.id}/calendar-test-event`;
+  const result = useData<{ event: CalendarTest | null }>(path);
+  const [busy, setBusy] = useState(false);
+  const [review, setReview] = useState(false);
+  const [message, setMessage] = useState("");
+  const event = result.data?.event;
+  const healthy =
+    connection.status === "connected" &&
+    connection.health === "healthy" &&
+    !connection.reconnect_required;
+  async function verify() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await apiFetch<{ event: CalendarTest }>(path, { method: "POST" });
+      await result.refetch();
+      setMessage(
+        response.event.status === "confirmed"
+          ? "Google returned the event and the backend saved the verified result."
+          : "Google could not confirm this event. Check calendar access, then retry verification. No success is assumed.",
+      );
+    } catch (error) {
+      setMessage(friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (result.isPending) return <Loading />;
+  if (result.isError) return <ErrorState retry={() => void result.refetch()} />;
+  return (
+    <div className="space-y-3 border-t pt-3">
+      <h4 className="font-medium">Verify event creation</h4>
+      <p className="text-sm">
+        Create one real 10-minute test event on this calendar, starting 10 minutes from now. No
+        attendees, invitations, reminders or prospect updates. Retries reuse the same event.
+      </p>
+      <Feedback message={message} />
+      {event && (
+        <div className="space-y-1 text-sm" aria-label="Saved Google event result">
+          <p>
+            {event.status === "confirmed" ? "Confirmed by Google" : "Event not currently verified"}{" "}
+            · {event.title}
+          </p>
+          <p>
+            {new Date(event.start.dateTime).toLocaleString()} –{" "}
+            {new Date(event.end.dateTime).toLocaleTimeString()}
+          </p>
+          <p className="break-all">
+            Google event ID: {event.provider_event_id || "Not confirmed yet"}
+          </p>
+          {event.verified_at && (
+            <p>Last verified: {new Date(event.verified_at).toLocaleString()}</p>
+          )}
+          {event.receipt?.version && (
+            <p className="break-all text-xs">Google revision: {event.receipt.version}</p>
+          )}
+          {event.receipt?.html_link && (
+            <a
+              className="underline"
+              href={event.receipt.html_link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open event in Google Calendar
+            </a>
+          )}
+        </div>
+      )}
+      {canApprove && (
+        <button
+          className="g-button"
+          disabled={busy || !healthy}
+          onClick={() => (event ? void verify() : setReview(true))}
+        >
+          {busy
+            ? "Checking Google…"
+            : event
+              ? "Verify same event with Google"
+              : "Create test calendar event"}
+        </button>
+      )}
+      {!healthy && (
+        <p className="text-sm">Verify calendar access before creating or checking an event.</p>
+      )}
+      <ConfirmDialog
+        open={review}
+        onOpenChange={setReview}
+        title="Create a real test event?"
+        description={`Google Calendar (${String(connection.config?.["calendar_id"] || "primary")}) will receive one event titled “GAPS AI — test calendar connection”, lasting 10 minutes and starting 10 minutes from now. There are no attendees or invitations.`}
+        confirmLabel="Create real test event"
+        onConfirm={() => {
+          setReview(false);
+          void verify();
+        }}
+      />
+    </div>
+  );
+}
+
 export function IntegrationsPage() {
   const { canApprove, workspace } = useWorkspace();
   const cache = useQueryClient();
@@ -29,7 +146,7 @@ export function IntegrationsPage() {
     setMessage(
       result === "failed"
         ? "Google authorization was not completed. Your saved connection has not been replaced."
-        : "Returned from Google. Check the saved connection status below; this does not enable calendar writes.",
+        : "Returned from Google. Check the saved connection status below before creating a test event.",
     );
     void cache.invalidateQueries({ queryKey: ["customer", workspace.id, "/api/v1/integrations"] });
     url.searchParams.delete("connection");
@@ -117,8 +234,8 @@ export function IntegrationsPage() {
         <section className="g-panel space-y-4" aria-label="Google Calendar connection">
           <h2 className="text-xl font-semibold">Google Calendar</h2>
           <p className="text-sm text-muted-foreground">
-            Authorize with Google to verify calendar access. Meeting creation and calendar writes
-            are currently unavailable.
+            Verify calendar access and create a real test event. Customer meetings require the
+            existing reviewed scheduling workflow.
           </p>
           <p className="text-sm">
             Use a dedicated test Google account. No Google password, API key or access token is
@@ -157,6 +274,9 @@ export function IntegrationsPage() {
                   {removeButton(row)}
                 </div>
               )}
+              {calendar.execution_available && (
+                <CalendarVerification connection={row} canApprove={canApprove} />
+              )}
             </article>
           ))}
           {!calendars.length && canApprove && (
@@ -178,8 +298,8 @@ export function IntegrationsPage() {
         </section>
       )}
       <p className="text-sm text-muted-foreground">
-        Email sending, CRM sync and calendar writes are unavailable. Saving credentials or verifying
-        access does not enable these actions.
+        Email sending and CRM sync remain unavailable. Calendar tests do not enable AI or automated
+        outreach.
       </p>
       {unavailable.length > 0 && (
         <details className="g-panel">

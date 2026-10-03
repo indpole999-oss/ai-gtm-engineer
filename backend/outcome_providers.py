@@ -1,8 +1,8 @@
-"""Provider boundary for durable outcomes; live mutations are deliberately disabled.
+"""Provider boundary for durable outcomes; only Google Calendar creates are live.
 
 A transport must support authoritative operation lookup, stable create identities,
 and atomic expected-version writes. A read-then-write check is NOT sufficient.
-Tests inject a separate durable provider ledger. No HTTP client is constructed here.
+Tests inject a separate durable provider ledger. CRM mutations remain disabled.
 """
 from typing import Protocol
 from backend.providers import ProviderError
@@ -28,6 +28,9 @@ class DisabledTransport:
 
 
 def transport_for(integration, credentials):
+    if (integration.category, integration.provider) == ("calendar", "google"):
+        from backend.google_calendar_transport import GoogleCalendarTransport
+        return GoogleCalendarTransport(integration, credentials)
     return DisabledTransport()
 
 

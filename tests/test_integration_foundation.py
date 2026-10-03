@@ -245,7 +245,7 @@ def test_google_access_failure_never_marks_connection_healthy(client, configured
 def test_catalogue_never_offers_disabled_execution(client, configured, monkeypatch):
     headers = signup(client, "catalogue@example.com")
     rows = client.get("/api/v1/integrations/providers", headers=headers).json()
-    assert all(not row["execution_available"] for row in rows)
+    assert all(row["execution_available"] == (row["category"] == "calendar" and row["provider"] == "google") for row in rows)
     assert [row["provider"] for row in rows if row["connect_available"]] == ["google"]
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
     assert not any(row["connect_available"] for row in client.get("/api/v1/integrations/providers", headers=headers).json())

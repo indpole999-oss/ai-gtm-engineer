@@ -57,13 +57,27 @@ async def provider_contracts(db=Depends(get_workspace_db)):
              "connect_available": (c.category, c.provider) == ("calendar", "google") and bool(
                  settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and
                  settings.GOOGLE_REDIRECT_URI and settings.INTEGRATION_ENCRYPTION_KEY),
-             "execution_available": False}
+             "execution_available": (c.category, c.provider) == ("calendar", "google")}
             for c in providers.CONTRACTS.values()]
 
 
 @router.get("/{integration_id}")
 async def get_integration(integration_id: UUID, db=Depends(get_workspace_db)):
     return integration_response(await service.connection(db,integration_id))
+
+
+@router.get("/{integration_id}/calendar-test-event")
+async def calendar_test_result(integration_id: UUID, db=Depends(get_workspace_db)):
+    from backend import calendar_verification
+    from backend.database import Meeting
+    await service.connection(db, integration_id)
+    return calendar_verification.response(await db.get(Meeting, calendar_verification.meeting_id(integration_id)))
+
+
+@router.post("/{integration_id}/calendar-test-event")
+async def calendar_test_event(integration_id: UUID, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    from backend import calendar_verification
+    return await calendar_verification.run(db, ctx, integration_id)
 
 
 @router.post("")
