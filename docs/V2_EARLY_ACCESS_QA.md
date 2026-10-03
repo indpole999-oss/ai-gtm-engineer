@@ -65,3 +65,33 @@ is implied. Keep `GTM_HOSTED_AI_ENABLED=false` and `EMBEDDED_EXECUTION_WORKER=fa
 No retention duration is approved for evidence, inbox, audit or backups. No purge
 or destructive deletion is introduced. See V2_PRODUCTION_READINESS.md and
 V2_STAGING_VALIDATION.md for the remaining release decisions and integration setup.
+
+## Integration repair audit — 2026-10-03
+
+Baseline `aada3ae` is CI green (37049798884). The signed-in browser on staging
+`38edc63` reproduced Google Connect returning a generic failure, two Apollo
+records, and raw unknown health labels. No saved customer credentials were read,
+changed, removed or sent to a provider during reproduction.
+
+Repair scope:
+- Hide unsupported connection offers and credential-entry forms. The live delivery
+  and outcome transports are explicitly disabled in existing V2; verifying a token
+  is not an implemented send, sync or scheduling flow.
+- Offer Google authorization only when required server configuration is present;
+  label it calendar access verification, with writes explicitly unavailable.
+- Reconnect exact saved Google record; implicit reconnect reuses a sole record;
+  multiple existing records require explicit selection. Overlapping consent tabs
+  cannot silently create another provider connection.
+- Serialize provider creation per workspace and reject repeated creation rather
+  than overwriting/deleting an existing credential. Preserve existing duplicates
+  for deliberate owner review; do not infer which credentials are disposable.
+- Verify Google Calendar API access after token exchange before marking healthy;
+  return to Integrations with neutral callback feedback, and failed exchange or
+  verification returns a failure state instead of implying success.
+
+Evidence before rollout: 26 integration lifecycle regressions passed using fake
+providers; TypeScript and changed integration-page lint passed. Live provider
+acceptance remains OPEN. No hosted AI or outbound provider transport is enabled.
+No schema migration, retention decision or production change is included.
+
+Existing outreach/outcome regression suites: 54 passed (fake-provider execution only). Frontend contracts: seven passed.

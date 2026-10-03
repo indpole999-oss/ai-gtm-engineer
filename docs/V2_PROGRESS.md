@@ -546,3 +546,12 @@ changes or merge are implied. Phase 11 is now authorized; deployment and merging
 ### 2026-10-02 — resumed guided-plan refresh investigation
 
 The `0e498b5` baseline passed GitHub CI. Authenticated staging reproduced lost plan selection on refresh while the guided plan remained saved. The continuation repairs workspace-scoped plan/execution restoration, revision recovery, role refresh, account-research cache/permissions and truthful dashboard status. See `V2_EARLY_ACCESS_BACKLOG.md` for precise offline browser evidence and outstanding hosted gates. Hosted AI and embedded execution remain paused; no provider writes or production changes.
+
+### 2026-10-03 — integration-first customer readiness continuation
+
+Fast-forwarded clean checkout to CI-green `aada3ae`. Reproduced Google Connect
+failure and duplicate/raw-state integration UX in authenticated staging. Current
+repair removes unsupported connection offers, preserves existing credentials,
+prevents new duplicate records, targets reconnects and requires Calendar API
+verification before healthy status. Detailed test evidence and unresolved real
+provider gates are recorded in `V2_EARLY_ACCESS_QA.md`. Hosted AI stays paused.

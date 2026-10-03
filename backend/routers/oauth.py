@@ -21,7 +21,12 @@ async def google_callback(state: str=Query(min_length=32,max_length=128),code: s
         try:
             await complete_google_oauth(db,state,None)
         except HTTPException:
-            return RedirectResponse(settings.FRONTEND_URL.rstrip("/")+"/settings?connection=failed",status_code=303)
-    await complete_google_oauth(db,state,code)
+            return RedirectResponse(settings.FRONTEND_URL.rstrip("/")+"/integrations?connection=failed",status_code=303)
+    try:
+        await complete_google_oauth(db,state,code)
+    except HTTPException as exc:
+        if exc.status_code == 400 and str(exc.detail).startswith("OAuth connection failed"):
+            return RedirectResponse(settings.FRONTEND_URL.rstrip("/")+"/integrations?connection=failed",status_code=303)
+        raise
     # Fixed server configuration, never a user-controlled redirect URI.
-    return RedirectResponse(settings.FRONTEND_URL.rstrip("/")+"/settings?connection=success",status_code=303)
+    return RedirectResponse(settings.FRONTEND_URL.rstrip("/")+"/integrations?connection=returned",status_code=303)

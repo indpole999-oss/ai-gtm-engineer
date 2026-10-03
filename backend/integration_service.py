@@ -87,6 +87,13 @@ async def begin_google_oauth(db, ctx, integration_id=None):
     require_encryption()
     if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
         raise HTTPException(503, "Google OAuth is not configured")
+    if not integration_id:
+        rows = (await db.scalars(select(Integration).where(
+            Integration.category == "calendar", Integration.provider == "google"))).all()
+        if len(rows) > 1:
+            raise HTTPException(409, "Choose the saved calendar connection to reconnect.")
+        if rows:
+            integration_id = rows[0].id
     if integration_id:
         existing = await connection(db, integration_id)
         if (existing.category, existing.provider) != ("calendar", "google"):
@@ -145,9 +152,19 @@ async def complete_google_oauth(db, state, code):
         if membership is None:
             raise HTTPException(403, "Workspace access changed; restart connection")
         db.info["workspace_role"] = membership.role
+        await db.scalar(select(Workspace).where(Workspace.id == attempt.workspace_id).with_for_update())
         row = await connection(db, attempt.integration_id, lock=True) if attempt.integration_id else None
+        if row is None:
+            # Two consent tabs can start before either connection is saved.
+            rows = (await db.scalars(select(Integration).where(
+                Integration.category == "calendar", Integration.provider == "google"))).all()
+            if rows:
+                raise HTTPException(409, "A calendar connection was saved during authorization. Reconnect it explicitly.")
         existing = decrypt_credentials(row.credentials) if row else {}
         payload = {"access_token":token["access_token"], "refresh_token":token.get("refresh_token") or existing.get("refresh_token"), "scopes":scopes}
+        health = await providers.get_provider("calendar", "google").verify(payload, row.config if row else {"calendar_id": "primary"})
+        if health.status != "healthy":
+            raise providers.ProviderError("calendar_access_not_verified")
         if row is None:
             row = Integration(workspace_id=attempt.workspace_id, user_id=attempt.user_id,
                 category="calendar", provider="google", auth_type="oauth2", config={"calendar_id":"primary"})

@@ -4,7 +4,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from backend.database import Integration, IntegrationAudit
+from backend.database import Integration, IntegrationAudit, Workspace
+from backend.config import settings
 from backend.tenancy import get_workspace_db, get_current_workspace
 from backend.security import encrypt_credentials, decrypt_credentials
 from backend import providers, integration_service as service
@@ -52,7 +53,11 @@ async def list_integrations(db=Depends(get_workspace_db)):
 
 @router.get("/providers")
 async def provider_contracts(db=Depends(get_workspace_db)):
-    return [{"category":c.category,"provider":c.provider,"auth_types":c.auth_types,"config_keys":c.config_keys}
+    return [{"category":c.category,"provider":c.provider,"auth_types":c.auth_types,"config_keys":c.config_keys,
+             "connect_available": (c.category, c.provider) == ("calendar", "google") and bool(
+                 settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and
+                 settings.GOOGLE_REDIRECT_URI and settings.INTEGRATION_ENCRYPTION_KEY),
+             "execution_available": False}
             for c in providers.CONTRACTS.values()]
 
 
@@ -66,6 +71,12 @@ async def create_integration(payload: IntegrationCreate, ctx=Depends(get_current
     service.require_encryption()
     category,provider=payload.category.lower().strip(),payload.provider.lower().strip()
     validate(category,provider,payload.auth_type,payload.credentials,payload.config)
+    # Serialize creation per tenant without deleting or merging existing credentials.
+    await db.scalar(select(Workspace).where(Workspace.id == ctx.workspace_id).with_for_update())
+    existing = await db.scalar(select(Integration.id).where(
+        Integration.category == category, Integration.provider == provider).limit(1))
+    if existing:
+        raise HTTPException(409, "This provider already has a saved connection. Reconnect that connection instead.")
     row=Integration(workspace_id=ctx.workspace_id,user_id=ctx.user_id,category=category,provider=provider,
                     auth_type=payload.auth_type,credentials=encrypt_credentials(payload.credentials),config=payload.config)
     db.add(row)

@@ -64,7 +64,7 @@ def test_durable_oauth_replay_refresh_audit_revoke(client,configured,fake_google
     client.portal.call(inspect_attempt)
     result=client.get("/api/v1/calendar/oauth/google/callback",params={"state":state,"code":"test-code"},follow_redirects=False)
     assert result.status_code==303,result.text
-    assert result.headers["location"]=="http://localhost:3000/settings?connection=success"
+    assert result.headers["location"]=="http://localhost:3000/integrations?connection=returned"
     assert client.get("/api/v1/calendar/oauth/google/callback",params={"state":state,"code":"test-code"}).status_code==400
     rows=client.get("/api/v1/integrations",headers=headers).json()["integrations"]
     assert len(rows)==1 and rows[0]["status"]=="connected"
@@ -197,3 +197,55 @@ def test_missing_credentials_never_fall_back_to_global_settings(monkeypatch):
     monkeypatch.setattr(settings,"HUBSPOT_API_KEY","deployment-global-secret",raising=False)
     with pytest.raises(providers.ProviderError,match="credential_required"):
         asyncio.run(providers.HttpProvider("crm","hubspot").verify({},{}))
+
+
+def test_repeated_create_preserves_existing_credentials(client, configured):
+    headers = signup(client, "duplicate@example.com")
+    body = {"category": "crm", "provider": "hubspot", "credentials": {"access_token": "original"}}
+    first = client.post("/api/v1/integrations", headers=headers, json=body)
+    assert first.status_code == 200
+    body["credentials"] = {"access_token": "replacement"}
+    assert client.post("/api/v1/integrations", headers=headers, json=body).status_code == 409
+    rows = client.get("/api/v1/integrations", headers=headers).json()["integrations"]
+    assert [row["id"] for row in rows] == [first.json()["id"]]
+
+
+def test_implicit_google_reconnect_reuses_saved_record(client, configured, fake_google):
+    headers = signup(client, "implicit@example.com")
+    for _ in range(2):
+        state = start(client, headers)
+        response = client.get("/api/v1/calendar/oauth/google/callback", params={"state": state, "code": "x"}, follow_redirects=False)
+        assert response.status_code == 303
+    rows = client.get("/api/v1/integrations", headers=headers).json()["integrations"]
+    assert len(rows) == 1
+    assert len([call for call in fake_google if call[0] == "verify"]) == 2
+
+
+def test_overlapping_consent_cannot_create_duplicate(client, configured, fake_google):
+    headers = signup(client, "overlap@example.com")
+    first, second = start(client, headers), start(client, headers)
+    assert client.get("/api/v1/calendar/oauth/google/callback", params={"state": first, "code": "x"}, follow_redirects=False).status_code == 303
+    assert client.get("/api/v1/calendar/oauth/google/callback", params={"state": second, "code": "x"}, follow_redirects=False).status_code == 409
+    assert len(client.get("/api/v1/integrations", headers=headers).json()["integrations"]) == 1
+
+
+def test_google_access_failure_never_marks_connection_healthy(client, configured, fake_google, monkeypatch):
+    headers = signup(client, "calendar-check@example.com")
+    class Denied:
+        async def verify(self, credentials, config):
+            raise providers.ProviderError("reconnect_required")
+    monkeypatch.setattr(providers, "get_provider", lambda *args: Denied())
+    state = start(client, headers)
+    result = client.get("/api/v1/calendar/oauth/google/callback", params={"state": state, "code": "x"}, follow_redirects=False)
+    assert result.status_code == 303
+    assert result.headers["location"].endswith("/integrations?connection=failed")
+    assert client.get("/api/v1/integrations", headers=headers).json()["integrations"] == []
+
+
+def test_catalogue_never_offers_disabled_execution(client, configured, monkeypatch):
+    headers = signup(client, "catalogue@example.com")
+    rows = client.get("/api/v1/integrations/providers", headers=headers).json()
+    assert all(not row["execution_available"] for row in rows)
+    assert [row["provider"] for row in rows if row["connect_available"]] == ["google"]
+    monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
+    assert not any(row["connect_available"] for row in client.get("/api/v1/integrations/providers", headers=headers).json())
