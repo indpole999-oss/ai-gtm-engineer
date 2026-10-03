@@ -1,3 +1,5 @@
+from backend.tenancy import require_approved_execution
+from backend.tenancy import get_workspace_db as get_db
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -5,7 +7,7 @@ from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
 
-from backend.database import get_db, Contact, EmailLog
+from backend.database import Contact, EmailLog
 from backend.routers.auth import get_current_user
 
 router = APIRouter()
@@ -17,7 +19,7 @@ class EmailSendRequest(BaseModel):
     body: str
 
 
-@router.post("/send")
+@router.post("/send", dependencies=[Depends(require_approved_execution)])
 async def send_email(
     request: EmailSendRequest,
     db: AsyncSession = Depends(get_db),

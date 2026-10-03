@@ -35,6 +35,7 @@ from sqlalchemy import select
 
 from backend.database import Integration, AsyncSessionLocal
 from backend.security import decrypt_credentials
+from backend.config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -356,6 +357,17 @@ class CRMAgent:
         # ----------------------------------------------------
         # Legacy environment fallback
         # ----------------------------------------------------
+
+        if not settings.ALLOW_LEGACY_ENV_CREDENTIALS:
+            logger.info(
+                "Legacy environment CRM credential fallback is disabled"
+            )
+            fallback_provider = (
+                self._safe_string(provider).lower()
+                if provider
+                else self.provider
+            )
+            return (fallback_provider, {}, None)
 
         fallback_provider = (
             self._safe_string(provider).lower()

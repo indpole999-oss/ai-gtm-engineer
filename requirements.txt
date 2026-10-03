@@ -34,8 +34,10 @@ aiosqlite>=0.20.0
 
 
 # --- Authentication ---
-python-jose[cryptography]>=3.3.0
+# JWT validation uses PyJWT below; avoid the unused python-jose/ecdsa stack.
 passlib[bcrypt]>=1.7.4
+bcrypt>=4.1.0
+cryptography>=42.0.0
 
 
 # --- LLM - OpenAI ---
@@ -54,8 +56,8 @@ hubspot-api-client>=8.2.0
 playwright>=1.44.0
 
 
-# --- Vector Memory - ChromaDB ---
-chromadb>=0.5.0
+# The standalone legacy vector-memory agent is not imported by V2 API/workers.
+# Do not install its unpatched ChromaDB dependency in the V2 runtime.
 
 
 # --- Async Utilities ---
@@ -67,7 +69,7 @@ asyncio-mqtt>=0.16.0
 pandas>=2.2.0
 openpyxl>=3.1.2
 python-docx>=1.1.0
-pypdf2>=3.0.1
+pypdf>=6.19.0,<7
 
 
 # --- Logging & Monitoring ---

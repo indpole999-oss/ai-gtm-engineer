@@ -2,11 +2,40 @@
 Backend Configuration - Settings with Pydantic BaseSettings
 """
 
-from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Literal
+
+from cryptography.fernet import Fernet
+from pydantic import model_validator, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
+from urllib.parse import urlsplit
+import ipaddress
+
+
+def public_https(value):
+    try:
+        url = urlsplit(value)
+        if url.scheme != "https" or not url.hostname or url.username or url.password or url.query or url.fragment:
+            return False
+        if url.hostname == "localhost" or url.hostname.endswith((".localhost", ".local")):
+            return False
+        try:
+            if not ipaddress.ip_address(url.hostname).is_global:
+                return False
+        except ValueError:
+            pass
+        return url.port in (None, 443)
+    except ValueError:
+        return False
 
 
 class Settings(BaseSettings):
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
 
     # -----------------------------
     # App
@@ -14,7 +43,13 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "AI GTM Engineer"
     APP_VERSION: str = "1.0.0"
+    APP_ENV: str = "development"
     DEBUG: bool = False
+    # Opt in only for the attended, single-service Free staging topology.
+    EMBEDDED_EXECUTION_WORKER: bool = False
+    AUTH_ADMISSION_STORE: Literal["database", "memory"] = "database"
+    AUTH_PEER_LIMIT: int = Field(default=30, ge=1, le=10000)
+    AUTH_GLOBAL_LIMIT: int = Field(default=300, ge=1, le=100000)
 
     SECRET_KEY: str = "change-me-in-production"
     ALGORITHM: str = "HS256"
@@ -23,6 +58,7 @@ class Settings(BaseSettings):
 
     # Integration credential encryption
     INTEGRATION_ENCRYPTION_KEY: str = ""
+    ALLOW_LEGACY_ENV_CREDENTIALS: bool = True
 
 
     # -----------------------------
@@ -44,6 +80,7 @@ class Settings(BaseSettings):
     # -----------------------------
 
     DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"
+    AUTO_CREATE_TABLES: bool = True
 
 
     # -----------------------------
@@ -147,6 +184,8 @@ class Settings(BaseSettings):
 
     CALENDAR_PROVIDER: str = "google"
 
+    FRONTEND_URL: str = "http://localhost:3000"
+
     GOOGLE_CLIENT_ID: str = ""
 
     GOOGLE_CLIENT_SECRET: str = ""
@@ -187,13 +226,67 @@ class Settings(BaseSettings):
     )
 
 
-    class Config:
+    LOG_LEVEL: str = "INFO"
 
-        env_file = ".env"
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV.strip().lower() == "production"
 
-        case_sensitive = True
+    @model_validator(mode="after")
+    def validate_security_configuration(self):
+        """Reject unsafe production settings while keeping local setup simple."""
+        if not self.is_production:
+            return self
 
-        extra = "ignore"
+        errors: list[str] = []
+        if self.AUTH_ADMISSION_STORE != "database":
+            errors.append("AUTH_ADMISSION_STORE must use the shared database in production")
+        if self.ALGORITHM != "HS256":
+            errors.append("ALGORITHM must be HS256 for the configured symmetric signing key")
+        if not public_https(self.FRONTEND_URL):
+            errors.append("FRONTEND_URL must be a public HTTPS URL")
+        if any(not public_https(origin) or urlsplit(origin).path for origin in self.CORS_ORIGINS):
+            errors.append("CORS_ORIGINS must be public HTTPS origins without paths")
+        if self.GOOGLE_CLIENT_ID and (not self.GOOGLE_CLIENT_SECRET or not public_https(self.GOOGLE_REDIRECT_URI)):
+            errors.append("Configured Google OAuth requires a secret and public HTTPS callback")
+        insecure_secrets = {
+            "",
+            "change-me-in-production",
+            "your-secret-key-min-32-chars",
+        }
+        if self.SECRET_KEY in insecure_secrets or len(self.SECRET_KEY) < 32:
+            errors.append("SECRET_KEY must be a non-default value of at least 32 characters")
+
+        if not self.INTEGRATION_ENCRYPTION_KEY:
+            errors.append("INTEGRATION_ENCRYPTION_KEY is required")
+        else:
+            try:
+                Fernet(self.INTEGRATION_ENCRYPTION_KEY.encode("utf-8"))
+            except (TypeError, ValueError):
+                errors.append("INTEGRATION_ENCRYPTION_KEY must be a valid Fernet key")
+
+        if not self.DATABASE_URL.startswith(("postgresql+asyncpg://", "postgresql://")):
+            errors.append("DATABASE_URL must use PostgreSQL in production")
+        try:
+            database_url = make_url(self.DATABASE_URL)
+            if not database_url.host or not database_url.database:
+                errors.append("DATABASE_URL must include a database host and name")
+        except Exception:
+            errors.append("DATABASE_URL is not a valid SQLAlchemy URL")
+        if "[YOUR-" in self.DATABASE_URL or "localhost" in self.DATABASE_URL:
+            errors.append("DATABASE_URL contains a placeholder or localhost production host")
+        if self.DEBUG:
+            errors.append("DEBUG must be disabled in production")
+        if self.AUTO_CREATE_TABLES:
+            errors.append("AUTO_CREATE_TABLES must be false in production; run Alembic first")
+        if self.ALLOW_LEGACY_ENV_CREDENTIALS:
+            errors.append("ALLOW_LEGACY_ENV_CREDENTIALS must be false in production")
+        if not self.CORS_ORIGINS or any(origin == "*" for origin in self.CORS_ORIGINS):
+            errors.append("CORS_ORIGINS must contain explicit trusted origins")
+
+        if errors:
+            raise ValueError("Unsafe production configuration: " + "; ".join(errors))
+        return self
 
 
 settings = Settings()
