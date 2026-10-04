@@ -1,11 +1,12 @@
 """Evidence-constrained research with hosted Groq and local Ollama model adapters."""
 import json
 import os
+import logging
 from datetime import datetime
 from typing import Literal
 import httpx
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator, ValidationError
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 from backend.brain_models import CompanyBrainVersion
@@ -239,6 +240,19 @@ async def execute_research(db, job):
         await db.commit()
         raise ResearchExecutionBlocked("hosted_ai_paused", "Hosted AI is paused. No qualification report was created. Explicit operator authorization is required.") from None
     except (RetrievalError, httpx.HTTPError, ValueError, KeyError, TypeError) as error:
+        # Only application-owned validation messages or schema locations/types;
+        # never log provider output, prompts, keys, or validation input values.
+        reason = type(error).__name__
+        if isinstance(error, ValidationError):
+            reason = json.dumps([{"type": e["type"], "loc": e["loc"]}
+                                 for e in error.errors(include_input=False, include_context=False)])
+        elif isinstance(error, RetrievalError) or str(error) in {
+            "Wrong ICP", "Unsupported claim", "Unsupported buyer observation",
+            "Unknown claims must not imply evidence",
+            "Provider assertions must quote the source; paraphrases are model inferences",
+            "Qualification cannot rely only on unknown claims"}:
+            reason = str(error)
+        logging.getLogger(__name__).warning("research_rejected " + json.dumps({"job_id": str(job_id), "reason": reason}))
         await db.rollback()
         failed = await scoped_record(db, ResearchJob, job_id)
         failed.status = "failed"

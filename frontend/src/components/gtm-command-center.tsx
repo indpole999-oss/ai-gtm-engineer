@@ -489,6 +489,24 @@ export function GtmCommandCenter() {
             Execution limits: {plan.document.plan.max_attempts} attempts per step,{" "}
             {plan.document.plan.timeout_seconds} seconds per attempt.
           </p>
+          {plan.status === "draft" &&
+            plan.document.plan.steps.every((s) => s.action === "research") && (
+              <label className="block text-sm">
+                Maximum research attempts
+                <select
+                  className={style}
+                  disabled={busy || !canEdit}
+                  value={plan.document.plan.max_attempts}
+                  onChange={(e) =>
+                    edit({ ...plan.document.plan, max_attempts: Number(e.target.value) })
+                  }
+                >
+                  <option value={1}>1 — no automatic retries</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                </select>
+              </label>
+            )}
           <p className="text-sm">Review checkpoint: {plan.document.plan.review_checkpoint}</p>
           {plan.status === "draft" && (
             <>

@@ -1,6 +1,8 @@
 """Shared structured-output transport for the configured Groq provider."""
 import json
 import os
+import logging
+import time
 
 import httpx
 
@@ -43,6 +45,9 @@ async def groq_output(output_type, name, system_prompt, context):
         raise ValueError("Hosted model is not configured")
     model = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
     base_url = os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
+    logger = logging.getLogger(__name__)
+    started = time.monotonic()
+    logger.info("groq_request_started " + json.dumps({"model": model, "schema": name}))
     async with httpx.AsyncClient(timeout=90, follow_redirects=False) as client:
         response = await client.post(
             base_url + "/chat/completions",
@@ -55,8 +60,17 @@ async def groq_output(output_type, name, system_prompt, context):
                     "name": name, "strict": True, "schema": strict_schema(output_type)}},
             },
         )
+        logger.info("groq_request_result " + json.dumps({"model": model, "schema": name,
+            "http_status": response.status_code, "duration_ms": round((time.monotonic() - started) * 1000),
+            "request_id": response.headers.get("x-request-id")}))
         response.raise_for_status()
         payload = response.json()
+        if isinstance(payload, dict):
+            usage = payload.get("usage")
+            usage = usage if isinstance(usage, dict) else {}
+            logger.info("groq_response_metadata " + json.dumps({"model": payload.get("model", model),
+                "schema": name, "usage": {k: v for k, v in usage.items() if k in
+                    ("prompt_tokens", "completion_tokens", "total_tokens") and isinstance(v, int)}}))
         choices = payload.get("choices") if isinstance(payload, dict) else None
         if not isinstance(choices, list) or not choices:
             raise ValueError("Hosted model returned no output")
