@@ -4,13 +4,15 @@ import { useResearchReadiness } from "./customer/research-provider";
 import { useEffect, useRef, useState } from "react";
 import {
   executionSearch,
-  readExecutionSelection,
   planAuthorLabel,
+  resolveExecutionSelection,
+  writeStoredExecutionSelection,
 } from "./customer/execution-selection";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWorkspace } from "@/lib/workspace";
 import { friendlyError } from "@/components/customer/ui";
-import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { ApiError, apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 type Step = {
@@ -71,6 +73,10 @@ type CycleDetail = Cycle & {
 export function GtmCommandCenter() {
   const cache = useQueryClient();
   const { canEdit, canApprove, workspace } = useWorkspace();
+  const { user } = useAuth();
+  const actorId = user?.id ?? user?.email ?? user?.username;
+  const actorKey =
+    typeof actorId === "string" || typeof actorId === "number" ? String(actorId) : "";
   const readiness = useResearchReadiness();
   const [objective, setObjective] = useState("");
   const [brain, setBrain] = useState("");
@@ -85,15 +91,36 @@ export function GtmCommandCenter() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const mounted = useRef(false);
+  function sessionStore() {
+    try {
+      return window.sessionStorage;
+    } catch {
+      return null;
+    }
+  }
   useEffect(() => {
     mounted.current = true;
     const restore = () => {
-      const selection = readExecutionSelection(window.location.search, workspace.id);
-      setSelectedPlan(selection.plan);
-      setSelectedCycle(selection.cycle);
+      const resolved = resolveExecutionSelection(
+        window.location.search,
+        workspace.id,
+        actorKey,
+        sessionStore(),
+      );
+      const { plan, cycle } = resolved.selection;
+      setSelectedPlan(plan);
+      setSelectedCycle(cycle);
       setDraft(null);
       setDirty(false);
       setReviewed(false);
+      if (resolved.source === "storage" && (plan || cycle)) {
+        const url = new URL(window.location.href);
+        url.search = executionSearch(url.search, workspace.id, plan, cycle);
+        window.history.replaceState(window.history.state, "", url);
+      }
+      if (resolved.source === "url") {
+        writeStoredExecutionSelection(sessionStore(), workspace.id, actorKey, plan, cycle);
+      }
     };
     restore();
     window.addEventListener("popstate", restore);
@@ -101,9 +128,10 @@ export function GtmCommandCenter() {
       mounted.current = false;
       window.removeEventListener("popstate", restore);
     };
-  }, [workspace.id]);
+  }, [workspace.id, actorKey]);
   function remember(planId: string, cycleId: string) {
     if (!mounted.current) return;
+    writeStoredExecutionSelection(sessionStore(), workspace.id, actorKey, planId, cycleId);
     const url = new URL(window.location.href);
     url.search = executionSearch(url.search, workspace.id, planId, cycleId);
     window.history.replaceState(window.history.state, "", url);
@@ -143,6 +171,33 @@ export function GtmCommandCenter() {
     enabled: Boolean(selectedCycle),
     refetchInterval: 3000,
   });
+  useEffect(() => {
+    if (
+      selectedPlan &&
+      savedPlan.isError &&
+      savedPlan.error instanceof ApiError &&
+      [403, 404].includes(savedPlan.error.status)
+    ) {
+      setSelectedPlan("");
+      setSelectedCycle("");
+      setDraft(null);
+      setReviewed(false);
+      remember("", "");
+      setMessage("The previously selected plan is no longer available in this workspace.");
+    }
+  }, [selectedPlan, savedPlan.isError, savedPlan.error]);
+  useEffect(() => {
+    if (
+      selectedCycle &&
+      cycle.isError &&
+      cycle.error instanceof ApiError &&
+      [403, 404].includes(cycle.error.status)
+    ) {
+      setSelectedCycle("");
+      remember(selectedPlan, "");
+      setMessage("The previously selected execution is no longer available in this workspace.");
+    }
+  }, [selectedCycle, cycle.isError, cycle.error, selectedPlan]);
   const outcomeId = plan?.document.plan.steps.find((s) => s.outcome_id)?.outcome_id;
   const outcome = useQuery({
     queryKey: ["outcome-review", workspace.id, outcomeId],
