@@ -30,7 +30,7 @@ def test_continuous_approved_customer_journey(client, fake_research, provider, t
         capture["content_hash"] = hashlib.sha256(capture["content"].encode()).hexdigest()
         return capture
     monkeypatch.setattr(research_service, "retrieve", source)
-    fake_research["claims"].append({"text": signal, "kind": "provider_assertion", "confidence": 0.7, "source_index": 0, "excerpt": signal})
+    fake_research["claims"].append({"text": None, "kind": "provider_assertion", "confidence": 0.7, "span_id": "first"})
     fake_research["why_now"] = {"reasoning": "The supplied fixture reports recent RevOps hiring", "claim_indices": [1]}
     a = signup(client, "journey@example.com")
     brain, account = published(client, a), company(client, a)

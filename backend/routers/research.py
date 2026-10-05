@@ -8,6 +8,7 @@ from backend.database import Company
 from backend.brain_models import CompanyBrainVersion
 from backend.research_models import ResearchJob, SourceFetch, EvidenceItem, ResearchClaim, AccountIntelligence, ClaimVerification
 from backend.research_service import scoped_record
+from backend.source_spans import source_spans
 from backend.tenancy import get_current_workspace, get_workspace_db
 
 router = APIRouter()
@@ -85,6 +86,8 @@ async def report(job_id: UUID, db=Depends(get_workspace_db)):
     claims = (await db.scalars(select(ResearchClaim).where(ResearchClaim.job_id == job.id))).all()
     evidence = []
     captures = (await db.scalars(select(SourceFetch).where(SourceFetch.job_id == job.id).order_by(SourceFetch.retrieved_at, SourceFetch.id))).all()
+    span_rows = (await db.scalars(select(EvidenceItem).where(EvidenceItem.fetch_id.in_([row.id for row in captures])))).all() if captures else []
+    persisted_spans = {str(row.id): row for row in span_rows}
     for claim in claims:
         review = await db.scalar(select(ClaimVerification).where(ClaimVerification.claim_id == claim.id).order_by(ClaimVerification.created_at.desc(), ClaimVerification.id.desc()).limit(1))
         item = await scoped_record(db, EvidenceItem, claim.evidence_id) if claim.evidence_id else None
@@ -93,6 +96,7 @@ async def report(job_id: UUID, db=Depends(get_workspace_db)):
         evidence.append({"id": str(claim.id), "text": claim.text, "kind": "verified_fact" if review and review.decision == "verified" else claim.kind, "original_kind": claim.kind, "confidence": claim.confidence,
                          "review": {"decision": review.decision, "reason": review.reason, "method": "workspace_admin_review", "at": review.created_at} if review else None,
                          "model_version": claim.model_version, "excerpt": item.excerpt if item else None,
+                         "span_id": str(item.id) if item and any(s["id"] == str(item.id) and s["text"] == item.excerpt for s in source_spans(fetch)) else None,
                          "url": fetch.url if fetch else None, "title": fetch.title if fetch else None,
                          "publisher": fetch.publisher if fetch else None, "published_at": fetch.published_at if fetch else None,
                          "retrieved_at": fetch.retrieved_at if fetch else None, "freshness": "stale" if age_days is not None and age_days > 30 else "recent_capture" if fetch else "unknown",
@@ -101,5 +105,7 @@ async def report(job_id: UUID, db=Depends(get_workspace_db)):
             "brain_version_id": job.brain_version_id, "source_urls": job.source_urls,
             "sources": [{"id": row.id, "url": row.url, "title": row.title, "publisher": row.publisher,
                          "retrieved_at": row.retrieved_at, "content_hash": row.content_hash,
-                         "extractor_version": row.extractor_version, "content": row.content} for row in captures],
+                         "extractor_version": row.extractor_version, "content": row.content,
+                         "spans": [s for s in source_spans(row) if s["id"] in persisted_spans
+                                   and persisted_spans[s["id"]].excerpt == s["text"]]} for row in captures],
             "intelligence": intelligence.result if intelligence else None, "claims": evidence}

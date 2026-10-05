@@ -39,7 +39,7 @@ def fake_research(monkeypatch):
     content = "Acme provides workflow analytics. Jane Buyer is VP Revenue. jane@example.com"
     capture = {"url": "https://example.com/", "title": "Acme", "publisher": "example.com", "content": content,
                "content_hash": hashlib.sha256(content.encode()).hexdigest(), "extractor_version": "test-v1"}
-    output = {"claims": [{"text": "Acme provides workflow analytics.", "kind": "provider_assertion", "confidence": 0.7, "source_index": 0, "excerpt": content}],
+    output = {"claims": [{"text": None, "kind": "provider_assertion", "confidence": 0.7, "span_id": "first"}],
               "icp_used": "Customer-reviewed icp", "fit": "potential_fit",
               "why_company": {"reasoning": "Potential match to the supplied ICP, subject to customer review", "claim_indices": [0]},
               "why_now": {"reasoning": "No dated buying signal found", "claim_indices": []},
@@ -48,7 +48,11 @@ def fake_research(monkeypatch):
         async def analyze(self, profile, sources, target):
             assert target["name"]
             assert profile["icp"] == output["icp_used"] or output["icp_used"] == "wrong ICP"
-            return deepcopy(output), "deterministic-test-v1"
+            result = deepcopy(output)
+            for claim in result["claims"]:
+                if claim.get("span_id") == "first":
+                    claim["span_id"] = sources[0]["spans"][0]["id"]
+            return result, "deterministic-test-v1"
     monkeypatch.setattr(research_service, "retrieve", lambda url: {**capture, "url": url})
     monkeypatch.setattr(research_service, "research_provider", Fake)
     return output
@@ -83,7 +87,7 @@ def test_evidence_chain_exact_brain_and_no_false_contact_verification(client, fa
 
 @pytest.mark.parametrize("tamper", ["quote", "icp", "reference", "buyer", "title", "verified"])
 def test_reject_unsupported_model_output_without_partial_report(client, fake_research, tamper):
-    if tamper == "quote": fake_research["claims"][0]["excerpt"] = "Invented evidence"
+    if tamper == "quote": fake_research["claims"][0]["span_id"] = "invented-span"
     if tamper == "icp": fake_research["icp_used"] = "wrong ICP"
     if tamper == "reference": fake_research["why_company"]["claim_indices"] = [999]
     if tamper == "buyer": fake_research["buyers"][0]["email"] = "invented@example.com"
@@ -127,6 +131,7 @@ def test_failed_model_retains_captures_and_retry_reuses_them(client, fake_resear
     first = client.get(path, headers=a).json()
     assert first["error_code"] == "model_provider_unavailable" and len(first["sources"]) == 1
     assert first["claims"] == [] and first["intelligence"] is None
+    assert first["sources"][0]["spans"]
     async def reset():
         async with AsyncSessionLocal() as db:
             db.info.update(workspace_id=UUID(a["X-Workspace-ID"]), workspace_role="admin")
