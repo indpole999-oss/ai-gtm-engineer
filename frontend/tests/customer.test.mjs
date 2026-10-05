@@ -9,7 +9,15 @@ async function load(path, transform = s => s) {
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 }
 const { sendLabel, canApproveRole, percent, connectionLabel } = await load('../src/components/customer/contracts.ts');
-const { readExecutionSelection, executionSearch, planAuthorLabel } = await load('../src/components/customer/execution-selection.ts');
+const {
+  readExecutionSelection,
+  executionSearch,
+  executionSelectionStorageKey,
+  readStoredExecutionSelection,
+  writeStoredExecutionSelection,
+  resolveExecutionSelection,
+  planAuthorLabel,
+} = await load('../src/components/customer/execution-selection.ts');
 
 test('refresh selection is workspace scoped and preserves unrelated query parameters', () => {
   const plan = '11111111-1111-4111-8111-111111111111';
@@ -22,6 +30,90 @@ test('refresh selection is workspace scoped and preserves unrelated query parame
   assert.deepEqual(readExecutionSelection(cleared, 'workspace-a'), {plan:'', cycle:''});
   assert.deepEqual([...new URLSearchParams(search).keys()], ['filter', 'gtm_workspace', 'gtm_plan', 'gtm_cycle']);
   assert.deepEqual(readExecutionSelection('?gtm_workspace=workspace-a&gtm_plan=private-content', 'workspace-a'), {plan:'',cycle:''});
+});
+
+
+test('saved execution selection is isolated by user and workspace', () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+  const plan = '11111111-1111-4111-8111-111111111111';
+  const cycle = '22222222-2222-4222-8222-222222222222';
+  writeStoredExecutionSelection(storage, 'workspace-a', 'user-a', plan, cycle);
+  assert.deepEqual(readStoredExecutionSelection(storage, 'workspace-a', 'user-a'), {plan, cycle});
+  assert.deepEqual(readStoredExecutionSelection(storage, 'workspace-b', 'user-a'), {plan:'', cycle:''});
+  assert.deepEqual(readStoredExecutionSelection(storage, 'workspace-a', 'user-b'), {plan:'', cycle:''});
+  assert.notEqual(
+    executionSelectionStorageKey('workspace-a', 'user-a'),
+    executionSelectionStorageKey('workspace-a', 'user-b'),
+  );
+});
+
+test('explicit URL selection wins over saved navigation state', () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+  const savedPlan = '11111111-1111-4111-8111-111111111111';
+  const urlPlan = '33333333-3333-4333-8333-333333333333';
+  writeStoredExecutionSelection(storage, 'workspace-a', 'user-a', savedPlan, '');
+  const fromStorage = resolveExecutionSelection('', 'workspace-a', 'user-a', storage);
+  assert.equal(fromStorage.source, 'storage');
+  assert.equal(fromStorage.selection.plan, savedPlan);
+  const fromUrl = resolveExecutionSelection(
+    '?gtm_workspace=workspace-a&gtm_plan=' + urlPlan,
+    'workspace-a',
+    'user-a',
+    storage,
+  );
+  assert.equal(fromUrl.source, 'url');
+  assert.equal(fromUrl.selection.plan, urlPlan);
+});
+
+test('malformed or blocked saved navigation state fails closed', () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+  values.set(executionSelectionStorageKey('workspace-a', 'user-a'), '{"plan":"not-an-id","cycle":42}');
+  assert.deepEqual(readStoredExecutionSelection(storage, 'workspace-a', 'user-a'), {plan:'', cycle:''});
+  const blocked = {
+    getItem() { throw new Error('blocked'); },
+    setItem() { throw new Error('blocked'); },
+    removeItem() { throw new Error('blocked'); },
+  };
+  assert.deepEqual(readStoredExecutionSelection(blocked, 'workspace-a', 'user-a'), {plan:'', cycle:''});
+  assert.doesNotThrow(() =>
+    writeStoredExecutionSelection(
+      blocked,
+      'workspace-a',
+      'user-a',
+      '11111111-1111-4111-8111-111111111111',
+      '',
+    ),
+  );
+});
+
+test('clearing selection removes only that user workspace record', () => {
+  const values = new Map();
+  const storage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: key => values.delete(key),
+  };
+  const plan = '11111111-1111-4111-8111-111111111111';
+  writeStoredExecutionSelection(storage, 'workspace-a', 'user-a', plan, '');
+  writeStoredExecutionSelection(storage, 'workspace-a', 'user-b', plan, '');
+  writeStoredExecutionSelection(storage, 'workspace-a', 'user-a', '', '');
+  assert.deepEqual(readStoredExecutionSelection(storage, 'workspace-a', 'user-a'), {plan:'', cycle:''});
+  assert.equal(readStoredExecutionSelection(storage, 'workspace-a', 'user-b').plan, plan);
 });
 
 test('plan provenance distinguishes templates, local AI and hosted AI', () => {
