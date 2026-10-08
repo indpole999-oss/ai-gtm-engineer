@@ -1,3 +1,4 @@
+import { createResearchRevision } from "./customer/research-revision";
 import { ActionDetails } from "./customer/action-details";
 import { ResearchReadinessNotice } from "./customer/research-readiness";
 import { useResearchReadiness } from "./customer/research-provider";
@@ -624,6 +625,27 @@ export function GtmCommandCenter() {
               </Button>
             </>
           )}
+          {plan.status === "approved" &&
+            plan.document.plan.steps.length > 0 &&
+            plan.document.plan.steps.every((s) => s.action === "research" && s.side_effect === "read_only") && (
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  disabled={busy || !canEdit || dirty}
+                  onClick={() =>
+                    void run(async () => {
+                      selectPlan(await createResearchRevision(plan, apiFetch));
+                      if (mounted.current) setMessage("Draft copied for review. Attempt limits are preserved. No AI call or execution was started.");
+                    })
+                  }
+                >
+                  Create draft from this research plan
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Reuses the same goal, account, sources and execution limits. Review and approval are required before execution.
+                </p>
+              </div>
+            )}
           <Button
             variant="outline"
             disabled={

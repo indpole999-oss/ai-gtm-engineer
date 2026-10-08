@@ -192,3 +192,39 @@ test('workspace headers, authentication reset, cancellation and failures', async
     assert.equal(events.length,1);
   } finally {globalThis.fetch=originalFetch;globalThis.window=originalWindow;}
 });
+
+
+test('readiness diagnostics show paused Groq fields without exposing extra response data', async () => {
+  const { readinessDetails } = await load('../src/components/customer/research-provider.ts',
+    s => s.replace('import { useData } from "./ui";', 'const useData = () => { throw new Error("hook is not used by this test"); };'));
+  const value = {provider:'groq',state:'paused',can_attempt:false,message:'Paused',api_key:'synthetic-secret'};
+  assert.deepEqual(readinessDetails(value), {provider:'groq',state:'paused',can_attempt:false});
+  assert.equal(JSON.stringify(readinessDetails(value)).includes('synthetic-secret'), false);
+  assert.deepEqual(readinessDetails({...value,state:'configured_unverified',can_attempt:true}),
+    {provider:'groq',state:'configured_unverified',can_attempt:true});
+});
+
+test('research draft copy makes one revision request, preserving limits and requiring later approval', async () => {
+  const { createResearchRevision } = await load('../src/components/customer/research-revision.ts');
+  const original = {id:'existing-plan',goal_id:'existing-goal',status:'approved',document:{
+    targets:[{company_id:'existing-company',source_urls:['https://example.com/']}],
+    plan:{objective:'Research existing account',max_attempts:1,timeout_seconds:120,
+      steps:[{action:'research',side_effect:'read_only',target_index:0,dependencies:[]}]}}};
+  const before=structuredClone(original);
+  const calls=[];
+  const saved={...original,id:'new-draft',status:'draft'};
+  const request=async(path,init)=>{calls.push({path,init});return saved;};
+  assert.equal(await createResearchRevision(original,request),saved);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].path,'/api/v1/gtm/plans/existing-plan/revisions');
+  assert.equal(calls[0].init.method,'POST');
+  assert.deepEqual(JSON.parse(calls[0].init.body),original.document.plan);
+  assert.deepEqual(original,before);
+  for (const steps of [[],[{action:'outreach_send',side_effect:'outbound'}],
+    [{action:'research',side_effect:'outbound'}],
+    [...original.document.plan.steps,{action:'crm_sync',side_effect:'external_write'}]]) {
+    await assert.rejects(()=>createResearchRevision({...original,document:{plan:{steps}}},request),/Only read-only research/);
+  }
+  assert.equal(calls.length,1);
+  await assert.rejects(()=>createResearchRevision(original,async()=>{throw new Error('permission denied');}),/permission denied/);
+});

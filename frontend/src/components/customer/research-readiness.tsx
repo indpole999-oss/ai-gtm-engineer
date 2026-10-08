@@ -1,6 +1,6 @@
 import { ErrorState } from "./ui";
 
-import { useResearchReadiness } from "./research-provider";
+import { readinessDetails, useResearchReadiness } from "./research-provider";
 
 export function ResearchReadinessNotice() {
   const readiness = useResearchReadiness();
@@ -16,6 +16,17 @@ export function ResearchReadinessNotice() {
           {readiness.data?.message} Guided plans can still be saved for review. Approval queues work
           for a durable worker; it does not start or enable a provider.
         </p>
+      )}
+      {!readiness.isPending && !readiness.isError && readiness.data && (
+        <details className="text-sm">
+          <summary className="cursor-pointer">Provider status details</summary>
+          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap" aria-label="Research readiness response">
+            {JSON.stringify(readinessDetails(readiness.data), null, 2)}
+          </pre>
+          <p className="text-xs text-muted-foreground">
+            This availability check does not call the model or verify research quality.
+          </p>
+        </details>
       )}
       <button
         className="text-sm text-primary underline"
