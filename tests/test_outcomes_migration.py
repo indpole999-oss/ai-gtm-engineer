@@ -21,7 +21,7 @@ def test_populated_phase7_upgrade_preserves_history_and_quarantine(tmp_path):
     migrate(path,"head")
     with closing(sqlite3.connect(path)) as db,db:
         db.execute("PRAGMA foreign_keys=ON")
-        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0]=="20260928_0013"
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0]=="20261008_0014"
         assert db.execute("SELECT count(*) FROM pipeline_records").fetchone()[0]==2
         assert db.execute("SELECT count(*) FROM pipeline_history WHERE to_stage='discovered'").fetchone()[0]==2
         assert db.execute("SELECT workspace_id FROM companies WHERE id=?",(legacy,)).fetchone()==(None,)
