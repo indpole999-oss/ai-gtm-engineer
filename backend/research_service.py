@@ -7,7 +7,7 @@ from typing import Literal
 from uuid import UUID
 import httpx
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, Field, model_validator, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, model_validator, ValidationError, create_model
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 from backend.brain_models import CompanyBrainVersion
@@ -90,12 +90,27 @@ def research_prompt(profile, sources, target):
     }
 
 
+def supplied_span_output(sources):
+    """Per-request schema and parser; never cache IDs across captures/jobs."""
+    allowed = tuple(dict.fromkeys(span["id"] for source in sources for span in source["spans"]))
+    # Sources are already budget-filtered by execute_research. Do not expand
+    # this set from the database, or normalize/coerce model references.
+    for span_id in allowed:
+        if not isinstance(span_id, str) or str(UUID(span_id)) != span_id:
+            raise ValueError("Invalid supplied source span ID")
+    reference = Literal[allowed] | None if allowed else type(None)
+    claim = create_model("SuppliedSpanClaim", __base__=ExtractedClaim,
+                         span_id=(reference, None))
+    return create_model("SuppliedSpanResearchOutput", __base__=ResearchOutput,
+                        claims=(list[claim], Field(max_length=30)))
+
+
 class GroqResearchProvider:
     """Hosted staging provider using Groq's OpenAI-compatible API."""
 
     async def analyze(self, profile, sources, target):
         return await groq_output(
-            ResearchOutput, "research_output", RESEARCH_SYSTEM_PROMPT,
+            supplied_span_output(sources), "research_output", RESEARCH_SYSTEM_PROMPT,
             research_prompt(profile, sources, target),
         )
 
@@ -104,6 +119,7 @@ class LocalResearchProvider:
     """Local Ollama fallback for development environments."""
 
     async def analyze(self, profile, sources, target):
+        output_type = supplied_span_output(sources)
         model = os.environ.get("GTM_LOCAL_MODEL", "qwen3:4b")
         url = os.environ.get("GTM_LOCAL_MODEL_URL", "http://127.0.0.1:11434").rstrip("/")
         prompt = research_prompt(profile, sources, target)
@@ -113,7 +129,7 @@ class LocalResearchProvider:
                 json={
                     "model": model,
                     "stream": False,
-                    "format": ResearchOutput.model_json_schema(),
+                    "format": output_type.model_json_schema(),
                     "options": {"temperature": 0},
                     "messages": [
                         {"role": "system", "content": RESEARCH_SYSTEM_PROMPT},
@@ -122,7 +138,7 @@ class LocalResearchProvider:
                 },
             )
             response.raise_for_status()
-            result = ResearchOutput.model_validate_json(response.json()["message"]["content"])
+            result = output_type.model_validate_json(response.json()["message"]["content"])
             return result, f"ollama:{model}"[:100]
 
 

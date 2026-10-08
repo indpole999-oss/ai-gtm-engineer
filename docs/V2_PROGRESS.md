@@ -572,3 +572,31 @@ second provider read reused the same event and existing authorization. Read-only
 staging SQL confirms one event row and two verification audits. Full evidence and
 the distinction between live token reuse and offline token rotation are recorded
 in `V2_EARLY_ACCESS_QA.md`. Existing saved Apollo/HubSpot records remain unchanged.
+
+### 2026-10-08 — constrain research to supplied source spans
+
+The October 7 controlled Groq research attempt failed closed at `Invalid source
+span reference`. Four deterministic source-span evidence rows were retained;
+zero claims, Account Intelligence reports or qualifications were accepted. The
+raw invalid reference was not retained and cannot be reconstructed from logs.
+
+Research adapters now build a request-specific output type whose `span_id`
+choices are exactly the persisted, budget-filtered spans in that request. Groq
+receives those choices in its strict JSON schema and the response parser enforces
+the same choices. Ollama uses the same constrained contract. Backend job/source
+ownership, claim-kind, exact-text and buyer-provenance checks remain authoritative.
+No ID repair, fuzzy matching, excerpt substitution or relaxed validation is added.
+
+Focused offline validation: 61 tests passed, including request isolation, invalid,
+foreign and unoffered references, exact text resolution, multiple valid claims,
+and atomic claim/report rejection while source evidence remains retained. Local
+Windows tests use a relative synthetic temporary directory to avoid the existing
+absolute SQLite drive-path encoding issue. No migration or frontend change.
+Full backend regression: 326 passed, 2 disposable-PostgreSQL tests skipped locally
+for CI. Detailed contract and prior-attempt evidence: `V2_RESEARCH_SPAN_ACCEPTANCE.md`.
+
+Live acceptance remains pending CI and staging rollout. The authorized retest may
+reuse only the existing goal/company/prospect, with one reviewed plan revision
+and one new cycle/command/job because the previous cycle is terminal. Maximum
+attempts must be one. Hosted AI must be off before and immediately after the
+single attended attempt. No outreach/email/CRM/calendar writes are authorized.
