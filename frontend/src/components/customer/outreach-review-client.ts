@@ -40,12 +40,12 @@ export function createReviewClient(request: (path: string, init: RequestInit) =>
       let endpoint: string = action;
       if (action === "revisions") {
         if (!values.subject?.trim() || !values.body?.trim()) throw new Error("Subject and body are required");
-        payload.subject = values.subject; payload.body = values.body;
+        payload['subject'] = values.subject; payload['body'] = values.body;
       } else if (action === "rejected" || action === "changes_requested") {
         if (!values.reason?.trim()) throw new Error("A review reason is required");
-        endpoint = "decision"; payload.action = action; payload.reason = values.reason.trim();
+        endpoint = "decision"; payload['action'] = action; payload['reason'] = values.reason.trim();
       } else if (action === "approve") {
-        payload.reviewed = true; payload.acknowledge_unverified_edits = values.acknowledge === true;
+        payload['reviewed'] = true; payload['acknowledge_unverified_edits'] = values.acknowledge === true;
       }
       pending = true;
       try {
