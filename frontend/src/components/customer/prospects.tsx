@@ -15,6 +15,7 @@ import {
   friendlyError,
   useData,
 } from "./ui";
+import { ProspectOutreach } from "./prospect-outreach";
 import { AccountResearch } from "@/components/account-research";
 import type { Company, Contact, Pipeline } from "./contracts";
 
@@ -201,7 +202,13 @@ export function ProspectsPage() {
                     </form>
                   </details>
                 )}
-                {expanded === a.id && <AccountResearch key={a.id} companyId={a.id} />}
+                {expanded === a.id && <>
+                  <AccountResearch key={a.id} companyId={a.id} />
+                  {contacts.data?.filter(contact => contact.company_id === a.id).map(contact => <details key={contact.id} className="mt-5">
+                    <summary className="text-sm font-medium">Outreach for {contact.first_name} {contact.last_name} · {contact.email}</summary>
+                    <ProspectOutreach contactId={contact.id} />
+                  </details>)}
+                </>}
               </Panel>
             );
           })}

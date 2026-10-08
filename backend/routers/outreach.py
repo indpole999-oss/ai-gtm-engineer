@@ -9,7 +9,7 @@ from backend.tenancy import get_current_workspace, get_workspace_db
 from backend.research_service import scoped_record
 from backend.research_models import ResearchJob
 from backend.outreach_models import Campaign, Sequence, SequenceVersion, SequenceStep, SenderIdentity, Enrollment, ScheduledMessage, MessageDraft, Message, Suppression, DeliveryEvent
-from backend import outreach_service as service
+from backend import outreach_service as service, outreach_review as review_service
 from backend.planning_models import PlanVersion, ActionCommand, ExecutionCycle, StepRun
 from backend.planning_service import digest, emit
 from backend.routers.planning import ApprovalInput, plan_response
@@ -52,6 +52,32 @@ class EnrollmentInput(Input):
     research_job_id: UUID
 
 
+class DraftActionInput(Input):
+    content_hash: str = Field(min_length=64, max_length=64)
+    expected_revision: int = Field(ge=0)
+
+
+class DraftEditInput(DraftActionInput):
+    subject: str = Field(min_length=1, max_length=300)
+    body: str = Field(min_length=1, max_length=20000)
+
+
+class DraftDecisionInput(DraftActionInput):
+    action: Literal["rejected", "changes_requested"]
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class DraftApprovalInput(ApprovalInput):
+    expected_revision: int | None = Field(default=None, ge=0)
+    acknowledge_unverified_edits: bool = False
+
+
+class ProspectDraftInput(Input):
+    version_id: UUID
+    sender_id: UUID
+    research_job_id: UUID
+
+
 class SuppressionInput(Input):
     email: EmailStr
     reason: Literal["unsubscribe", "suppressed", "bounce", "complaint"]
@@ -68,6 +94,47 @@ def response(row):
 RESOURCES = {"campaigns": Campaign, "sequences": Sequence, "versions": SequenceVersion, "steps": SequenceStep,
     "senders": SenderIdentity, "enrollments": Enrollment, "scheduled": ScheduledMessage, "drafts": MessageDraft,
     "messages": Message, "suppressions": Suppression, "delivery-events": DeliveryEvent}
+
+
+@router.get("/review-queue")
+async def review_queue(db=Depends(get_workspace_db)):
+    scheduled = (await db.scalars(select(ScheduledMessage).order_by(ScheduledMessage.created_at.desc()).limit(100))).all()
+    result = []
+    for item in scheduled:
+        draft = await review_service.latest_draft(db, item.id)
+        if draft:
+            result.append({**response(draft), "review": await review_service.status(db, draft)})
+    return result
+
+
+@router.get("/drafts/{draft_id}/review")
+async def draft_review(draft_id: UUID, db=Depends(get_workspace_db)):
+    return await review_service.describe(db, await scoped_record(db, MessageDraft, draft_id))
+
+
+@router.post("/drafts/{draft_id}/revisions", status_code=201)
+async def revise_draft(draft_id: UUID, body: DraftEditInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    if not body.subject.strip() or not body.body.strip():
+        raise HTTPException(422, "Subject and body cannot be blank")
+    draft = await review_service.revise(db, await scoped_record(db, MessageDraft, draft_id), ctx,
+        body.content_hash, body.expected_revision, body.subject, body.body)
+    return response(draft)
+
+
+@router.post("/drafts/{draft_id}/submit")
+async def submit_draft(draft_id: UUID, body: DraftActionInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    draft = await review_service.transition(db, await scoped_record(db, MessageDraft, draft_id), ctx,
+        body.content_hash, body.expected_revision, "submitted")
+    return await review_service.describe(db, draft)
+
+
+@router.post("/drafts/{draft_id}/decision")
+async def decide_draft(draft_id: UUID, body: DraftDecisionInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    if not body.reason.strip():
+        raise HTTPException(422, "A review reason is required")
+    draft = await review_service.transition(db, await scoped_record(db, MessageDraft, draft_id), ctx,
+        body.content_hash, body.expected_revision, body.action, body.reason.strip())
+    return await review_service.describe(db, draft)
 
 
 @router.get("/{resource}")
@@ -133,8 +200,7 @@ async def sender(body: SenderInput, ctx=Depends(get_current_workspace), db=Depen
     return response(row)
 
 
-@router.post("/enrollments", status_code=201)
-async def enroll(body: EnrollmentInput, db=Depends(get_workspace_db)):
+async def enroll(body: EnrollmentInput, db, commit=True):
     await service.lock_workspace(db)
     version = await scoped_record(db, SequenceVersion, body.version_id)
     contact = await scoped_record(db, Contact, body.contact_id)
@@ -147,7 +213,7 @@ async def enroll(body: EnrollmentInput, db=Depends(get_workspace_db)):
     if existing:
         if existing.sender_id != body.sender_id or existing.research_job_id != body.research_job_id:
             raise HTTPException(409, "Enrollment inputs conflict")
-        return response(existing)
+        return response(existing) if commit else existing
     row = Enrollment(**body.model_dump())
     db.add(row)
     await db.flush()
@@ -156,8 +222,15 @@ async def enroll(body: EnrollmentInput, db=Depends(get_workspace_db)):
     for step in steps:
         due += timedelta(seconds=step.delay_seconds)
         db.add(ScheduledMessage(enrollment_id=row.id, sequence_step_id=step.id, due_at=due))
-    await db.commit()
-    return response(row)
+    await db.flush()
+    if commit:
+        await db.commit()
+    return response(row) if commit else row
+
+
+@router.post("/enrollments", status_code=201)
+async def enroll_contact(body: EnrollmentInput, db=Depends(get_workspace_db)):
+    return await enroll(body, db)
 
 
 @router.post("/{resource}/{record_id}/control")
@@ -182,8 +255,8 @@ async def compose(scheduled_id: UUID, ctx=Depends(get_current_workspace), db=Dep
 
 
 @router.post("/drafts/{draft_id}/approve", status_code=201)
-async def approve(draft_id: UUID, body: ApprovalInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
-    message = await service.approve_message(db, await scoped_record(db, MessageDraft, draft_id), ctx, body.content_hash)
+async def approve(draft_id: UUID, body: DraftApprovalInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    message = await service.approve_message(db, await scoped_record(db, MessageDraft, draft_id), ctx, body.content_hash, body.expected_revision, body.acknowledge_unverified_edits)
     return {"message": response(message), "plan": plan_response(await scoped_record(db, PlanVersion, message.plan_id))}
 
 
@@ -217,3 +290,41 @@ async def retry(message_id: UUID, ctx=Depends(get_current_workspace), db=Depends
     await emit(db, cycle, "outreach_retry_requested", {"message_id": str(message.id), "actor": str(ctx.user_id)})
     await db.commit()
     return response(message)
+
+
+@router.post("/prospects/{contact_id}/draft", status_code=201)
+async def prospect_draft(contact_id: UUID, body: ProspectDraftInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    ctx.require("owner", "admin", "member")
+    # Reuse the normal idempotent enrollment, then its first sequence step.
+    # Qualify before enrolling so ineligible requests cannot leave partial setup.
+    from backend.research_models import AccountIntelligence
+    from backend.pipeline_service import buyer_supported
+    contact = await scoped_record(db, Contact, contact_id)
+    job = await scoped_record(db, ResearchJob, body.research_job_id)
+    report = await db.scalar(select(AccountIntelligence).where(AccountIntelligence.job_id == job.id))
+    if (job.company_id != contact.company_id or job.status != "completed" or not report
+        or report.result.get("fit") != "potential_fit" or not buyer_supported(report.result.get("buyers", []), contact)):
+        raise HTTPException(409, "Source-backed account fit and matching buyer qualification required")
+    enrollment = await enroll(EnrollmentInput(contact_id=contact_id, **body.model_dump()), db, commit=False)
+    scheduled = await db.scalar(select(ScheduledMessage).join(SequenceStep, SequenceStep.id == ScheduledMessage.sequence_step_id)
+        .where(ScheduledMessage.enrollment_id == enrollment.id).order_by(SequenceStep.position).limit(1))
+    if not scheduled:
+        raise HTTPException(409, "Sequence has no steps")
+    draft = await service.compose(db, scheduled, ctx.user_id)
+    # compose may retrieve an existing draft; commit any enrollment work.
+    await db.commit()
+    return response(draft)
+
+
+@router.get("/prospects/{contact_id}/eligibility")
+async def prospect_eligibility(contact_id: UUID, db=Depends(get_workspace_db)):
+    from backend.research_models import AccountIntelligence
+    from backend.pipeline_service import buyer_supported
+    contact = await scoped_record(db, Contact, contact_id)
+    rows = (await db.execute(select(ResearchJob, AccountIntelligence).join(
+        AccountIntelligence, AccountIntelligence.job_id == ResearchJob.id).where(
+        ResearchJob.company_id == contact.company_id, ResearchJob.status == "completed")
+        .order_by(ResearchJob.created_at.desc()))).all()
+    return [{"id": str(job.id), "completed_at": job.completed_at}
+        for job, report in rows if report.result.get("fit") == "potential_fit"
+        and buyer_supported(report.result.get("buyers", []), contact)]

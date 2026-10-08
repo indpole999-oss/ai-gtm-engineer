@@ -17,6 +17,8 @@ import {
 } from "./ui";
 import { sendLabel, type Contact, type Integration } from "./contracts";
 import { PlanReview, type ReviewedPlan } from "./plan-review";
+import { DraftReview } from "./draft-review";
+import type { DraftSnapshot, ReviewState } from "./outreach-review-client";
 
 type Named = { id: string; name: string; status?: string; campaign_id?: string };
 type Version = {
@@ -27,23 +29,7 @@ type Version = {
 };
 type Enrollment = { id: string; contact_id: string; version_id: string; status: string };
 type Scheduled = { id: string; enrollment_id: string; sequence_step_id: string; due_at: string };
-type Draft = {
-  id: string;
-  scheduled_id: string;
-  content_hash: string;
-  envelope: {
-    recipient: string;
-    sender: string;
-    subject: string;
-    body: string;
-    brain_version_id: string;
-    research_job_id: string;
-    evidence_id: string;
-    sequence_version_id: string;
-    contact_id: string;
-    due_at: string;
-  };
-};
+type Draft = DraftSnapshot & { review?: Pick<ReviewState, "status" | "revision" | "current_draft_id"> };
 type Message = {
   id: string;
   draft_id: string;
@@ -62,7 +48,7 @@ export function OutreachPage() {
     versions = useData<Version[]>(base + "/versions"),
     enrollments = useData<Enrollment[]>(base + "/enrollments"),
     scheduled = useData<Scheduled[]>(base + "/scheduled"),
-    drafts = useData<Draft[]>(base + "/drafts"),
+    drafts = useData<Draft[]>(base + "/review-queue"),
     messages = useData<Message[]>(base + "/messages"),
     suppressions = useData<{ id: string; email: string; reason: string }[]>(base + "/suppressions"),
     senders = useData<{ id: string; email: string; status: string }[]>(base + "/senders"),
@@ -73,7 +59,6 @@ export function OutreachPage() {
     );
   const [tab, setTab] = useState("Messages"),
     [selected, setSelected] = useState<Draft | null>(null),
-    [reviewed, setReviewed] = useState(false),
     [plan, setPlan] = useState<ReviewedPlan | null>(null),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
@@ -138,7 +123,7 @@ export function OutreachPage() {
       </div>
       <Feedback message={message} />
       <nav aria-label="Outreach views" className="flex flex-wrap gap-2">
-        {["Messages", "Campaigns & sequences", "Enrollments", "Safety"].map((t) => (
+        {["Messages", "Approval queue", "Campaigns & sequences", "Enrollments", "Safety"].map((t) => (
           <button
             key={t}
             aria-pressed={tab === t}
@@ -155,7 +140,7 @@ export function OutreachPage() {
         <ErrorState retry={() => queries.forEach((q) => void q.refetch())} />
       ) : (
         <>
-          {tab === "Messages" && (
+          {(tab === "Messages" || tab === "Approval queue") && (
             <>
               {!scheduled.data?.length ? (
                 <Empty title="A considered first impression">
@@ -164,7 +149,7 @@ export function OutreachPage() {
                 </Empty>
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  {scheduled.data.map((s) => {
+                  {scheduled.data.filter((s) => tab !== "Approval queue" || drafts.data?.some(d => d.scheduled_id === s.id && d.review?.status === "submitted")).map((s) => {
                     const enrollment = enrollments.data?.find((e) => e.id === s.enrollment_id);
                     const contact = contacts.data?.find((c) => c.id === enrollment?.contact_id);
                     const draft = drafts.data?.find((d) => d.scheduled_id === s.id);
@@ -181,7 +166,7 @@ export function OutreachPage() {
                               blocked
                                 ? "suppressed"
                                 : (sent ? sendLabel(sent) : undefined) ||
-                                  (draft ? "draft" : "scheduled")
+                                  (draft ? draft.review?.status || "draft" : "scheduled")
                             }
                           />
                         </div>
@@ -213,7 +198,6 @@ export function OutreachPage() {
                               className="g-button g-button-secondary"
                               onClick={() => {
                                 setSelected(draft);
-                                setReviewed(false);
                                 setPlan(null);
                               }}
                             >
@@ -227,7 +211,6 @@ export function OutreachPage() {
                                 onClick={() =>
                                   void act(`/scheduled/${s.id}/drafts`, undefined, (v) => {
                                     setSelected(v as Draft);
-                                    setReviewed(false);
                                     setPlan(null);
                                   })
                                 }
@@ -235,6 +218,14 @@ export function OutreachPage() {
                                 Prepare draft
                               </button>
                             )
+                          )}
+                          {sent && canApprove && (
+                            <button className="g-button g-button-secondary" disabled={busy} onClick={async () => {
+                              setBusy(true);
+                              try { setPlan(await apiFetch<ReviewedPlan>("/api/v1/gtm/plans/" + sent.plan_id)); }
+                              catch (error) { setMessage(friendlyError(error)); }
+                              finally { setBusy(false); }
+                            }}>Review separate delivery authorization</button>
                           )}
                           {sent?.state === "failed" && canApprove && (
                             <button
@@ -251,65 +242,8 @@ export function OutreachPage() {
                   })}
                 </div>
               )}
-              {selected && (
-                <Panel title="Review the exact message">
-                  <p className="text-sm">
-                    From {selected.envelope.sender} → {selected.envelope.recipient}
-                  </p>
-                  <h3 className="mt-5 font-semibold">{selected.envelope.subject}</h3>
-                  <p className="my-5 whitespace-pre-wrap text-sm leading-7">
-                    {selected.envelope.body}
-                  </p>
-                  <details className="my-4 text-xs">
-                    <summary>Evidence & immutable versions</summary>
-                    <div className="mt-3 space-y-2 break-all">
-                      <p>
-                        Research {selected.envelope.research_job_id} · Evidence{" "}
-                        {selected.envelope.evidence_id}
-                      </p>
-                      <p>
-                        Brain {selected.envelope.brain_version_id} · Sequence version{" "}
-                        {selected.envelope.sequence_version_id}
-                      </p>
-                      <p>Earliest send: {time(selected.envelope.due_at)}</p>
-                    </div>
-                  </details>
-                  {suppressed(selected.envelope.recipient) ? (
-                    <p className="font-medium text-destructive">
-                      Suppressed — this message cannot be sent.
-                    </p>
-                  ) : (
-                    canApprove && (
-                      <>
-                        <label className="flex items-start gap-3 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={reviewed}
-                            onChange={(e) => setReviewed(e.target.checked)}
-                          />
-                          I reviewed the recipient, message and supporting evidence.
-                        </label>
-                        <button
-                          className="g-button mt-4"
-                          disabled={!reviewed || busy}
-                          onClick={() =>
-                            void act(
-                              `/drafts/${selected.id}/approve`,
-                              { content_hash: selected.content_hash, reviewed: true },
-                              (v) => setPlan((v as { plan: ReviewedPlan }).plan),
-                            )
-                          }
-                        >
-                          Approve message & review execution plan
-                        </button>
-                      </>
-                    )
-                  )}
-                  {!canApprove && (
-                    <p className="text-sm">An owner or admin must approve outbound messages.</p>
-                  )}
-                </Panel>
-              )}
+              {tab === "Approval queue" && !drafts.data?.some(draft => draft.review?.status === "submitted") && <Empty title="No drafts awaiting approval">Submitted drafts appear here for an owner or admin to review.</Empty>}
+              {selected && <DraftReview key={selected.id} draft={selected} onDraft={setSelected} />}
               {plan && (
                 <PlanReview
                   key={plan.id}

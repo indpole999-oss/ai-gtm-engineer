@@ -75,6 +75,23 @@ class MessageDraft(ScopedExecutionRow, Base):
     __table_args__ = (UniqueConstraint("workspace_id", "id"), parent("scheduled_id", "scheduled_messages"))
 
 
+class DraftReviewEvent(ScopedExecutionRow, Base):
+    """Append-only review transitions; the workspace lock serializes revisions."""
+    __tablename__ = "draft_review_events"
+    scheduled_id = Column(Uuid, nullable=False)
+    draft_id = Column(Uuid, nullable=False)
+    revision = Column(Integer, nullable=False)
+    action = Column(String(30), nullable=False)
+    actor_id = Column(Uuid, ForeignKey("users.id"), nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    reason = Column(Text, nullable=False, default="")
+    __table_args__ = (UniqueConstraint("workspace_id", "id"),
+        UniqueConstraint("scheduled_id", "revision"),
+        parent("scheduled_id", "scheduled_messages"), parent("draft_id", "message_drafts"),
+        CheckConstraint("revision > 0"),
+        CheckConstraint("action IN ('created','revised','submitted','approved','rejected','changes_requested')"))
+
+
 class Message(ScopedExecutionRow, Base):
     __tablename__ = "messages"
     draft_id = Column(Uuid, nullable=False, unique=True)
@@ -105,7 +122,7 @@ class Suppression(ScopedExecutionRow, Base):
     __table_args__ = (UniqueConstraint("workspace_id", "email"),)
 
 
-IMMUTABLE = (SequenceVersion, SequenceStep, ScheduledMessage, MessageDraft, DeliveryEvent, Suppression)
+IMMUTABLE = (SequenceVersion, SequenceStep, ScheduledMessage, MessageDraft, DraftReviewEvent, DeliveryEvent, Suppression)
 MESSAGE_APPROVAL_FIELDS = ("draft_id", "scheduled_id", "approved_by", "approved_hash", "plan_id")
 
 

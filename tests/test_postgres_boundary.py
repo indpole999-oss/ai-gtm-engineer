@@ -50,7 +50,7 @@ def test_postgres_rls_and_composite_relationships():
                 cursor.execute("INSERT INTO campaigns(id,workspace_id,name,status,created_at) VALUES(%s,%s,'A','active',now()),(%s,%s,'B','active',now())", (campaign_a,a,campaign_b,b))
                 cursor.execute("INSERT INTO sequences(id,workspace_id,campaign_id,name,created_at) VALUES(%s,%s,%s,'Sequence',now())", (sequence_a,a,campaign_a))
                 cursor.execute("INSERT INTO sequence_versions(id,workspace_id,sequence_id,number,definition,content_hash,created_at) VALUES(%s,%s,%s,1,'{}','hash',now())", (version_a,a,sequence_a))
-                outreach_tables = ("campaigns", "sequences", "sequence_versions", "sequence_steps", "sender_identities", "enrollments", "scheduled_messages", "message_drafts", "messages", "delivery_events", "suppressions")
+                outreach_tables = ("campaigns", "sequences", "sequence_versions", "sequence_steps", "sender_identities", "enrollments", "scheduled_messages", "message_drafts", "draft_review_events", "messages", "delivery_events", "suppressions")
                 for table in outreach_tables + ("inbox_threads", "inbound_messages", "inbound_receipts", "inbox_thread_links", "reply_classifications", "inbox_pauses", "suggested_reply_drafts"):
                     cursor.execute("SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE relname=%s", (table,))
                     assert cursor.fetchone() == (True, True), table
@@ -92,7 +92,7 @@ def test_postgres_rls_and_composite_relationships():
                 with pytest.raises(psycopg2.errors.ForeignKeyViolation):
                     cursor.execute("INSERT INTO contacts(id,email,workspace_id,company_id) VALUES(%s,'bad@example.com',%s,%s)",(str(uuid4()),a,cb))
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone()[0] == "20260928_0013"
+                assert cursor.fetchone()[0] == "20261008_0014"
             probe = Path(__file__).with_name("postgres_worker_probe.py").read_text()
             result = subprocess.run([sys.executable, "-c", probe, a, ca, va, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr

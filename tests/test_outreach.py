@@ -55,7 +55,7 @@ def post(client, headers, path, body=None):
     return r.json()
 
 
-def setup_outreach(client, fake_research, email="outreach@example.com", steps=None):
+def setup_outreach(client, fake_research, email="outreach@example.com", steps=None, compose_draft=True):
     a = signup(client, email)
     brain, account = published(client, a), company(client, a)
     job = create_job(client, a, brain, account)
@@ -67,13 +67,17 @@ def setup_outreach(client, fake_research, email="outreach@example.com", steps=No
     sender = post(client, a, "/senders", {"email": "sender@example.com", "provider": "fake"})
     enrollment = post(client, a, "/enrollments", {"version_id": version["id"], "contact_id": contact["id"], "sender_id": sender["id"], "research_job_id": job["id"]})
     scheduled = client.get(BASE + "/scheduled", headers=a).json()[-1]
-    draft = post(client, a, f"/scheduled/{scheduled['id']}/drafts")
+    draft = post(client, a, f"/scheduled/{scheduled['id']}/drafts") if compose_draft else None
     return a, {"campaign": campaign, "sequence": sequence, "version": version, "sender": sender, "enrollment": enrollment, "scheduled": scheduled, "draft": draft}
 
 
 def approve_draft(client, a, data):
     d = data["draft"]
-    return post(client, a, f"/drafts/{d['id']}/approve", {"content_hash": d["content_hash"], "reviewed": True})
+    state = client.get(BASE + f"/drafts/{d['id']}/review", headers=a).json()
+    if state["status"] == "draft":
+        state = post(client, a, f"/drafts/{d['id']}/submit", {"content_hash": d["content_hash"], "expected_revision": state["revision"]})
+    return post(client, a, f"/drafts/{d['id']}/approve", {"content_hash": d["content_hash"], "reviewed": True,
+        "expected_revision": state["revision"]})
 
 
 def get_message(client, a, reviewed):

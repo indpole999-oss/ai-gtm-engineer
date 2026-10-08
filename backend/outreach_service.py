@@ -54,8 +54,13 @@ async def unsuppressed(db, email):
 
 
 async def compose(db, scheduled, actor):
+    from backend import outreach_review as review_service
+    await lock_workspace(db)
     enrollment, step, version, sequence, campaign, contact, sender, job, brain = await context(db, scheduled)
     await unsuppressed(db, contact.email)
+    existing = await review_service.latest_draft(db, scheduled.id)
+    if existing:
+        return existing
     report = await db.scalar(select(AccountIntelligence).where(AccountIntelligence.job_id == job.id))
     claims = (await db.scalars(select(ResearchClaim).where(ResearchClaim.job_id == job.id, ResearchClaim.kind == "provider_assertion", ResearchClaim.evidence_id.is_not(None)).order_by(ResearchClaim.id))).all()
     approved_claims = (await db.scalars(select(BrainClaim).where(BrainClaim.version_id == brain.id, BrainClaim.disposition == "approved"))).all()
@@ -84,12 +89,15 @@ async def compose(db, scheduled, actor):
         "sequence_hash": version.content_hash, "sequence_step_id": str(step.id), "sender_id": str(sender.id),
         "due_at": scheduled.due_at.isoformat(), "composition_method": "evidence_template"}
     row = MessageDraft(scheduled_id=scheduled.id, envelope=envelope, content_hash=digest(envelope), created_by=actor)
+    await review_service.validate(db, row)
     db.add(row)
+    await db.flush()
+    await review_service.record(db, row, actor, "created")
     await db.commit()
     return row
 
 
-async def approve_message(db, draft, ctx, expected_hash):
+async def approve_message(db, draft, ctx, expected_hash, expected_revision=None, acknowledge_unverified_edits=False):
     ctx.require("owner", "admin")
     await lock_workspace(db)
     if draft.content_hash != expected_hash or digest(draft.envelope) != expected_hash:
@@ -99,6 +107,15 @@ async def approve_message(db, draft, ctx, expected_hash):
         if existing.draft_id != draft.id:
             raise HTTPException(409, "Another draft is already approved for this step")
         return existing
+    from backend import outreach_review as review_service
+    state = await review_service.status(db, draft)
+    await review_service.require_current(db, draft, expected_hash,
+        state["revision"] if expected_revision is None else expected_revision)
+    if state["status"] != "submitted":
+        raise HTTPException(409, "Submit the draft for review before approving")
+    await review_service.validate(db, draft)
+    if draft.envelope.get("composition_method") == "human_edited" and not acknowledge_unverified_edits:
+        raise HTTPException(409, "Explicitly acknowledge that edited assertions are not verified")
     scheduled = await scoped_record(db, ScheduledMessage, draft.scheduled_id)
     *_, contact, sender, job, brain = await context(db, scheduled)
     await unsuppressed(db, contact.email)
@@ -120,6 +137,8 @@ async def approve_message(db, draft, ctx, expected_hash):
     await db.flush()
     row = Message(id=message_id, draft_id=draft.id, scheduled_id=scheduled.id, approved_by=ctx.user_id, approved_hash=expected_hash, plan_id=plan.id)
     db.add(row)
+    await review_service.record(db, draft, ctx.user_id, "approved",
+        "Reviewer acknowledged unverified edited wording" if draft.envelope.get("composition_method") == "human_edited" else "")
     await db.commit()
     return row
 

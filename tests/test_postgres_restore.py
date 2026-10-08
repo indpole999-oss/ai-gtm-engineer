@@ -68,7 +68,7 @@ def test_populated_backup_restore_then_additive_upgrade(tmp_path):
         with psycopg2.connect(service.set(database=names[1]).render_as_string(hide_password=False)) as restored:
             with restored.cursor() as cur:
                 cur.execute("SELECT version_num FROM alembic_version")
-                assert cur.fetchone() == ("20260928_0013",)
+                assert cur.fetchone() == ("20261008_0014",)
                 cur.execute("SELECT id::text,name,domain,workspace_id::text FROM companies ORDER BY id")
                 assert cur.fetchall() == expected
                 cur.execute("SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid='companies'::regclass")

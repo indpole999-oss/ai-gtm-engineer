@@ -228,3 +228,64 @@ test('research draft copy makes one revision request, preserving limits and requ
   assert.equal(calls.length,1);
   await assert.rejects(()=>createResearchRevision(original,async()=>{throw new Error('permission denied');}),/permission denied/);
 });
+
+
+const { createReviewClient, reviewPermissions } = await load('../src/components/customer/outreach-review-client.ts');
+test('review controls enforce role, submission, current revision and unsaved changes', () => {
+  assert.equal(reviewPermissions('member', 'draft', true, false).submit, true);
+  assert.equal(reviewPermissions('viewer', 'draft', true, false).edit, false);
+  assert.equal(reviewPermissions('member', 'submitted', true, false).decide, false);
+  assert.equal(reviewPermissions('admin', 'submitted', true, false).decide, true);
+  assert.equal(reviewPermissions('owner', 'submitted', true, true).decide, false);
+  assert.equal(reviewPermissions('owner', 'submitted', false, false).decide, false);
+  for (const state of ['approved', 'submitted']) assert.equal(reviewPermissions('owner', state, true, false).edit, false);
+  for (const state of ['rejected', 'changes_requested']) assert.equal(reviewPermissions('member', state, true, false).edit, true);
+});
+
+test('review actions call durable draft endpoints and never delivery execution', async () => {
+  const calls = [];
+  const client = createReviewClient(async (path, init) => { calls.push({path, body: JSON.parse(init.body), method:init.method}); return {persisted:true}; });
+  const draft = {id:'draft-id', content_hash:'a'.repeat(64)};
+  assert.deepEqual(await client.run(draft, 4, 'submit'), {persisted:true});
+  assert.deepEqual(calls.at(-1), {path:'/api/v1/outreach/drafts/draft-id/submit',method:'POST',body:{content_hash:draft.content_hash,expected_revision:4}});
+  await client.run(draft, 5, 'changes_requested', {reason:' Needs detail '});
+  assert.equal(calls.at(-1).path, '/api/v1/outreach/drafts/draft-id/decision');
+  assert.equal(calls.at(-1).body.action, 'changes_requested');
+  assert.equal(calls.at(-1).body.reason, 'Needs detail');
+  await client.run(draft, 6, 'rejected', {reason:'Unsupported'});
+  await client.run(draft, 7, 'revisions', {subject:'Edited',body:'Source quote'});
+  assert.equal(calls.at(-1).body.subject, 'Edited');
+  await client.run(draft, 8, 'approve', {acknowledge:true});
+  assert.equal(calls.at(-1).body.reviewed, true);
+  assert.equal(calls.at(-1).body.acknowledge_unverified_edits, true);
+  assert.equal(calls.length, 5);
+  assert.equal(calls.some(call => /send|cycles|plans/.test(call.path)), false);
+});
+
+test('review client blocks concurrent duplicates and propagates authorization and network failures', async () => {
+  let resolve; let calls=0;
+  const draft={id:'draft-id',content_hash:'a'.repeat(64)};
+  const client=createReviewClient(async()=>{calls++;return new Promise(done=>{resolve=done;});});
+  const first=client.run(draft,1,'submit');
+  await assert.rejects(()=>client.run(draft,1,'submit'), /already in progress/);
+  resolve({status:'submitted'});
+  assert.equal((await first).status,'submitted');
+  assert.equal(calls,1);
+  for (const status of [0,403,409,500]) {
+    let count=0;
+    const denied=createReviewClient(async()=>{count++;throw Object.assign(new Error('Request failed'),{status});});
+    await assert.rejects(()=>denied.run(draft,1,'approve'), error=>error.status===status);
+    await assert.rejects(()=>denied.run(draft,1,'approve'), error=>error.status===status);
+    assert.equal(count,2); // No hidden retry; a new explicit action can run after failure.
+  }
+});
+
+test('blank review decisions and unsupported operations never issue a request', async () => {
+  let calls=0;
+  const client=createReviewClient(async()=>{calls++;});
+  const draft={id:'draft-id',content_hash:'a'.repeat(64)};
+  await assert.rejects(()=>client.run(draft,1,'rejected',{reason:'  '}), /reason/);
+  await assert.rejects(()=>client.run(draft,1,'revisions',{subject:' ',body:'x'}), /required/);
+  await assert.rejects(()=>client.run(draft,1,'send'), /Unsupported/);
+  assert.equal(calls,0);
+});
