@@ -89,6 +89,7 @@ async def begin_google_oauth(db, ctx, integration_id=None):
         raise HTTPException(503, "Google OAuth is not configured")
     if not integration_id:
         rows = (await db.scalars(select(Integration).where(
+            Integration.workspace_id == ctx.workspace_id,
             Integration.category == "calendar", Integration.provider == "google"))).all()
         if len(rows) > 1:
             raise HTTPException(409, "Choose the saved calendar connection to reconnect.")
@@ -96,7 +97,7 @@ async def begin_google_oauth(db, ctx, integration_id=None):
             integration_id = rows[0].id
     if integration_id:
         existing = await connection(db, integration_id)
-        if (existing.category, existing.provider) != ("calendar", "google"):
+        if existing.workspace_id != ctx.workspace_id or (existing.category, existing.provider) != ("calendar", "google"):
             raise HTTPException(400, "Reconnect provider mismatch")
     state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(64)
     attempt = OAuthAttempt(state_hash=hashlib.sha256(state.encode()).hexdigest(),
@@ -157,7 +158,8 @@ async def complete_google_oauth(db, state, code):
         if row is None:
             # Two consent tabs can start before either connection is saved.
             rows = (await db.scalars(select(Integration).where(
-                Integration.category == "calendar", Integration.provider == "google"))).all()
+                Integration.workspace_id == attempt.workspace_id,
+            Integration.category == "calendar", Integration.provider == "google"))).all()
             if rows:
                 raise HTTPException(409, "A calendar connection was saved during authorization. Reconnect it explicitly.")
         existing = decrypt_credentials(row.credentials) if row else {}
