@@ -142,7 +142,7 @@ export function OutreachPage() {
         <>
           {(tab === "Messages" || tab === "Approval queue") && (
             <>
-              {!scheduled.data?.length ? (
+              {!scheduled.data?.length && tab === "Messages" ? (
                 <Empty title="A considered first impression">
                   Create a campaign and sequence, then enroll a researched contact. Scheduled steps
                   become drafts for your review.
