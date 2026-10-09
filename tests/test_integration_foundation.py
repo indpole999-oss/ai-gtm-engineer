@@ -249,3 +249,19 @@ def test_catalogue_never_offers_disabled_execution(client, configured, monkeypat
     assert [row["provider"] for row in rows if row["connect_available"]] == ["google"]
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
     assert not any(row["connect_available"] for row in client.get("/api/v1/integrations/providers", headers=headers).json())
+
+def test_google_oauth_connections_are_isolated_between_workspaces(client, configured, fake_google):
+    first = signup(client, "calendar-isolation-a@example.com")
+    second = signup(client, "calendar-isolation-b@example.com")
+    first_state = start(client, first)
+    first_callback = client.get("/api/v1/calendar/oauth/google/callback", params={"state": first_state, "code": "first"}, follow_redirects=False)
+    assert first_callback.status_code == 303
+    first_rows = client.get("/api/v1/integrations", headers=first).json()["integrations"]
+    assert len(first_rows) == 1
+    second_state = start(client, second)
+    second_callback = client.get("/api/v1/calendar/oauth/google/callback", params={"state": second_state, "code": "second"}, follow_redirects=False)
+    assert second_callback.status_code == 303
+    second_rows = client.get("/api/v1/integrations", headers=second).json()["integrations"]
+    assert len(second_rows) == 1
+    assert second_rows[0]["id"] != first_rows[0]["id"]
+    assert client.get("/api/v1/calendar/oauth/google/start?integration_id=" + first_rows[0]["id"], headers=second).status_code == 404
