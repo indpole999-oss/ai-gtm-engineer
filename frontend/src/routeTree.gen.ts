@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedCompaniesRouteImport } from './routes/_authenticated/companies'
@@ -41,6 +42,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
@@ -128,6 +134,7 @@ const AuthenticatedWorkflowsRoute = AuthenticatedWorkflowsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/companies': typeof AuthenticatedCompaniesRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/companies': typeof AuthenticatedCompaniesRoute
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/companies': typeof AuthenticatedCompaniesRoute
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/register'
     | '/agents'
     | '/calendar'
     | '/companies'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/register'
     | '/agents'
     | '/calendar'
     | '/companies'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/register'
     | '/_authenticated/agents'
     | '/_authenticated/calendar'
     | '/_authenticated/companies'
@@ -255,6 +267,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -278,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/agents': {
@@ -440,6 +460,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

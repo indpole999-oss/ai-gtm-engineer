@@ -22,10 +22,10 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-function LoginPage() {
+export function LoginPage({ initialMode = "signin" }: { initialMode?: "signin" | "register" }) {
   const { signIn, signUp, status } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "register">("signin");
+  const [mode, setMode] = useState<"signin" | "register">(initialMode);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -63,7 +63,8 @@ function LoginPage() {
         <div className="relative max-w-md">
           <h2 className="text-3xl font-semibold">A clearer path to your next customer.</h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Understand your prospects, review thoughtful outreach, and follow every conversation with clarity.
+            Understand your prospects, review thoughtful outreach, and follow every conversation
+            with clarity.
           </p>
         </div>
         <p className="relative label-mono">Thoughtful growth. Measured outcomes.</p>
@@ -77,7 +78,9 @@ function LoginPage() {
               {mode === "signin" ? "Sign in" : "Create account"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === "signin" ? "Welcome back. Continue in your workspace." : "Create your account and a private workspace."}
+              {mode === "signin"
+                ? "Welcome back. Continue in your workspace."
+                : "Create your account and a private workspace."}
             </p>
           </div>
 
@@ -118,7 +121,10 @@ function LoginPage() {
           </div>
 
           {error ? (
-            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               {error}
             </p>
           ) : null}
