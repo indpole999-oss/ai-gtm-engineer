@@ -167,6 +167,10 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
             with page.expect_response(lambda r: r.url.endswith("/contacts/") and r.request.method == "POST") as response:
                 page.get_by_role("button", name="Save contact", exact=True).click()
             contact = response.value.json()
+            pipeline = next(row for row in saved("/api/v1/outcomes/pipeline") if row["contact_id"] == contact["id"])
+            assert pipeline["stage"] == "qualified"
+            persisted = saved("/api/v1/outcomes/pipeline/" + pipeline["id"])
+            assert persisted["history"][-1]["evidence"]["research_job_id"] == job["id"]
             # Sender connection is an external boundary, provisioned test-only.
             sender = post(client, headers, "/senders", {"email": "sender@example.com", "provider": "fake"})
             other = client.post("/api/v1/companies/", headers=headers, json={"name": "Unrelated account"}).json()

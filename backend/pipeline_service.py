@@ -58,8 +58,32 @@ async def qualification(db, job):
         if buyer_supported(buyers, contact):
             rows.append(await ensure(db, job.company_id, contact.id))
     for row in rows:
-        await transition(db, row, "qualified", "research", "research:" + str(job.id), "Persisted ICP potential-fit qualification; not independent verification",
-            evidence={"research_job_id": str(job.id), "brain_version_id": str(job.brain_version_id)})
+        await record_qualification(db, row, job)
+
+
+async def record_qualification(db, row, job):
+    await transition(db, row, "qualified", "research", "research:" + str(job.id),
+        "Persisted ICP potential-fit qualification; not independent verification",
+        evidence={"research_job_id": str(job.id), "brain_version_id": str(job.brain_version_id)})
+
+
+async def qualification_for_contact(db, contact):
+    """Project existing research when a supported buyer is saved after completion.
+
+    Caller holds the workspace lock. Use the latest completed report, never fall
+    back to an older positive fit when newer research says unknown/not a fit.
+    """
+    from backend.research_models import ResearchJob, AccountIntelligence
+    job = await db.scalar(select(ResearchJob).where(
+        ResearchJob.company_id == contact.company_id, ResearchJob.status == "completed")
+        .order_by(ResearchJob.completed_at.desc(), ResearchJob.created_at.desc(), ResearchJob.id.desc()).limit(1))
+    if not job:
+        return
+    report = await db.scalar(select(AccountIntelligence).where(AccountIntelligence.job_id == job.id))
+    if (not report or report.result.get("fit") != "potential_fit"
+        or not buyer_supported(report.result.get("buyers", []), contact)):
+        return
+    await record_qualification(db, await ensure(db, contact.company_id, contact.id), job)
 
 
 def buyer_supported(buyers, contact):

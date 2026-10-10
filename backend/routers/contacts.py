@@ -58,10 +58,11 @@ async def create_contact(
     db.add(new_contact)
 
     from backend.outreach_service import lock_workspace
-    from backend.pipeline_service import ensure
+    from backend.pipeline_service import ensure, qualification_for_contact
     await lock_workspace(db)
     await db.flush()
     await ensure(db, new_contact.company_id, new_contact.id, current_user.id)
+    await qualification_for_contact(db, new_contact)
     await db.commit()
     await db.refresh(new_contact)
 

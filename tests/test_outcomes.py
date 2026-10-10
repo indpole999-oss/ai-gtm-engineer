@@ -406,9 +406,9 @@ def test_supported_qualification_and_contacted_projection(client,fake_research,p
     from test_outreach import ready,get_message
     b,data,reviewed,cycle=ready(client,fake_research)
     prospect=next(p for p in pipelines(client,b) if p["contact_id"]==data["enrollment"]["contact_id"])
-    assert prospect["stage"]=="discovered"
+    assert prospect["stage"]=="qualified"
     provider.mode="failure";run(client,b)
-    assert client.get(BASE+"/pipeline/"+prospect["id"],headers=b).json()["stage"]=="discovered"
+    assert client.get(BASE+"/pipeline/"+prospect["id"],headers=b).json()["stage"]=="qualified"
     from test_outreach import expire
     provider.mode="accepted";expire(client,b);run(client,b)
     assert get_message(client,b,reviewed)["state"]=="sent"
