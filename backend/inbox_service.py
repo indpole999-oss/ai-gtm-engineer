@@ -1,17 +1,17 @@
 """Trusted ingestion, deterministic association and append-only inbox decisions.
 
 The caller must authenticate the provider before binding its workspace/mailbox.
-The only HTTP ingestion exposed in Phase 7 is an administrator-only fake adapter.
+HTTP boundaries are the administrator fake adapter and the signed Resend adapter.
 """
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from backend.research_service import scoped_record
 from backend.outreach_service import address, lock_workspace
-from backend.outreach_models import SenderIdentity, Message, MessageDraft, Enrollment, ScheduledMessage, Suppression
+from backend.outreach_models import SenderIdentity, Message, MessageDraft, Enrollment, ScheduledMessage, Suppression, DeliveryEvent
 from backend.planning_models import ExecutionCycle, DomainEvent, OutboxEvent
 from backend.planning_service import digest, emit
 from backend.inbox_models import InboxThread, InboundMessage, InboundReceipt, InboxThreadLink, ReplyClassification, InboxPause, SuggestedReplyDraft
@@ -79,7 +79,9 @@ async def associate(db, sender, thread, event):
     query = select(Message, MessageDraft).join(MessageDraft, MessageDraft.id == Message.draft_id).where(
         Message.state == "sent", MessageDraft.envelope["sender_id"].as_string() == str(sender.id))
     if event.in_reply_to:
-        query = query.where(Message.provider_message_id == event.in_reply_to)
+        aliases = select(DeliveryEvent.message_id).where(DeliveryEvent.kind == "rfc_message_id",
+            DeliveryEvent.provider_event_id == "rfc:" + str(sender.id) + ":" + digest(event.in_reply_to))
+        query = query.where(or_(Message.provider_message_id == event.in_reply_to, Message.id.in_(aliases)))
     else:
         query = query.join(InboxThreadLink, InboxThreadLink.outbound_message_id == Message.id).where(InboxThreadLink.thread_id == thread.id)
     candidates = (await db.execute(query)).all()

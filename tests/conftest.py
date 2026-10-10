@@ -18,6 +18,9 @@ os.environ.update(
         "SECRET_KEY": "test-only-secret-key-that-is-long-enough",
         "ALLOW_LEGACY_ENV_CREDENTIALS": "false",
         "INTEGRATION_ENCRYPTION_KEY": "",
+        "OUTBOUND_EMAIL_ENABLED": "false",
+        "MAILBOX_INGESTION_ENABLED": "false",
+        "CRM_READS_ENABLED": "false",
     }
 )
 

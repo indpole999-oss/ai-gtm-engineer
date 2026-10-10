@@ -70,6 +70,12 @@ def validate_connection(category, provider, auth_type, credentials, config):
         raise ProviderError("credential_required")
     if provider == "salesforce":
         salesforce_origin(config.get("instance_url"))
+    if provider == "resend":
+        from pydantic import TypeAdapter, EmailStr
+        try:
+            TypeAdapter(EmailStr).validate_python(config.get("from_email"))
+        except (ValueError, TypeError):
+            raise ProviderError("sender_email_required") from None
     if provider == "custom" and not str(config.get("tool_name", "")).strip():
         raise ProviderError("tool_name_required")
     return contract
@@ -78,14 +84,25 @@ def validate_connection(category, provider, auth_type, credentials, config):
 async def provider_request(method, url, **kwargs):
     try:
         async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
-            response = await client.request(method, url, **kwargs)
-        if response.status_code in (401, 403):
-            raise ProviderError("reconnect_required")
-        if response.status_code == 429:
-            raise ProviderError("rate_limited")
-        if not 200 <= response.status_code < 300:
-            raise ProviderError()
-        return response.json() if response.content else {}
+            async with client.stream(method, url, **kwargs) as response:
+                if response.status_code in (401, 403):
+                    raise ProviderError("reconnect_required")
+                if response.status_code == 429:
+                    raise ProviderError("rate_limited")
+                if response.status_code == 404:
+                    raise ProviderError("provider_record_not_found")
+                if not 200 <= response.status_code < 300:
+                    raise ProviderError()
+                raw = bytearray()
+                async for chunk in response.aiter_bytes():
+                    raw.extend(chunk)
+                    if len(raw) > 2097152:
+                        raise ProviderError("provider_response_too_large")
+        import json
+        result = json.loads(raw) if raw else {}
+        if not isinstance(result, dict):
+            raise ProviderError("invalid_provider_response")
+        return result
     except (httpx.HTTPError, ValueError):
         raise ProviderError() from None
 
@@ -119,7 +136,13 @@ class HttpProvider:
             endpoint = endpoints[self.provider]
         if self.provider == "apollo":
             headers = {"X-Api-Key": token}
-        await provider_request("GET", endpoint, headers=headers)
+        result = await provider_request("GET", endpoint, headers=headers)
+        if self.provider == "resend":
+            from backend.outreach_service import address
+            domain = address(config.get("from_email")).split("@")[1]
+            if not any(d.get("name", "").lower() == domain and d.get("status") == "verified"
+                       for d in result.get("data", []) if isinstance(d, dict)):
+                raise ProviderError("sender_domain_unverified")
         return ProviderHealth(scopes=credentials.get("scopes", []))
 
 

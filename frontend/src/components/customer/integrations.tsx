@@ -11,7 +11,173 @@ type Provider = {
   provider: string;
   connect_available: boolean;
   execution_available: boolean;
+  read_available: boolean;
+  write_available: boolean;
+  reason: string;
 };
+
+function TokenConnection({
+  provider,
+  connections,
+  canApprove,
+  refreshed,
+  remove,
+}: {
+  provider: Provider;
+  connections: Integration[];
+  canApprove: boolean;
+  refreshed: () => Promise<unknown>;
+  remove: (row: Integration) => void;
+}) {
+  const [token, setToken] = useState("");
+  const [secret, setSecret] = useState("");
+  const [config, setConfig] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  async function save() {
+    setBusy(true);
+    setMessage("");
+    try {
+      await apiFetch("/api/v1/integrations", {
+        method: "POST",
+        body: JSON.stringify({
+          category: provider.category,
+          provider: provider.provider,
+          auth_type: provider.provider === "salesforce" ? "bearer" : "api_key",
+          credentials: { api_key: token, ...(secret ? { webhook_secret: secret } : {}) },
+          config:
+            provider.provider === "resend"
+              ? { from_email: config }
+              : provider.provider === "salesforce"
+                ? { instance_url: config }
+                : {},
+        }),
+      });
+      setToken("");
+      setSecret("");
+      await refreshed();
+      setMessage(
+        "Saved disconnected. Check provider access before use. No email or CRM write was performed.",
+      );
+    } catch (error) {
+      setToken("");
+      setSecret("");
+      setMessage(friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function check(connection: Integration) {
+    setBusy(true);
+    try {
+      const result = await apiFetch<{ integration: Integration }>(
+        `/api/v1/integrations/${connection.id}/test`,
+        { method: "POST" },
+      );
+      await refreshed();
+      setMessage(connectionLabel(result.integration));
+    } catch (error) {
+      setMessage(friendlyError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="g-panel space-y-3" aria-label={`${provider.provider} connection`}>
+      <h2 className="text-xl font-semibold capitalize">{provider.provider}</h2>
+      <p className="text-sm">{provider.reason}</p>
+      <p className="text-sm">
+        Reads: {provider.read_available ? "Available with verified access" : "Paused"} · Writes:{" "}
+        {provider.write_available ? "Reviewed approval required" : "Unavailable"}
+      </p>
+      <Feedback message={message} />
+      {connections.map((row) => (
+        <article key={row.id} className="space-y-2">
+          <p>{connectionLabel(row)}</p>
+          {canApprove && (
+            <button
+              className="g-button g-button-secondary"
+              disabled={busy}
+              onClick={() => void check(row)}
+            >
+              Check {provider.provider} access
+            </button>
+          )}
+          {canApprove && (
+            <button
+              className="g-button g-button-secondary"
+              disabled={busy}
+              onClick={() => remove(row)}
+            >
+              Remove saved connection
+            </button>
+          )}
+        </article>
+      ))}
+      {!connections.length && canApprove && (
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+        >
+          <label className="block">
+            {provider.provider} API token
+            <input
+              className="g-input"
+              type="password"
+              autoComplete="off"
+              required
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+            />
+          </label>
+          {provider.provider === "resend" && (
+            <>
+              <label className="block">
+                Verified sender email
+                <input
+                  className="g-input"
+                  type="email"
+                  required
+                  value={config}
+                  onChange={(event) => setConfig(event.target.value)}
+                />
+              </label>
+              <label className="block">
+                Webhook signing secret
+                <input
+                  className="g-input"
+                  type="password"
+                  autoComplete="off"
+                  value={secret}
+                  onChange={(event) => setSecret(event.target.value)}
+                />
+              </label>
+            </>
+          )}
+          {provider.provider === "salesforce" && (
+            <label className="block">
+              Salesforce instance URL
+              <input
+                className="g-input"
+                type="url"
+                required
+                value={config}
+                onChange={(event) => setConfig(event.target.value)}
+              />
+            </label>
+          )}
+          <button className="g-button" disabled={busy}>
+            Save {provider.provider} connection
+          </button>
+        </form>
+      )}
+      {!canApprove && <p>Ask a workspace owner or admin to manage this connection.</p>}
+    </section>
+  );
+}
 
 type CalendarTest = {
   id: string;
@@ -210,8 +376,14 @@ export function IntegrationsPage() {
     (p) => p.category === "calendar" && p.provider === "google" && p.connect_available,
   );
   const calendars = rows.filter((r) => r.category === "calendar" && r.provider === "google");
+  const tokenProviders =
+    providers.data?.filter(
+      (p) => p.connect_available && ["resend", "hubspot", "salesforce"].includes(p.provider),
+    ) ?? [];
   const unavailable = rows.filter(
-    (r) => !(calendar && r.category === "calendar" && r.provider === "google"),
+    (r) =>
+      !(calendar && r.category === "calendar" && r.provider === "google") &&
+      !tokenProviders.some((p) => p.provider === r.provider && p.category === r.category),
   );
   const removeButton = (row: Integration) =>
     canApprove && (
@@ -231,6 +403,18 @@ export function IntegrationsPage() {
         description="Review provider access separately from permission to act. Only available connection flows are offered."
       />
       <Feedback message={message} />
+      {tokenProviders.map((provider) => (
+        <TokenConnection
+          key={`${workspace.id}:${provider.provider}`}
+          provider={provider}
+          connections={rows.filter(
+            (row) => row.provider === provider.provider && row.category === provider.category,
+          )}
+          canApprove={canApprove}
+          remove={setDisconnect}
+          refreshed={() => cache.invalidateQueries({ queryKey: ["customer", workspace.id] })}
+        />
+      ))}
       {calendar ? (
         <section className="g-panel space-y-4" aria-label="Google Calendar connection">
           <h2 className="text-xl font-semibold">Google Calendar</h2>
@@ -299,8 +483,10 @@ export function IntegrationsPage() {
         </section>
       )}
       <p className="text-sm text-muted-foreground">
-        Email sending and CRM sync remain unavailable. Calendar tests do not enable AI or automated
-        outreach.
+        {providers.data?.some((p) => p.category === "email" && p.write_available)
+          ? "Email requires exact message and delivery approval. CRM writes remain unavailable."
+          : "Email sending and CRM sync remain unavailable."}{" "}
+        Calendar tests do not enable AI or automated outreach.
       </p>
       {unavailable.length > 0 && (
         <details className="g-panel">

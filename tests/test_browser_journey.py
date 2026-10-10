@@ -53,6 +53,9 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
     from playwright.sync_api import sync_playwright, expect
     expect.set_options(timeout=20000)
     assert os.environ["APP_ENV"] == "test"
+    from cryptography.fernet import Fernet
+    from backend.config import settings
+    monkeypatch.setattr(settings, "INTEGRATION_ENCRYPTION_KEY", Fernet.generate_key().decode())
     monkeypatch.setenv("GTM_HOSTED_AI_ENABLED", "false")
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.delenv("GROQ-API-KEY", raising=False)
@@ -258,6 +261,20 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
             page.screenshot(path=str(tmp_path / "insights.png"), full_page=True)
             assert saved("/api/v1/gtm/plans/" + plan["id"])["content_hash"] == plan["content_hash"]
             assert provider.calls == 1
+            go("/integrations")
+            page.get_by_label("hubspot API token", exact=True).fill("browser-synthetic-token-only")
+            with page.expect_response(lambda r: r.url.endswith("/api/v1/integrations") and r.request.method == "POST") as response:
+                page.get_by_role("button", name="Save hubspot connection", exact=True).click()
+            assert response.value.status == 200
+            saved_connection = response.value.json()
+            assert saved_connection["status"] == "disconnected"
+            assert "browser-synthetic-token-only" not in str(saved_connection)
+            page.reload()
+            expect(page.get_by_role("button", name="Check hubspot access", exact=True)).to_be_visible()
+            integrations = saved("/api/v1/integrations")["integrations"]
+            assert len(integrations) == 1 and integrations[0]["id"] == saved_connection["id"]
+            assert integrations[0]["status"] == "disconnected"
+            assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Integrations overflows the viewport"
             assert not errors, errors
     finally:
         frontend.terminate()

@@ -88,6 +88,10 @@ async def compose(db, scheduled, actor):
         "campaign_id": str(campaign.id), "sequence_id": str(sequence.id), "sequence_version_id": str(version.id),
         "sequence_hash": version.content_hash, "sequence_step_id": str(step.id), "sender_id": str(sender.id),
         "due_at": scheduled.due_at.isoformat(), "composition_method": "evidence_template"}
+    if sender.provider == "resend":
+        from backend.outcome_service import binding
+        integration = await scoped_record(db, Integration, sender.integration_id)
+        envelope["sender_connection_binding"] = await binding(db, integration)
     row = MessageDraft(scheduled_id=scheduled.id, envelope=envelope, content_hash=digest(envelope), created_by=actor)
     await review_service.validate(db, row)
     db.add(row)
@@ -152,6 +156,12 @@ async def valid_message(db, message, plan_id):
         WorkspaceMembership.status == "active", WorkspaceMembership.role.in_(["owner", "admin"]), User.is_active.is_(True), Workspace.status == "active"))
     if not active:
         raise HTTPException(409, "Message approver is no longer authorized")
+    sender = await scoped_record(db, SenderIdentity, UUID(draft.envelope["sender_id"]))
+    if sender.provider == "resend":
+        from backend.outcome_service import binding
+        integration = await scoped_record(db, Integration, sender.integration_id)
+        if draft.envelope.get("sender_connection_binding") != await binding(db, integration):
+            raise HTTPException(409, "Sender connection changed; compose and review again")
     review = await db.scalar(select(ClaimVerification).where(ClaimVerification.claim_id == UUID(draft.envelope["research_claim_id"])).order_by(ClaimVerification.created_at.desc(), ClaimVerification.id.desc()).limit(1))
     if review and review.decision != "verified":
         raise HTTPException(409, "Research claim is no longer approved for outreach")
@@ -210,17 +220,27 @@ async def deliver(db, command, cycle):
     enrollment, step, version, sequence, campaign, contact, sender, job, brain = await context(db, scheduled)
     if datetime.utcnow() < scheduled.due_at:
         raise HTTPException(409, "Message is not due")
-    provider = delivery_provider(sender)
+    if sender.provider == "resend":
+        from backend import mail_transport
+        from backend.providers import ProviderError
+        try:
+            provider = await mail_transport.for_sender(db, sender, message)
+        except ProviderError as error:
+            message.state, message.error_code = "blocked" if not message.attempted_at else "reconciling", error.code
+            await db.commit()
+            raise
+    else:
+        provider = delivery_provider(sender)
     key = f"{message.workspace_id}:{message.id}"
     # Reconcile even if suppression arrived after an uncertain previous attempt.
     # Lookup has no send side effect. Never resubmit an unknown outcome blindly.
     try:
-        if not getattr(provider, "durable_idempotency", False):
+        if not (getattr(provider, "durable_idempotency", False) or getattr(provider, "conservative_reconciliation", False)):
             raise RuntimeError("Provider has no durable idempotency guarantee")
         receipt = await provider.lookup(key)
-    except Exception:
+    except Exception as error:
         message.state = "reconciling" if message.attempted_at else "failed"
-        message.error_code = "provider_lookup_unavailable"
+        message.error_code = getattr(error, "code", "provider_lookup_unavailable")
         await db.commit()
         raise
     if receipt is None:
@@ -250,7 +270,7 @@ async def deliver(db, command, cycle):
             message.state, message.error_code = "blocked", "outreach_safeguard"
             await db.commit()
             raise
-        message.state, message.attempted_at = "sending", datetime.utcnow()
+        message.state, message.attempted_at = "sending", message.attempted_at or datetime.utcnow()
         # Commit intent before crossing provider boundary. Reacquire lock and
         # recheck authorization/suppression after commit in dispatch below.
         await db.commit()
@@ -278,8 +298,15 @@ async def deliver(db, command, cycle):
                 raise HTTPException(409, "Sender connection changed")
         try:
             receipt = await provider.send(key, draft.envelope)
-        except Exception:
-            message.state, message.error_code = "reconciling", "provider_outcome_unknown"
+        except Exception as error:
+            message.state, message.error_code = "reconciling", getattr(error, "code", "provider_outcome_unknown")
+            if sender.provider == "resend":
+                from backend.integration_service import audit
+                integration = provider.integration
+                integration.last_error, integration.last_error_at = message.error_code, datetime.utcnow()
+                if message.error_code == "reconnect_required":
+                    integration.status, integration.health, integration.reconnect_required = "error", "reconnect_required", True
+                audit(db, integration, message.approved_by, "mail_dispatch_failed")
             await db.commit()
             raise
     if not isinstance(receipt, dict) or receipt.get("status") != "accepted" or not isinstance(receipt.get("id"), str) or not receipt["id"]:

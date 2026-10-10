@@ -1,5 +1,6 @@
 """Workspace-owned provider connections; credentials never leave the service."""
 from uuid import UUID
+from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -38,6 +39,22 @@ def integration_response(row):
             "created_at":row.created_at, "updated_at":row.updated_at}
 
 
+def capabilities(category, provider):
+    encrypted = bool(settings.INTEGRATION_ENCRYPTION_KEY)
+    if (category, provider) == ("email", "resend"):
+        return {"connect_available": encrypted, "execution_available": settings.OUTBOUND_EMAIL_ENABLED and encrypted,
+                "read_available": settings.MAILBOX_INGESTION_ENABLED and encrypted, "write_available": settings.OUTBOUND_EMAIL_ENABLED and encrypted,
+                "reason": "Verified sender, encrypted credentials, operator enablement and two human approvals required; uncertain sends need reconciliation"}
+    if category == "crm" and provider in {"hubspot", "salesforce"}:
+        return {"connect_available": encrypted, "execution_available": False,
+                "read_available": settings.CRM_READS_ENABLED and encrypted, "write_available": False,
+                "reason": "Provider-authorized reads only; safe atomic writes are unavailable"}
+    google = (category, provider) == ("calendar", "google")
+    return {"connect_available": google and bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and settings.GOOGLE_REDIRECT_URI and encrypted),
+            "execution_available": google, "read_available": google, "write_available": google,
+            "reason": "Dedicated OAuth and reviewed event approval required" if google else "Supported provider connection flow unavailable"}
+
+
 def validate(category, provider, auth_type, credentials, config):
     try:
         providers.validate_connection(category,provider,auth_type,credentials,config)
@@ -54,16 +71,42 @@ async def list_integrations(db=Depends(get_workspace_db)):
 @router.get("/providers")
 async def provider_contracts(db=Depends(get_workspace_db)):
     return [{"category":c.category,"provider":c.provider,"auth_types":c.auth_types,"config_keys":c.config_keys,
-             "connect_available": (c.category, c.provider) == ("calendar", "google") and bool(
-                 settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and
-                 settings.GOOGLE_REDIRECT_URI and settings.INTEGRATION_ENCRYPTION_KEY),
-             "execution_available": (c.category, c.provider) == ("calendar", "google")}
+             **capabilities(c.category, c.provider)}
             for c in providers.CONTRACTS.values()]
 
 
 @router.get("/{integration_id}")
 async def get_integration(integration_id: UUID, db=Depends(get_workspace_db)):
     return integration_response(await service.connection(db,integration_id))
+
+
+@router.get("/{integration_id}/crm/{object_type}/{external_id}")
+async def read_crm(integration_id: UUID, object_type: str, external_id: str,
+                   ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    ctx.require("owner", "admin")
+    row = await service.connection(db, integration_id, lock=True)
+    if not settings.CRM_READS_ENABLED:
+        raise HTTPException(409, "CRM reads are paused")
+    if row.category != "crm" or row.provider not in {"hubspot", "salesforce"}:
+        raise HTTPException(409, "CRM read adapter unavailable")
+    from backend.security import credentials_are_encrypted
+    if row.status != "connected" or row.health != "healthy" or row.reconnect_required or not credentials_are_encrypted(row.credentials):
+        raise HTTPException(409, "Healthy encrypted CRM connection required")
+    from backend.crm_transport import CRMReadTransport
+    try:
+        credentials = await service.refresh_if_needed(db, row, ctx.user_id)
+        result = await CRMReadTransport(row, credentials).fetch(str(row.id), object_type, external_id)
+        service.audit(db, row, ctx.user_id, "crm_read_verified")
+        await db.commit()
+        return {"status": "provider_confirmed", "record": result, "write_available": False}
+    except providers.ProviderError as error:
+        row.last_error, row.last_error_at = error.code, datetime.utcnow()
+        if error.code == "reconnect_required":
+            row.status, row.health, row.reconnect_required = "error", error.code, True
+        service.audit(db, row, ctx.user_id, "crm_read_failed")
+        await db.commit()
+        raise HTTPException(404 if error.code == "provider_record_not_found" else 409 if error.code in {"reconnect_required", "invalid_crm_identity"} else 503, error.code,
+            headers={"Retry-After": "60"} if error.code == "rate_limited" else None) from None
 
 
 @router.get("/{integration_id}/calendar-test-event")

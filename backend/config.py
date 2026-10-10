@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # Integration credential encryption
     INTEGRATION_ENCRYPTION_KEY: str = ""
     ALLOW_LEGACY_ENV_CREDENTIALS: bool = True
+    # Operator opt-ins; saved credentials and human approval never enable these.
+    OUTBOUND_EMAIL_ENABLED: bool = False
+    MAILBOX_INGESTION_ENABLED: bool = False
+    CRM_READS_ENABLED: bool = False
 
 
     # -----------------------------

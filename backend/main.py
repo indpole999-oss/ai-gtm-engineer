@@ -251,8 +251,9 @@ from backend.routers import operations
 app.include_router(operations.router, prefix="/api/v1", tags=["Operations"])
 app.include_router(insights.router, prefix="/api/v1/insights", tags=["Insights and GTM gaps"])
 app.include_router(outcomes.router, prefix="/api/v1/outcomes", tags=["Pipeline and outcomes"])
-from backend.routers import inbox
+from backend.routers import inbox, mailbox
 app.include_router(inbox.router, prefix="/api/v1/inbox", tags=["Inbox"])
+app.include_router(mailbox.router, prefix="/api/v1")
 app.include_router(outreach.router, prefix="/api/v1/outreach", tags=["Outreach"])
 app.include_router(planning.router, prefix="/api/v1/gtm", tags=["GTM planning"])
 app.include_router(research.router, prefix="/api/v1/research", tags=["Research"])

@@ -40,7 +40,7 @@ class VersionInput(Input):
 
 class SenderInput(Input):
     email: EmailStr
-    provider: Literal["fake", "gmail", "outlook"]
+    provider: Literal["fake", "gmail", "outlook", "resend"]
     integration_id: UUID | None = None
     daily_limit: int = Field(default=20, ge=1, le=100)
 
@@ -194,7 +194,10 @@ async def sender(body: SenderInput, ctx=Depends(get_current_workspace), db=Depen
         integration = await scoped_record(db, Integration, body.integration_id)
         if integration.provider != body.provider or integration.category != "email":
             raise HTTPException(409, "Sender integration mismatch")
-    row = SenderIdentity(**{**body.model_dump(), "email": service.address(body.email)}, status="connected" if body.provider == "fake" else "disabled")
+        if body.provider == "resend" and (integration.health != "healthy" or integration.status != "connected"
+            or integration.reconnect_required or service.address(body.email) != service.address(integration.config.get("from_email"))):
+            raise HTTPException(409, "Verified matching Resend sender required")
+    row = SenderIdentity(**{**body.model_dump(), "email": service.address(body.email)}, status="connected" if body.provider in {"fake", "resend"} else "disabled")
     db.add(row)
     await db.commit()
     return response(row)

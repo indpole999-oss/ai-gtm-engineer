@@ -556,7 +556,7 @@ export function OutreachPage() {
                         {connections.data?.integrations
                           .filter(
                             (i) =>
-                              i.category === "email" && ["gmail", "outlook"].includes(i.provider),
+                              i.category === "email" && ["gmail", "outlook", "resend"].includes(i.provider),
                           )
                           .map((i) => (
                             <option key={i.id} value={i.id}>
@@ -576,8 +576,8 @@ export function OutreachPage() {
                   </p>
                 ))}
                 <p className="mt-4 text-sm text-muted-foreground">
-                  Live sending is disabled at this checkpoint. Sender connection does not imply
-                  permission to send.
+                  Sending requires an enabled provider, a verified sender, message approval and
+                  separate delivery authorization. A saved connection does not authorize a send.
                 </p>
               </Panel>
             </>

@@ -127,9 +127,10 @@ def test_provider_contracts_have_fixed_destinations(category,provider,auth,monke
     calls=[]
     async def fake_request(method,url,**kwargs):
         calls.append(url)
-        return {}
+        return {"data": [{"name": "example.com", "status": "verified"}]}
     monkeypatch.setattr(providers,"provider_request",fake_request)
     config={"instance_url":"https://example.my.salesforce.com"} if provider=="salesforce" else {}
+    if provider == "resend": config = {"from_email": "sender@example.com"}
     credentials={"access_token":"not-a-real-token"}
     providers.validate_connection(category,provider,auth,credentials,config)
     result=asyncio.run(providers.HttpProvider(category,provider).verify(credentials,config))
@@ -246,9 +247,10 @@ def test_catalogue_never_offers_disabled_execution(client, configured, monkeypat
     headers = signup(client, "catalogue@example.com")
     rows = client.get("/api/v1/integrations/providers", headers=headers).json()
     assert all(row["execution_available"] == (row["category"] == "calendar" and row["provider"] == "google") for row in rows)
-    assert [row["provider"] for row in rows if row["connect_available"]] == ["google"]
+    assert {row["provider"] for row in rows if row["connect_available"]} == {"google", "hubspot", "salesforce", "resend"}
+    assert all(not row["write_available"] for row in rows if row["category"] == "crm")
     monkeypatch.setattr(settings, "GOOGLE_CLIENT_ID", "")
-    assert not any(row["connect_available"] for row in client.get("/api/v1/integrations/providers", headers=headers).json())
+    assert not next(row for row in client.get("/api/v1/integrations/providers", headers=headers).json() if row["provider"] == "google")["connect_available"]
 
 def test_google_oauth_connections_are_isolated_between_workspaces(client, configured, fake_google):
     first = signup(client, "calendar-isolation-a@example.com")
