@@ -152,7 +152,7 @@ export function ProspectsPage() {
                 </div>
                 <p className="mt-4 text-sm text-muted-foreground">
                   {job
-                    ? `Latest research: ${job.status.replaceAll("_", " ")}${job.error_code ? `  -  ${job.error_code.replaceAll("_", " ")}` : ""}. ${job.status === "completed" ? "Review the saved fit assessment and evidence below." : "No qualification is inferred from this attempt."}`
+                    ? `Latest research: ${job.status.replaceAll("_", " ")}${job.error_code ? ` · ${job.error_code.replaceAll("_", " ")}` : ""}. ${job.status === "completed" ? "Review the saved fit assessment and evidence below." : "No qualification is inferred from this attempt."}`
                     : "Qualification is not yet supported by completed research."}
                 </p>
                 <div className="mt-5 flex flex-wrap gap-2">

@@ -251,7 +251,8 @@
   }
 
   .g-button::after {
-    content: "→";
+    /* Decorative arrow must not change the button's accessible name. */
+    content: "→" / "";
     position: absolute;
     top: .42rem;
     right: .42rem;

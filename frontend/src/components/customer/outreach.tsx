@@ -62,6 +62,8 @@ export function OutreachPage() {
     [plan, setPlan] = useState<ReviewedPlan | null>(null),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
+  const [enrollmentContact, setEnrollmentContact] = useState("");
+  const enrollmentCompany = contacts.data?.find((c) => c.id === enrollmentContact)?.company_id;
   const connections = useData<{ integrations: Integration[] }>("/api/v1/integrations");
   const queries = [
     connections,
@@ -149,7 +151,7 @@ export function OutreachPage() {
                 </Empty>
               ) : (
                 <div className="grid gap-4 lg:grid-cols-2">
-                  {scheduled.data.filter((s) => tab !== "Approval queue" || drafts.data?.some(d => d.scheduled_id === s.id && d.review?.status === "submitted")).map((s) => {
+                  {(scheduled.data ?? []).filter((s) => tab !== "Approval queue" || drafts.data?.some(d => d.scheduled_id === s.id && d.review?.status === "submitted")).map((s) => {
                     const enrollment = enrollments.data?.find((e) => e.id === s.enrollment_id);
                     const contact = contacts.data?.find((c) => c.id === enrollment?.contact_id);
                     const draft = drafts.data?.find((d) => d.scheduled_id === s.id);
@@ -419,7 +421,13 @@ export function OutreachPage() {
                     }}
                   >
                     <Field label="Contact">
-                      <select className="g-input" name="contact_id" required>
+                      <select
+                        className="g-input"
+                        name="contact_id"
+                        required
+                        value={enrollmentContact}
+                        onChange={(e) => setEnrollmentContact(e.target.value)}
+                      >
                         <option value="">Select contact</option>
                         {contacts.data?.map((c) => (
                           <option
@@ -455,10 +463,18 @@ export function OutreachPage() {
                       </select>
                     </Field>
                     <Field label="Completed research for this account">
-                      <select className="g-input" name="research_job_id" required>
+                      <select
+                        key={enrollmentContact}
+                        className="g-input"
+                        name="research_job_id"
+                        required
+                        disabled={!enrollmentCompany}
+                      >
                         <option value="">Select research</option>
                         {jobs.data
-                          ?.filter((j) => j.status === "completed")
+                          ?.filter(
+                            (j) => j.status === "completed" && j.company_id === enrollmentCompany,
+                          )
                           .map((j) => (
                             <option key={j.id} value={j.id}>
                               Account {j.company_id} · Research {j.id.slice(0, 8)}
