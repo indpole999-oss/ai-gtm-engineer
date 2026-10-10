@@ -4,13 +4,13 @@ import { Bot, Mail, Target, Workflow } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "GAPS AI â€” Evidence-backed growth" },
+      { title: "GAPS AI — Evidence-backed growth" },
       {
         name: "description",
         content:
           "A clear workspace for evidence-backed prospects, reviewed outreach, customer conversations and measured growth.",
       },
-      { property: "og:title", content: "GAPS AI â€” Evidence-backed growth" },
+      { property: "og:title", content: "GAPS AI — Evidence-backed growth" },
       {
         property: "og:description",
         content: "Your prospects, outreach, conversations and insights in one considered workspace.",
