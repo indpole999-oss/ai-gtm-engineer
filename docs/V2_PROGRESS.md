@@ -1,0 +1,602 @@
+# AI GTM Engineer V2 implementation progress
+
+## Remaining browser acceptance — 2026-10-03
+
+Resumed `5aecd6d`; CI run 37029464204 passed all jobs. Disposable local browser
+rehearsal (real frontend/API, isolated SQLite, two users/workspaces, no provider
+credentials) validates workspace cache isolation, viewer restrictions, refresh,
+automatic role downgrade, revoked membership, different-user login and protected
+routes after logout. It does not substitute for live PostgreSQL multi-user evidence.
+
+Found and fixed a P1 recovery loop: Back to sign in on workspace failure/no-access
+screens preserved authentication and bounced back to dashboard. It now uses the
+existing sign-out path to clear session/workspace/cache. The no-membership browser
+test reaches Sign in and another synthetic user can enter normally. Also added an
+explicit zero-match prospect search state with Clear search, and corrected the
+activity refresh button's shared styling. TypeScript, seven frontend contracts
+and targeted lint pass (one existing Fast Refresh warning). Full acceptance matrix
+and remaining HOLD decision are in V2_EARLY_ACCESS_QA.md. Hosted AI stays paused.
+
+## Checkpoint `38edc63` deployed and verified — 2026-10-02
+
+CI run 37028129904 passed: 272 backend tests, two separate PostgreSQL-only skips,
+PostgreSQL boundary and restore/populated upgrade, empty migration to
+20260928_0013, seven frontend contracts, TypeScript, Linux production build and
+lint. Both existing Free staging services are live on this SHA. Post-deploy health
+and readiness returned 200.
+
+Authenticated browser verified execution/plan association, selection clearing,
+unsaved-edit protection, draft restore, mobile workspace control, owner activity
+and retention inventory, manual refresh and 390px/1280px layouts. Live multi-user
+workspace switching still requires another authorized staging membership. No
+records were saved, approved or executed during these checks. Hosted AI and worker
+remain paused. Full acceptance remains open; detailed evidence and next gates are
+in V2_EARLY_ACCESS_BACKLOG.md. This entry is documentation only; deployed code SHA
+remains 38edc630d07fa2bab0d8829c8ccac26d1f5027d7.
+
+## Resumed checkpoint and workspace diagnostics — 2026-10-02
+
+Safely synchronized to remote `0be2df8` after preserving unfinished local work.
+Reused its green CI run `36981076689` and deployed its frontend to existing Free
+staging. Authenticated browser confirmed truthful dashboard state and the existing
+synthetic guided plan survives refresh with approval unchecked and disabled.
+No new records or execution were requested in this continuation.
+
+Recovered only unique local logging/mobile-workspace fixes. A browser-discovered
+execution/plan selection mismatch now loads the correct associated plan and
+resets review. Settings gains owner/admin-only visibility into existing operational
+and retention inventories, with manual refresh and honest unavailable cost/worker
+assurance. Retention durations remain explicit unapproved release decisions.
+
+Focused backend: 6 passed. Frontend contracts: 7 passed. TypeScript and targeted
+lint passed. No migration, provider call, production access or main change.
+Follow-up CI/deployment evidence is maintained in V2_EARLY_ACCESS_BACKLOG.md.
+Hosted AI and embedded worker remain paused; full live acceptance stays blocked.
+
+## Customer session and integration feedback — 2026-10-02
+
+Checkpoint 4021e72 passed all GitHub CI jobs in run 36891654467: 269 backend
+tests passed, two PostgreSQL-only skips covered by separate PostgreSQL security
+and restore/populated-upgrade jobs, empty migration reached 20260928_0013, and
+frontend contracts/TypeScript/Linux production build/targeted lint passed.
+
+Authenticated staging browser inspection found a dashboard showing expired-token
+errors without returning to sign-in. API 401 now invalidates only the same
+session that sent the request, not a newer login, and notifies auth to clear
+account caches and return to sign-in. Login/logout also clear cached queries;
+late profile responses cannot restore a replaced session.
+
+Integration feedback now waits for the response and distinguishes saved,
+unverified credentials from a provider-verified connection. Removed premature
+custom-connection success and added confirmation before local disconnection,
+including a reminder that provider-side revocation may still be required.
+Five frontend contract tests cover these truthfulness and expired/stale-session
+cases. TypeScript and changed-file lint are the focused gates.
+
+Hosted AI remains paused by explicit user direction. No production, paid calls,
+database changes or external provider writes are authorized by this checkpoint.
+
+## Early Access repair checkpoint — 2026-10-01
+
+Resumed the existing V2 branch from remote `a661b22239780c1739cad2777886cf341d4c3f35`
+after a clean fast-forward; no prior phase was restarted. Remote CI run
+36859780717 failed backend/TypeScript while PostgreSQL boundary and restore/
+populated-upgrade checks passed. The hosted staging services now exist; the
+older laptop-capacity section below is historical, not current service status.
+
+This checkpoint repairs unconditional embedded-worker startup during test setup,
+adds supervisor restart with sanitized logs, and makes embedded execution
+explicitly opt-in (`EMBEDDED_EXECUTION_WORKER=true` on the staging API only).
+Strict hosted settings can remain enabled independently of that topology flag.
+Production defaults and the independent worker entrypoint remain unchanged.
+
+Planning now selects the same configured Groq provider as research, with local
+Ollama retained when no hosted key is configured. Both hosted schemas include all
+nested properties required by strict mode; local Pydantic/evidence validation
+remains authoritative. AI-generated plans cannot expand the read-only action
+policy. Fixed the integration page TypeScript index access. Robots wildcard
+matching uses literal segments to avoid malicious regex backtracking.
+
+Focused validations: 39 worker/admission/robots/research tests; 21 hosted-model/
+planning tests; 4 frontend contract tests; TypeScript and targeted lint passed
+(lint has 4 Fast Refresh warnings). Full backend regression: 265 passed, 2
+PostgreSQL-only skips; final worker opt-in revision: 6 passed separately.
+New-commit CI is pending at preparation time. Windows client/SSR build passed; final Nitro
+packaging hit EPERM reading C:/Users/WELCOME. Linux CI is the build gate.
+All model tests use fake HTTP; no live model quality/delivery is claimed.
+
+User explicitly chose to keep hosted AI paused. GROQ keys alone no longer
+authorize requests: GTM_HOSTED_AI_ENABLED defaults to false and must be explicitly
+enabled only after separate authorization. Both adapters reject before HTTP when
+paused; synthetic tests opt in against a mock transport only.
+
+See V2_EARLY_ACCESS_BACKLOG.md for remaining gates. Authenticated browser QA is
+waiting for a staging-only user session. No production changes, password/role
+changes, migrations against staging, paid calls, or live provider writes.
+
+## Laptop capacity gate — 2026-09-29
+
+Completed read-only host inspection from 503f8fe: Windows 11 25H2 build
+26200.9550, i3-1215U (6 cores/8 threads), 8 GiB installed RAM with only
+1.12–1.15 GiB available, and 267.76 GiB free disk. No usable Ollama/Docker,
+WSL installation, local model inventory or running Ollama endpoint was found.
+Exact evidence and installation prerequisites are in V2_STAGING_TOPOLOGY.md.
+
+Full model-backed rehearsal is blocked by current memory headroom and missing
+Ollama/model, plus the not-yet-created isolated staging database. No install,
+settings change, app termination, resource creation or paid call occurred.
+Prefer another already-owned host with adequate RAM for the unchanged topology;
+non-model tests on this laptop cannot stand in for model acceptance. No model
+benchmark or staging success is claimed. Provider writes remain disabled.
+
+## Zero-cost staging architecture decision — 2026-09-29
+
+Prepared V2_STAGING_TOPOLOGY.md and a non-secret local environment template.
+Reused completed read-only account results: existing Render workspace confirmed,
+Supabase Free organization quoted a separate new project at $0/month; requested
+Render staging service names were absent. No resources or secrets were created.
+
+Selected an attended local-process rehearsal (frontend, two APIs, independent
+durable worker and loopback-only Ollama) with separate Supabase staging PostgreSQL.
+Incremental platform estimate is $0 within Free limits and existing hardware.
+All-Render is deferred: no Free worker, shared Free web hours, and model hosting
+is unprovisioned. Combining API/worker or CI cron cannot satisfy independent
+worker lifecycle/availability. No production architecture was changed.
+
+The decision records precise environment/URL/role/migration preparation, model
+and credential gates, and local-versus-hosted evidence limits. Actual model
+capacity, hosted restore, live-provider journey, Render supervision/edge and
+notification delivery remain unvalidated. Retention remains unset. No production
+service/database/settings, charges, deploys or main merge. Configuration/document
+checks only; existing green runtime CI is not repeated for this preparation.
+
+## New-laptop continuation — 2026-09-29
+
+Fetched GitHub and fast-forwarded the V2 checkout from 5723a13 to confirmed
+511f634a0567b9ca04078d6cf87babb2c83756ae. All pre-existing tracked/untracked
+changes remain in local stash `new-laptop-preserved-before-v2-sync-2026-09-29`;
+this alternative hardening implementation was not reapplied over remote code.
+GitHub run 36467618613 confirms backend, empty migration, PostgreSQL security,
+frontend contracts/TypeScript/build/lint all successful at 511f634.
+
+Added a narrowly scoped synthetic PostgreSQL dump/restore/populated additive
+upgrade rehearsal to the PostgreSQL CI job. Local collection passes with the
+expected skip because no disposable PostgreSQL service/tools are configured on
+this laptop; CI must execute the test before this checkpoint is accepted.
+No full already-green local regression was repeated. The staging document now
+includes ordered setup/credential gates, restore evidence limits and an actual
+notification/recovery drill. Checkpoint CI evidence is recorded on PR #2.
+
+Phase 11 remains incomplete. Disabled live transports and provider telemetry are
+implementation gaps, not merely missing credentials. Isolated staging, reviewed
+retention policy, least-privilege recovery and real provider/UI evidence remain
+required. No accounts connected, purchases, paid calls, deployment, production
+data changes or merge. Retention durations remain unset.
+
+## Latest Phase 11 offline follow-up — 2026-09-29
+
+Final logging review also disabled raw Uvicorn/Gunicorn access records and HTTP
+client verbose logs, which could otherwise expose OAuth callback query strings
+outside the sanitized application middleware. Ingress redaction is a staging gate.
+The preceding checkpoint `b6b866a91dc70295ea7482e9ca7b794c345e5429` passed
+all CI jobs in run `36466310690`: **241 backend tests passed, 1 PostgreSQL-only
+skip**, with that PostgreSQL security/concurrent-admission probe passing in its
+separate job; migration to `20260928_0013` and frontend production validation
+passed. Focused logging/config/auth/OAuth validation: **47 passed**. Final logging
+checkpoint CI is recorded on PR #2 so release evidence stays tied to its SHA.
+
+Security checkpoint `f8518a8bf4f3f7fede1d6a01329203c10626d981` is pushed and
+passed all CI jobs in run `36463968080`. Its staged work was preserved across
+the interruption, not recreated.
+
+Further offline hardening adds database-backed authentication admission across
+replicas, database time/atomic counters and fail-closed store errors; public HTTPS
+production configuration checks; bounded password handling and input-free
+validation errors; conservative robots/noarchive/noai source policies; scoped
+operational alerts/approval ages and retention inventory; safe referenced-deletion
+409 responses. The existing journey now also exercises a fake planner, supported
+fixture buying signals and distinct deduplicated fake delivery receipts.
+
+Migration `20260928_0013` adds only ephemeral admission counters and an index,
+revokes PUBLIC table access on PostgreSQL, and refuses destructive downgrade.
+No customer records or previous migrations changed. Readiness/CI expect the new
+head. Empty SQLite upgrade/current passed; populated upgrade tests passed.
+Focused suite: **69 passed**, then final robots suite **12 passed** after a
+conservative deny-precedence check. Final checkpoint CI must validate PostgreSQL
+concurrent admission plus all existing regression/frontend gates.
+
+The user confirmed no isolated live staging and no approved retention policy.
+Retention durations remain unset and deletion fails closed for retained evidence.
+See `docs/V2_STAGING_VALIDATION.md` for minimum isolated accounts/integrations,
+the fake-versus-live evidence matrix and explicit release decisions. Live staging,
+retention approval and implementation of the approved lifecycle remain required;
+do not claim production readiness or authorize deployment from offline tests.
+
+## Phase 11 current checkpoint — 2026-09-28
+
+Dependency remediation follow-up: switched Company Brain PDF preview from PyPDF2
+to pypdf >=6.19,<7; removed unused python-jose/ecdsa and the unreferenced legacy
+ChromaDB runtime dependency. The standalone legacy vector-memory source remains
+preserved but its vector mode is not part of V2 runtime support. Local pip tooling
+was updated. Final local `pip-audit`: **no known vulnerabilities**; `pip check`:
+**no broken requirements**. Focused PDF/Brain/auth/OAuth suite: **34 passed**;
+journey and durable planning/worker suite after dependency removal: **14 passed**.
+The previous operational checkpoint `c82622d3a209e01a5f4df744b6b1677d85cbe7b9`
+passed all three GitHub CI jobs in run `36432630418`, including PostgreSQL and
+Linux production frontend build. The dependency follow-up requires its own CI.
+
+Resumed from confirmed remote `5723a13a0973cbc9b2a4be59f738e39d7712f250`
+after explicit authorization. No prior Phase 11 work was recoverable; no Phase 1–10
+implementation was repeated and the unrelated `_upload` checkout was not used.
+
+Added bounded database/schema readiness, bounded per-process auth admission,
+generic correlated unexpected-error responses, route-template access logging,
+worker workspace/goal/run/step/command correlation and attempt timing, and
+owner/admin-only tenant-scoped operational counts. Added a continuous offline
+API journey with explicit approval at research, outreach, calendar, CRM and next
+cycle boundaries. Updated transitive js-yaml 4.3.1 to 4.3.2 for a high-severity
+npm advisory, preserving unrelated lockfile entries.
+
+Focused tests: **27 passed**. Full backend regression: **213 passed, 1 skipped**
+(377.60 seconds); the skip is PostgreSQL-only and must pass in CI. Frontend
+TypeScript and 4/4 contract tests passed; targeted lint: zero errors, four existing
+Fast Refresh warnings. Final npm audit: zero vulnerabilities. Local production
+build reached Nitro bundling but was blocked by Windows sandbox readlink EPERM;
+Linux CI subsequently passed as recorded above. Initial Python environment audit
+findings were remediated by the dependency follow-up described above.
+Disposable empty SQLite upgrade/current passed at
+`20260926_0012`; no migrations added or modified. Full regression and checkpoint
+CI results are recorded in PR #2.
+
+**Phase 11 remains incomplete; production readiness is not claimed.** Live
+transports, delivery/inbound receipts, staging OAuth/model/UI journey, shared edge
+limits/monitoring and retention/robots/legal review remain release gates. Exact
+scope, limitations, configuration and deployment checklist:
+`docs/V2_PRODUCTION_READINESS.md`. No production writes, paid calls, deployment or merge.
+
+## Authority and starting point
+
+Current authorization: finish Phase 10, commit/push its validated checkpoint, then continue automatically into Phase 11 Production Hardening.
+Phases 1–9 are validated history and must not be repeated.
+Overall V2 completion at this checkpoint: **95%** (user-specified Phase 10 milestone).
+Base: validated Phase 0 commit `69b267ca315c1cac1de1476948c7ccf3e9e84fd3`.
+Branch: `codex/ai-gtm-engineer-v2-full-build`.
+Do not merge main, deploy, modify production data, or incur paid-service costs.
+The full product specification is preserved in `docs/V2_SPECIFICATION.md`.
+
+## Phase 1 implementation
+
+- Workspace and role/status-constrained membership models; atomic signup workspace.
+- Central active membership/workspace resolution with explicit `X-Workspace-ID`
+  when a user belongs to multiple workspaces; single-workspace V1 compatibility.
+- Fail-closed ORM query scoping, insert/update/delete checks, immutable ownership,
+  relationship validation, and database composite relationship foreign keys.
+- Owner/admin/member can create/update ordinary records; viewer is read-only.
+  Owner/admin can delete and administer integrations. Only owners can change
+  memberships; the last active owner cannot be removed. Suspended users,
+  memberships and workspaces cannot access customer data.
+- Integrations belong to workspaces; user attribution is retained. Response
+  credentials are excluded and provider errors are generalized.
+- Workspace-scoped company-domain/contact-email uniqueness.
+- Deterministic integration backfill; ambiguous legacy data quarantined with audit.
+- PostgreSQL transaction-local workspace RLS, including pool/commit handling.
+- Application startup no longer creates schemas; Alembic owns schema evolution.
+- Unsafe V1 agent/workflow/outbound/CRM/calendar execution routes return 409 until
+  the V2 approved execution service is implemented. This is an intentional
+  temporary compatibility restriction, not a finished replacement feature.
+
+## Validation and current work
+
+Phase 1 passed at `b1668c6`: backend, frontend and PostgreSQL security CI green
+(run 35642316058). No production actions were performed.
+
+Phase 2 passed at `4495880`, CI run 35732166994 (all three jobs green): workspace provider contracts, connection
+health/scopes/expiry/reconnect/audit, durable one-time Google OAuth/PKCE, persistent
+Google refresh and revoke, safe frontend return and supported provider choices.
+Local validation: 56 passed, 1 PostgreSQL-only skip; TypeScript and targeted lint
+passed. Callback membership revalidation, declined consent and reconnect refresh
+retention are covered. PostgreSQL RLS/migrations and frontend build passed in CI.
+
+Google OAuth and live provider smoke tests need staging credentials supplied at
+release time. Unit/contract tests use fake providers and make no paid API calls.
+Gmail/Outlook/Salesforce currently support bring-your-own authorized access tokens;
+only Google Calendar has an interactive OAuth/automatic refresh flow. Serper is
+explicitly configured-unverified until research execution uses it; health checks
+never spend search credits. No fake connected/sent/calendar-created state.
+
+Phase 3 implements guided Company Brain drafts in Settings, source/document
+previews, approved/prohibited claims, revision-based saves and explicit reviewed
+publication. Published versions and children are immutable in ORM and SQL.
+Local validation: 64 passed, 1 PostgreSQL-only skip; TypeScript and targeted lint
+passed. Clean/baseline/Phase 2 upgrades and SQLite immutability passed. Browser
+save/reopen/review/publish passed against a disposable local database. GitHub CI
+passed at `8fb2748`, CI run 35735042223. See `docs/V2_COMPANY_BRAIN.md`.
+
+Phase 4 adds source captures, quoted evidence, validated local-model research,
+exact-Brain ICP qualification, buyer observations with unknown verification,
+audited administrator fact review and company-detail account intelligence UI.
+Final full suite: 83 passed, 1 PostgreSQL-only skip. CI run 35770276072 passed
+all three jobs at `029cc03`.
+No paid calls; development uses injected deterministic providers. Existing OpenAI
+configuration is preserved. See `docs/V2_RESEARCH.md` for boundaries and risks.
+
+Phase 5 implements persisted goals, schema-validated local planning, exact Brain
+version/hash references, versioned review and immutable approval, transactional
+commands/events/outbox, and a separate durable worker with leases, bounded retries,
+timeouts, cancellation/resume and workspace admission controls. Local backend:
+The intermediate checkpoint `c4ebff4` passed CI run 35867895187.
+Browser create/revise/review/approve/pause/resume/cancel passed on disposable data.
+Final specification checks add explicit workflow_runs and validated persisted
+step outputs. Final local suite: 97 passed, 1 PostgreSQL-only skip, including
+populated-cycle backfill and rejection of invalid step success output.
+Final Phase 5 implementation checkpoint: `adba93e3ebb2124f5af8a305f152ebbd32d916df`.
+CI run 35900333913 passed all three jobs: backend tests and clean migration,
+PostgreSQL security/isolation/concurrent worker claims, and frontend TypeScript,
+build and targeted lint. **PHASE 5 PASSED.** See `docs/V2_EXECUTION.md`.
+
+Approved plans pin the published Brain ID/hash and exact targets. Approval creates
+the cycle, workflow run, step runs, commands and audit/outbox atomically. Step
+success requires a schema-valid reference to that command's own completed,
+workspace-scoped research result. Migration 0009 backfills workflow ownership
+only from existing cycles and preserves their steps; no legacy reassignment.
+
+Phase 5 validated migration head: `20260923_0009`.
+Current validated migration head: `20260926_0012`.
+Production adoption, quarantine remediation and recovery: `docs/V2_MIGRATIONS.md`.
+
+## Phase 6 checkpoint
+
+**PHASE 6 PASSED locally (2026-09-26).** Built only the Outreach Engine from
+verified clean starting HEAD `d446f49841f24cfab2f463e84698d1c8af722dcb`.
+
+- Campaigns, sequences, immutable sequence versions/steps, pinned enrollments,
+  scheduled messages, immutable evidence-backed drafts and message approvals,
+  sender identities, provider acceptance, separate delivery events and suppressions.
+- Separate draft composition, owner/admin message review and plan approval. Sends
+  reuse Phase 5 execution cycles, workflow/step runs, leased action commands,
+  admission limits, bounded retries, audit and transactional outbox.
+- Stable provider idempotency keys and lookup-before-retry reconciliation; no
+  sent state without provider acceptance. Tests cover provider rejection, unknown
+  lookup, lost acknowledgement, worker restart and stale lease acknowledgement.
+- Workspace/RBAC isolation, immutable SQL approvals and snapshots, active-approver
+  checks, due/prior-step ordering, recipient/sender validation, daily limits,
+  suppression/unsubscribe blocking and fresh-state checks across dispatch commits.
+- Additive Alembic `20260926_0010`, with forced PostgreSQL RLS, composite workspace
+  foreign keys and preservation of populated Phase 5 execution history.
+- Command-center contracts and labels distinguish outbound plans from research.
+
+Validation: full backend regression run **120 passed**, including disposable
+PostgreSQL migration/security and concurrent-worker/restart probes. After final
+race hardening, targeted outreach + actual Alembic migration + PostgreSQL run
+**24 passed**. Frontend TypeScript, targeted ESLint and production build passed.
+GitHub CI is checked after pushing this checkpoint; its exact run/result is
+reported with the delivery commit. No live provider sends, paid calls, API keys,
+production data changes, Render deployment or main merge occurred.
+
+Live delivery remains disabled by default. Fake adapters have a separate durable
+provider ledger and are injected only in tests. A real adapter must guarantee
+provider-side durable idempotency and authoritative lookup before a separately
+approved staging rollout. This is not a production-readiness claim.
+See `docs/V2_OUTREACH.md` for API lifecycle, provider contract and recovery.
+
+## Phase 7 checkpoint
+
+**PHASE 7 implementation complete and locally validated (2026-09-26).** Built only
+AI Inbox from verified clean HEAD `c570560d979bf0e048b7ba4d16fc49da478888ba` on the
+specified branch. Phase 6 CI run `36187223415` passed all three jobs. PR #2 was
+verified open, draft and unmerged before Phase 7 work.
+
+- Immutable inbound messages, provider receipts, conversations and deterministic
+  outbound/thread/reply-chain associations, retaining pinned outreach/research/
+  Brain context. Unknown or ambiguous associations remain explicitly unresolved.
+- All nine required deterministic reply categories, confidence/reasons/evidence,
+  classifier version, recommendations and append-only administrator overrides.
+- Immediate persistent sequence holds for genuine replies and distinct OOO state;
+  unsubscribe integrates with existing suppression before acknowledgement.
+  Queued and claimed sends respect holds, including the dispatch commit gap.
+- Atomic deferred classification through the existing Phase 5 outbox and worker,
+  shared admission, leases, bounded retries, stale-token rejection and recovery.
+  Duplicate provider events/messages cannot repeat business side effects.
+- Workspace/RBAC-protected list/detail/review/retry APIs and optional immutable
+  reply suggestions. Suggestions remain drafts; meeting intent remains intent.
+- Alembic `20260926_0011`, forced PostgreSQL RLS/composite tenant references,
+  immutable SQL evidence, preserved Phase 6 audit/outbox and legacy quarantine.
+
+Focused inbox + populated migration + PostgreSQL suite: **32 passed**. Full
+backend regression: **152 passed** (186.05 seconds), including PostgreSQL 16
+migration/RLS, tenant foreign keys, concurrent ingestion/claims and restart probes.
+Frontend source and consumed contracts are unchanged; the existing CI frontend
+TypeScript, lint and build checks still run.
+CI is verified on the pushed checkpoint SHA before final delivery; its exact run
+and result accompany that commit. Phase 7 is not accepted if those jobs fail.
+
+No real provider send, calendar creation, CRM/pipeline mutation, paid API, OpenAI
+key, production change, deployment or merge occurred. Live inbound adapters remain
+disabled; the only ingestion endpoint is authenticated fake-mailbox simulation.
+Inbox holds have no automatic resume policy. See `docs/V2_INBOX.md` for API,
+classification limitations, provider authentication gate and restart/recovery.
+
+## Phase 8 checkpoint
+
+**PHASE 8 implementation complete and locally validated.** Implements
+**Pipeline + CRM + Calendar only** from the already-verified
+Phase 7 checkpoint `55a0c8c58e2c95b4dce66203e3cb590b446e21a9`. Phases 1–7 were
+reused; no repeated implementation or dependency reinstall was performed.
+
+- Durable account/prospect pipeline and immutable stage history, supported research,
+  confirmed outbound, human reply/interest and confirmed calendar projections.
+  Explicit user/CRM evidence is required for opportunity/won/lost. Manual
+  corrections use reviewed evidence, reasons and optimistic revisions.
+- CRM mappings, reused external IDs, immutable reviewed requests, sync state,
+  successful-sync time, safe errors, remote snapshots/versions, deduplicated
+  receipts and cursor review. Conflicts never cause blind overwrites.
+- Persisted calendar reservations with inbound intent, attendees, IANA timezone,
+  UTC interval and preselected provider event ID. Overlaps/duplicates and changed
+  intent/suppression block dispatch; confirmed receipts alone create meeting state.
+- Existing Phase 5 plans/commands/outbox/worker handle both action types, including
+  durable intent, leases, admission, bounded retries, stale acknowledgements and
+  lookup-before-retry reconciliation. Phase 2 OAuth refresh persists token rotation.
+- HubSpot company/contact/deal and Google Calendar request adapters use an injected
+  deterministic transport in tests. Default live mutations remain disabled;
+  Salesforce writes explicitly reject unsupported behavior. A real transport must
+  prove durable identity and atomic conflict handling at a separate staging gate.
+- Alembic `20260926_0012` adds six tables with forced PostgreSQL RLS, scoped foreign
+  keys, immutable evidence/identity protection and discovered-only owned-data
+  backfill. Legacy NULL ownership and prior inbox/outreach history remain intact.
+- Command-center contracts display exact outcome payloads for review and distinguish
+  CRM/calendar operations and provider-confirmed outputs. Retained pipeline history
+  blocks customer-record deletion/reparenting instead of erasing its evidence.
+
+Focused Phase 8 + populated migration + PostgreSQL validation: **33 passed**.
+Frontend TypeScript, targeted ESLint and production build passed. The single
+broader regression run passed **184 tests** in 320.34 seconds, including PostgreSQL.
+After the final dispatch-time safeguard, **32 focused Phase 8 tests passed**
+in 47.71 seconds; the broader suite was not repeated. CI is verified on the pushed
+checkpoint before final delivery; its exact run/result accompanies that SHA.
+Phase 8 is not accepted if any relevant CI job fails.
+
+No real CRM write, calendar event, external email, production mutation, paid API,
+OpenAI key, Render deployment or main/PR merge occurred. Live transport/staging
+capability validation remains separate from this offline development checkpoint.
+See `docs/V2_OUTCOMES.md` for API contracts, stage semantics, recovery and limits.
+
+## Phase 9 — Insights + GTM Gap Intelligence (complete)
+
+Added a read-only `/api/v1/insights` API and versioned canonical event projection.
+Reports include contact/account cohort funnels, actual stage entries and corrected
+current-stage counts, confirmed-send/delivery/reply/positive-reply performance,
+confirmed meeting conversion, research coverage and confirmed CRM sync coverage.
+Campaign, immutable sequence version, message, exact CTA, pinned ICP segment,
+evidence-linked recipient-title persona and why-now statement breakdowns retain
+source IDs and historical dimensions. Unsupported industry/company-size/message
+angle dimensions remain unknown; actual costs and revenue remain insufficient_data.
+
+Descriptive gap rules include exact cohort/member evidence, numerator/denominator,
+sample size, UTC half-open range, confidence, limitations, review thresholds,
+version, as-of time, expected outcome, unknown cost, risk and required approval.
+Reports include their full normalized evidence manifest and deterministic hashes.
+Fewer than 20 observations or incomplete reply classification prevents a low-reply
+recommendation. Zero denominators return null. Retries/receipts do not inflate
+business outcomes; pipeline corrections preserve historical entries without
+misreporting current state. No prediction, causal/revenue guarantee or automatic
+execution is introduced. Existing Phase 5 approval/action-command/outbox machinery
+is unchanged. All active roles can read only their own workspace's evidence.
+
+No schema change was required; normalized events are derived from existing
+canonical tables, not a second event log. Alembic head remains `20260926_0012`.
+Existing RLS, composite tenant relationships and legacy quarantine are preserved.
+No frontend files changed; Phase 10 remains separate. Synchronous reporting has an
+explicit 20,000-row per-source limit and fails without partial results above it.
+See `docs/V2_INSIGHTS.md` for exact semantics, evidence lineage and limitations.
+
+Validation:
+- Single broader backend regression with PostgreSQL: **204 passed**, 477.05 seconds.
+- Final focused Phase 9 suite after the incomplete-classification safeguard:
+  **20 passed**, 30.98 seconds. The broader suite was not repeated.
+- Focused PostgreSQL migrated-database/security test: **1 passed**, 36.94 seconds,
+  including analytics under a non-bypass role and a deliberate ORM/RLS context
+  mismatch. The broader run also passed the PostgreSQL test.
+- No frontend contract consumer/component changed. Existing GitHub CI runs frontend
+  TypeScript, targeted lint and production build on the pushed checkpoint; exact
+  CI status/run is reported with the final commit. No dependency reinstall locally.
+- No real CRM/calendar/email action, production mutation, paid API, deployment or
+  merge occurred. PR #2 remains draft/open; Phase 10 has not started.
+
+## Remaining phases
+
+10. Customer navigation and command-center readiness/plans/execution/approvals/outcomes.
+11. Full security/retry/approval/provider/frontend/E2E suite, logging/metrics/rate limits,
+    staging smoke test and deployment readiness documentation.
+
+Do not claim readiness until the entire 21-step acceptance scenario passes.
+
+## Continuation
+
+Phase 10 — SaaS Frontend Cutover is complete. Existing work in progress was
+preserved and extended on the same branch. Customer navigation, eight workspace
+views, original GAPS AI styling, responsive navigation, review boundaries,
+workspace switching, evidence and truthful outcome states are implemented.
+See `docs/V2_CUSTOMER_EXPERIENCE.md` for scope, validation and limitations.
+
+Validation: TypeScript passed; production build passed; correctness lint has zero
+errors and four non-blocking Fast Refresh warnings; frontend contract tests 4/4;
+focused backend/API tests 35/35; full backend regression including local PostgreSQL
+migration/RLS tests 205/205. No schema change: head remains `20260926_0012`.
+The interrupted broad test run was restarted because its process/result was lost;
+the completed run is recorded in `.venv/phase10-regression.log` (local artifact).
+
+Exact next step: **Phase 11 — Production Hardening**, beginning at that heading
+in `docs/V2_SPECIFICATION.md`. Reuse existing tenant, approval, idempotency,
+reconciliation and migration tests; add missing operational hardening and the
+21-step fake-provider acceptance test. Review request/workspace/goal/run/step
+correlation, safe errors/redaction, auth abuse limits, database readiness and
+workspace-scoped operational metrics. Validate research privacy/robots/retention
+and document deployment gates without deploying. No production readiness claim
+until all actual release gates are verified. Phase 11 is explicitly authorized
+by the latest user instruction; continue after Phase 10 checkpoint CI is green.
+
+Preserve this Phase 10 requirement exactly:
+
+“Build the GAPS AI customer frontend with a premium, Apple-inspired SaaS experience: smooth 60fps transitions, restrained motion, clean typography, generous spacing, subtle depth, polished hover/focus states, skeleton loading, responsive layouts, and no heavy visual clutter. Do not copy Apple’s UI directly; create an original GAPS AI design system with the same level of refinement.”
+
+Keep approvals, workspace isolation/RBAC, suppression, immutable versions and
+quarantine intact. No real side effects, paid services, deployment, production
+changes or merge are implied. Phase 11 is now authorized; deployment and merging are not.
+
+### 2026-10-02 — resumed guided-plan refresh investigation
+
+The `0e498b5` baseline passed GitHub CI. Authenticated staging reproduced lost plan selection on refresh while the guided plan remained saved. The continuation repairs workspace-scoped plan/execution restoration, revision recovery, role refresh, account-research cache/permissions and truthful dashboard status. See `V2_EARLY_ACCESS_BACKLOG.md` for precise offline browser evidence and outstanding hosted gates. Hosted AI and embedded execution remain paused; no provider writes or production changes.
+
+### 2026-10-03 — integration-first customer readiness continuation
+
+Fast-forwarded clean checkout to CI-green `aada3ae`. Reproduced Google Connect
+failure and duplicate/raw-state integration UX in authenticated staging. Current
+repair removes unsupported connection offers, preserves existing credentials,
+prevents new duplicate records, targets reconnects and requires Calendar API
+verification before healthy status. Detailed test evidence and unresolved real
+provider gates are recorded in `V2_EARLY_ACCESS_QA.md`. Hosted AI stays paused.
+
+### 2026-10-03 — executable Google Calendar connection
+
+Continue from `1dc9e74` after live OAuth/access verification. Google create-only
+execution and an explicit attendee-free connection test now persist real provider
+receipts and reconcile the same event across retries. Existing approved customer
+scheduling boundaries remain intact. CRM setup remains hidden and saved Apollo/
+HubSpot credentials are preserved. Offline checks are recorded in
+`V2_EARLY_ACCESS_QA.md`; live staging acceptance is pending rollout. Hosted AI stays
+paused; no production deployment, main merge or paid actions.
+
+Live acceptance at implementation `54ffc44`: browser-created Google event
+`a8dc0553d0b253788166c49f6d8b7841` persisted with matching revision; reload and a
+second provider read reused the same event and existing authorization. Read-only
+staging SQL confirms one event row and two verification audits. Full evidence and
+the distinction between live token reuse and offline token rotation are recorded
+in `V2_EARLY_ACCESS_QA.md`. Existing saved Apollo/HubSpot records remain unchanged.
+
+### 2026-10-08 — constrain research to supplied source spans
+
+The October 7 controlled Groq research attempt failed closed at `Invalid source
+span reference`. Four deterministic source-span evidence rows were retained;
+zero claims, Account Intelligence reports or qualifications were accepted. The
+raw invalid reference was not retained and cannot be reconstructed from logs.
+
+Research adapters now build a request-specific output type whose `span_id`
+choices are exactly the persisted, budget-filtered spans in that request. Groq
+receives those choices in its strict JSON schema and the response parser enforces
+the same choices. Ollama uses the same constrained contract. Backend job/source
+ownership, claim-kind, exact-text and buyer-provenance checks remain authoritative.
+No ID repair, fuzzy matching, excerpt substitution or relaxed validation is added.
+
+Focused offline validation: 61 tests passed, including request isolation, invalid,
+foreign and unoffered references, exact text resolution, multiple valid claims,
+and atomic claim/report rejection while source evidence remains retained. Local
+Windows tests use a relative synthetic temporary directory to avoid the existing
+absolute SQLite drive-path encoding issue. No migration or frontend change.
+Full backend regression: 326 passed, 2 disposable-PostgreSQL tests skipped locally
+for CI. Detailed contract and prior-attempt evidence: `V2_RESEARCH_SPAN_ACCEPTANCE.md`.
+
+Live acceptance remains pending CI and staging rollout. The authorized retest may
+reuse only the existing goal/company/prospect, with one reviewed plan revision
+and one new cycle/command/job because the previous cycle is terminal. Maximum
+attempts must be one. Hosted AI must be off before and immediately after the
+single attended attempt. No outreach/email/CRM/calendar writes are authorized.

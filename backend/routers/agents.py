@@ -1,3 +1,4 @@
+from backend.tenancy import require_approved_execution
 """
 Agents Router - API endpoints to invoke AI GTM agents
 """
@@ -80,8 +81,7 @@ async def list_agents(
     }
 
 
-@router.post(
-    "/run",
+@router.post("/run", dependencies=[Depends(require_approved_execution)],
     response_model=AgentRunResponse,
     responses={
         400: {
@@ -125,7 +125,7 @@ async def run_agent(
     }
 
 
-@router.post("/research")
+@router.post("/research", dependencies=[Depends(require_approved_execution)])
 async def research_company(
     company_name: str,
     domain: Optional[str] = None,

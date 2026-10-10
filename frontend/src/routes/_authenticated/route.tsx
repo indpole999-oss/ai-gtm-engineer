@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { AppShell } from "@/components/app-shell";
 import { InlineSpinner } from "@/components/state-block";
 import { useAuth } from "@/lib/auth";
+import { WorkspaceProvider } from "@/lib/workspace";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -29,8 +30,8 @@ function AuthenticatedLayout() {
   }
 
   return (
-    <AppShell>
+    <WorkspaceProvider><AppShell>
       <Outlet />
-    </AppShell>
+    </AppShell></WorkspaceProvider>
   );
 }

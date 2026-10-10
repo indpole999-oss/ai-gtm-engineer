@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 
-import { API_BASE_URL, AUTH_ENDPOINTS } from "@/lib/api-config";
+import { friendlyError } from "@/components/customer/ui";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,20 +12,20 @@ export const Route = createFileRoute("/login")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Sign in — AI GTM Engineer" },
-      { name: "description", content: "Sign in to the AI GTM Engineer console to run pipeline, sequences and agents." },
-      { property: "og:title", content: "Sign in — AI GTM Engineer" },
-      { property: "og:description", content: "Sign in to the AI GTM Engineer console." },
+      { title: "Sign in — GAPS AI" },
+      { name: "description", content: "Sign in to the GAPS AI workspace." },
+      { property: "og:title", content: "Sign in — GAPS AI" },
+      { property: "og:description", content: "Sign in to the GAPS AI workspace." },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: LoginPage,
 });
 
-function LoginPage() {
+export function LoginPage({ initialMode = "signin" }: { initialMode?: "signin" | "register" }) {
   const { signIn, signUp, status } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "register">("signin");
+  const [mode, setMode] = useState<"signin" | "register">(initialMode);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -45,7 +45,7 @@ function LoginPage() {
       else await signUp(username, password, fullName);
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Authentication failed.");
+      setError(friendlyError(err));
     } finally {
       setSubmitting(false);
     }
@@ -57,32 +57,30 @@ function LoginPage() {
         <div className="absolute inset-0 grid-backdrop opacity-40" aria-hidden />
         <div className="relative">
           <span className="flex size-9 items-center justify-center rounded-md bg-primary font-display text-sm font-bold text-primary-foreground">
-            GTM
+            G
           </span>
         </div>
         <div className="relative max-w-md">
-          <h2 className="text-3xl font-semibold">Pipeline that runs itself.</h2>
+          <h2 className="text-3xl font-semibold">A clearer path to your next customer.</h2>
           <p className="mt-3 text-sm text-muted-foreground">
-            Leads, accounts, emails and autonomous agents — one operations console on top of your GTM
-            backend.
+            Understand your prospects, review thoughtful outreach, and follow every conversation
+            with clarity.
           </p>
         </div>
-        <p className="relative label-mono">Connected to {API_BASE_URL}</p>
+        <p className="relative label-mono">Thoughtful growth. Measured outcomes.</p>
       </div>
 
       <div className="flex items-center justify-center px-6 py-16">
         <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
           <div>
-            <p className="label-mono">Authentication</p>
+            <p className="label-mono">WELCOME TO GAPS AI</p>
             <h1 className="mt-1 text-2xl font-semibold">
               {mode === "signin" ? "Sign in" : "Create account"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              {mode === "signin" ? "OAuth2 password flow at " : "Registers via "}
-              <span className="font-mono text-xs">
-                {mode === "signin" ? AUTH_ENDPOINTS.token : AUTH_ENDPOINTS.register}
-              </span>
-              .
+              {mode === "signin"
+                ? "Welcome back. Continue in your workspace."
+                : "Create your account and a private workspace."}
             </p>
           </div>
 
@@ -123,7 +121,10 @@ function LoginPage() {
           </div>
 
           {error ? (
-            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               {error}
             </p>
           ) : null}

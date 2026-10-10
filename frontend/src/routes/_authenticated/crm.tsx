@@ -201,9 +201,9 @@ function CrmPage() {
         toast.success(
           "Deal created in CRM",
           {
-            description: data?.deal_id
+            description: data?.["deal_id"]
               ? `HubSpot Deal ID: ${String(
-                  data.deal_id,
+                  data["deal_id"],
                 )}`
               : undefined,
           },
@@ -250,9 +250,9 @@ function CrmPage() {
         toast.success(
           "CRM activity logged",
           {
-            description: data?.note_id
+            description: data?.["note_id"]
               ? `HubSpot Note ID: ${String(
-                  data.note_id,
+                  data["note_id"],
                 )}`
               : undefined,
           },

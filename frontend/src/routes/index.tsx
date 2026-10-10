@@ -4,16 +4,16 @@ import { Bot, Mail, Target, Workflow } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AI GTM Engineer — Autonomous Revenue Operations" },
+      { title: "GAPS AI â€” Evidence-backed growth" },
       {
         name: "description",
         content:
-          "An operations console for AI-driven go-to-market: leads, accounts, contacts, workflows, email sequences and autonomous agents in one place.",
+          "A clear workspace for evidence-backed prospects, reviewed outreach, customer conversations and measured growth.",
       },
-      { property: "og:title", content: "AI GTM Engineer — Autonomous Revenue Operations" },
+      { property: "og:title", content: "GAPS AI â€” Evidence-backed growth" },
       {
         property: "og:description",
-        content: "Leads, accounts, workflows, sequences and AI agents in one GTM operations console.",
+        content: "Your prospects, outreach, conversations and insights in one considered workspace.",
       },
     ],
   }),
@@ -22,9 +22,9 @@ export const Route = createFileRoute("/")({
 
 const PILLARS = [
   { icon: Target, title: "Pipeline", body: "Leads, companies and contacts unified in one working surface." },
-  { icon: Workflow, title: "Workflows", body: "Track every automation run and its real execution state." },
+  { icon: Workflow, title: "Your plan", body: "Review each step before approving the work." },
   { icon: Mail, title: "Sequences", body: "Outbound cadences with live send and reply status." },
-  { icon: Bot, title: "Agents", body: "Autonomous workers doing research, enrichment and outreach." },
+  { icon: Bot, title: "Insights", body: "Evidence-backed recommendations with transparent limitations." },
 ];
 
 function Landing() {
@@ -35,9 +35,9 @@ function Landing() {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-md bg-primary font-display text-sm font-bold text-primary-foreground">
-              GTM
+              G
             </span>
-            <span className="font-display text-sm font-semibold">AI GTM Engineer</span>
+            <span className="font-display text-sm font-semibold">GAPS AI</span>
           </div>
           <Link
             to="/login"
@@ -48,20 +48,19 @@ function Landing() {
         </header>
 
         <main className="flex flex-1 flex-col justify-center py-16">
-          <p className="label-mono">Autonomous revenue operations</p>
+          <p className="label-mono">EVIDENCE. INTENTION. PROGRESS.</p>
           <h1 className="mt-3 max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">
-            The go-to-market engineer that never sleeps.
+            Your next customer starts with a clearer picture.
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted-foreground">
-            One console over your GTM backend: source and qualify leads, run multi-step sequences, and
-            supervise the agents doing the work.
+            Understand your prospects, prepare thoughtful outreach, and measure real outcomes — with your team in control.
           </p>
           <div className="mt-8">
             <Link
               to="/login"
               className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Open the console
+              Enter your workspace
             </Link>
           </div>
 
@@ -76,7 +75,7 @@ function Landing() {
           </div>
         </main>
 
-        <footer className="label-mono">AI GTM Engineer console</footer>
+        <footer className="label-mono">GAPS AI · Thoughtful growth</footer>
       </div>
     </div>
   );

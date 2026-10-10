@@ -1,3 +1,5 @@
+from backend.tenancy import require_approved_execution
+from backend.tenancy import get_workspace_db as get_db
 """Leads router - manage leads pipeline"""
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
 
-from backend.database import get_db, Contact
+from backend.database import Contact
 from backend.routers.auth import get_current_user
 
 router = APIRouter()
@@ -60,7 +62,7 @@ async def list_leads(
 # ENRICH LEAD
 # ============================================================
 
-@router.post("/enrich/{contact_id}")
+@router.post("/enrich/{contact_id}", dependencies=[Depends(require_approved_execution)])
 async def enrich_lead(
     contact_id: UUID,
     db: AsyncSession = Depends(get_db),

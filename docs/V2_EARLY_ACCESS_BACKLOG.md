@@ -1,0 +1,142 @@
+# V2 Early Access verification backlog
+
+## Remaining acceptance continuation — 2026-10-03
+
+`5aecd6d` CI passed all jobs. Local real-application browser checks now cover two
+synthetic users/workspaces, viewer cache isolation, restore, automatic role
+downgrade and revocation, logout and protected routes. A P1 no-workspace recovery
+loop was reproduced and fixed: Back to sign in must sign out rather than merely
+linking to a login page that redirects an authenticated session. New no-match
+prospect search/clear behavior passes in browser. Seven frontend contracts,
+TypeScript and targeted lint pass. No backend/schema/provider changes. Detailed
+evidence and remaining live gates are in V2_EARLY_ACCESS_QA.md.
+
+## Validated staging checkpoint `38edc63` — 2026-10-02
+
+- CI run `37028129904` is green: **272 backend tests passed, 2 PostgreSQL-only
+  skips**; separate PostgreSQL boundary and populated backup-restore/upgrade jobs
+  passed; empty migration reached `20260928_0013`; seven frontend contracts,
+  TypeScript, Linux production build and targeted lint passed.
+- Existing Free staging web deploy `dep-davt0flg1s2s73bp6t5g` and API deploy
+  `dep-davt0me0tbcc73f9llkg` are live on `38edc630d07fa2bab0d8829c8ccac26d1f5027d7`.
+  Health and readiness both returned 200 after API deployment. No API error logs
+  in the inspected 15:42:16–15:43:07 UTC window; this is not an uptime guarantee.
+- Authenticated browser verified an old failed execution opens its own approved
+  Vercel plan. Switching back to the synthetic draft clears the old execution.
+  Unsaved local edits disable execution switching and approval; discard restores
+  the persisted draft. No revisions, approvals or executions were submitted.
+- Owner Settings loads canonical inventory (2 draft plans, 0 queued/running
+  actions, 2 failed actions), safe failure alert, explicit unavailable spend and
+  unapproved retention decisions. Manual refresh works. No horizontal overflow
+  at 390px or 1280px. Mobile navigation exposes the existing workspace selector.
+  Only one authorized workspace was present, so switching between two memberships
+  was not demonstrated in this live browser session; API tenant tests remain green.
+- Hosted AI and embedded worker stay paused. No environment, migration, role,
+  credential, provider or production changes were made. Source code is clean;
+  the pre-sync preservation stash remains available.
+
+Next acceptance priorities: second-user/workspace browser RBAC rehearsal; an
+explicitly authorized free-only model/worker rehearsal; dedicated live provider
+contracts; operational/backup and approved privacy/retention decisions. Do not
+mark market-ready or production-ready until their evidence exists.
+
+## Current continuation — 2026-10-02
+
+- Resumed remote `0be2df8` without repeating its implementation. CI run
+  `36981076689` passed. Older local unfinished changes remain preserved in a
+  named stash; only non-overlapping fixes were recovered.
+- Validated frontend deployed to the existing Free staging service:
+  `dep-davsjp67bikc73faant0` is live on `0be2df8`. API remains on `0e498b5`
+  (backend code is identical between those checkpoints). No environment changes.
+- Authenticated in-app browser verified actual identity, truthful zero healthy
+  connections, existing synthetic guided draft v1 and restoration after full
+  refresh. Approval remains unchecked/disabled. No new goal, approval, execution
+  or provider call occurred during this continuation. Old executions remain failed.
+- P1 found in-browser: selecting an older execution leaves an unrelated draft
+  above it. Follow-up loads its associated plan, resets review and blocks selection
+  during unsaved edits. Selecting a plan clears the previous execution selection.
+- Recovered fixes: mobile workspace selector; expected HTTP rejections roll back
+  without misleading database-outage logs; unexpected failures retain exception
+  type without raw credential-bearing detail.
+- Useful P2: owner/admin Settings surfaces existing tenant-scoped execution and
+  approval inventory plus retention decisions. Manual refresh and failure/lease/
+  queue alerts; no invented cost, worker-health assertion or retention policy.
+- Focused backend: **6 passed** (rollback/log safety, operations tenant/RBAC,
+  retention). Frontend: **7 contract tests passed**, TypeScript and changed-file
+  lint passed. Follow-up CI and deployed-browser validation are recorded separately.
+
+### Still open, not waived
+
+Hosted AI and embedded worker remain paused. Live-model quality, worker
+availability and email/CRM/calendar delivery are not validated. Live-provider
+acceptance, operational/backup rehearsal and retention/privacy release decisions
+remain required. Earlier sections below are historical evidence.
+
+## Scope and evidence — 2026-10-01
+
+- Repository: indpole999-oss/ai-gtm-engineer, existing V2 branch and draft PR #2.
+- Web: https://gaps-ai-v2-staging-web.onrender.com
+- API: https://gaps-ai-v2-staging-api.onrender.com
+- Isolated staging database: xhjkahbtckrrhuzamysr. No production access.
+- Observed deployment baseline: web ebc8f2c; API a661b22. Auto-deploy off.
+- Approved obsidian/green design and navigation retained.
+
+## P0
+
+| Finding / gate | Current evidence |
+| --- | --- |
+| Backend CI fails because HTTP lifespan starts worker before test schema exists | Local regression: 265 passed, 2 PostgreSQL-only skips; final worker opt-in revision: 6 passed. New-commit CI pending. |
+| Frontend TS4111 blocks CI build | Fixed typed dictionary access; TypeScript and contract tests pass. Linux production build pending. |
+| Hosted AI planning calls loopback Ollama | Groq adapter now selected consistently with research; fake HTTP and policy rejection tests pass. Real provider acceptance pending. |
+| Groq strict schema omits defaulted nested fields from required | Normalized both schemas; local validation remains authoritative. Fake transport only. |
+| Untrusted robots wildcard regex can backtrack excessively | Replaced with literal segment matching; adversarial rule regression included. |
+| Authenticated primary browser journey | Awaiting user sign-in directly in in-app browser. No credentials requested in chat. |
+
+## P1 — remaining inspection and acceptance
+
+2026-10-02: browser confirmed an expired-session dashboard. Fixed same-session
+401 invalidation, stale-response protection and cache clearing. Integration UI
+no longer reports custom-save success before the response, labels unverified
+configuration truthfully, and confirms local disconnect. Browser verification of
+the deployed fixes remains open. All CI for 4021e72 passed (run 36891654467).
+
+- Verify workspace membership/role refresh and logout/login cache isolation.
+- Improve safely classified research/provider failures and persisted run feedback.
+- Verify all visible routes/actions, errors, empty states, responsive layout and
+  keyboard access using a staging-only account and synthetic records.
+- Prove login → workspace → published Brain → goal → real AI plan → review →
+  approval → queued work → research/evidence → prospect → outreach draft → review;
+  verify refresh persistence and logout/login return.
+- Verify staged worker restart/lease recovery and safe admission/ready behavior.
+- Check integration test states against actual adapter support. Email, CRM and
+  calendar writes remain disabled; fixture receipts do not prove live delivery.
+- User chose to keep hosted AI paused. GTM_HOSTED_AI_ENABLED and embedded worker
+  remain false; real-model acceptance is blocked on a later explicit opt-in and
+  free-only account confirmation. Do not infer no cost from a key.
+- Retention decisions and live-provider/operational gates remain open in
+  V2_PRODUCTION_READINESS.md and V2_STAGING_VALIDATION.md.
+
+## P2
+
+- Address Fast Refresh warnings if component extraction is otherwise warranted.
+- Review empty-state copy and terminology after the core browser journey.
+
+## Release decision
+
+Not ready for Early Access acceptance or production deployment. Green local
+tests alone cannot close authenticated-browser, real-provider, operational or
+privacy/retention gates. No schema migration is introduced by this repair batch.
+## 2026-10-02 — guided-plan refresh continuation
+
+Resumed the existing `0e498b5` checkpoint; its GitHub CI is green. Authenticated staging reproduced a saved guided plan disappearing from view after refresh (the record itself remained persisted).
+
+Changes in this checkpoint:
+- Restore selected saved plan and execution by opaque, workspace-scoped URL IDs; fetch persisted records through authorized APIs. Approval acknowledgement and unsaved edits never persist in the URL.
+- Restore saved revisions, offer explicit discard of unsaved edits, and recover goals whose plan preparation failed without creating another goal or calling AI.
+- Refresh workspace membership every 30 seconds/on focus; role changes reset routed controls and clear account data caches. Revoked workspace membership removes the active view.
+- Scope account research queries to workspace, cancel reads, enforce viewer controls and refresh the actual shared goals cache.
+- Replace hardcoded identity, fabricated goal progress and zero-connection success labels with authenticated identity and persisted evidence. Distinguish guided, local and hosted plan provenance; show persisted command failure codes.
+
+Validation: seven frontend contract tests and TypeScript passed; changed-file lint passed with one existing Fast Refresh warning. Disposable local SQLite browser fixture (synthetic account, all provider settings excluded, hosted AI and worker disabled) proved saved plan v1 and revised v2 survive refresh, approval resets, and discard restores the saved revision. No plan was approved or queued. Client/SSR production compilation passed; Windows Nitro packaging still hits the known EPERM readlink limitation. Linux CI is required before staging rollout.
+
+This is frontend/offline evidence, not live model, provider delivery, production-like worker or PostgreSQL rehearsal evidence. Hosted AI remains paused. Staging deployment and further browser checks are recorded separately when completed.

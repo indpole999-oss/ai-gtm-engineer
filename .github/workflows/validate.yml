@@ -1,0 +1,107 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [production]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - name: Validate empty-database migration
+        env:
+          APP_ENV: test
+          DATABASE_URL: sqlite+aiosqlite:////tmp/phase0-migration.db
+        run: |
+          alembic upgrade head
+          test "$(alembic current | awk '{print $1}')" = "20261009_0015"
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: node --test tests/customer.test.mjs
+      - run: npx tsc --noEmit
+      - run: npm run build
+      - name: Targeted correctness lint
+        run: |
+          npx eslint src/routes/_authenticated/crm.tsx src/routes/_authenticated/settings.tsx src/routes/_authenticated/companies.tsx src/routes/_authenticated/dashboard.tsx src/components/company-brain.tsx src/components/account-research.tsx src/components/gtm-command-center.tsx src/components/customer src/components/app-shell.tsx src/lib/workspace.tsx src/lib/api.ts src/routes/login.tsx src/routes/__root.tsx src/routes/index.tsx --no-cache --rule 'prettier/prettier: off'
+
+  browser-journey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r requirements-dev.txt
+      - run: npm ci
+        working-directory: frontend
+      - run: python -m playwright install --with-deps chromium
+      - name: Deterministic browser to API persistence journey
+        run: python -m pytest -q tests/test_browser_journey.py --basetemp=browser-results
+        env:
+          RUN_BROWSER_E2E: "1"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deterministic-browser-evidence
+          path: browser-results
+          retention-days: 7
+
+  postgres-security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q tests/test_postgres_boundary.py
+        env:
+          POSTGRES_TEST_URL: postgresql://postgres:isolated-ci-only@localhost:5432/postgres
+      - name: Install matching PostgreSQL backup tools
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client-16
+      - name: Synthetic backup restoration and populated upgrade
+        run: python -m pytest -q tests/test_postgres_restore.py
+        env:
+          POSTGRES_TEST_URL: postgresql://postgres:isolated-ci-only@localhost:5432/postgres
+          PG_BIN: /usr/lib/postgresql/16/bin
