@@ -2,10 +2,25 @@
 
 ## Phase 11 additive admission migration
 
-Current head: `20260928_0013`, following `20260926_0012`. It adds only
+Current required head: `20261009_0015`: upgrade in order through
+`20260928_0013` (shared admission), `20261008_0014` (immutable draft review),
+then `20261009_0015` (runtime review grants). `/api/v1/ready` requires 0015.
+Use the separate migration role for `python -m alembic upgrade head`, verify
+`python -m alembic current`, and repeat upgrade to confirm a no-op. Verify the
+runtime role has SELECT/INSERT on draft_review_events; 0015 grants these only
+when the role named gaps_staging_runtime exists. Other runtime roles require
+reviewed explicit grants. Successful migration is not proof of runtime access.
+
+0014/0015 refuse downgrade to preserve review history. Roll back application
+binaries only, with integrations and workers paused, preserving schema, receipts,
+suppression and the existing Fernet key. Reconcile uncertain dispatches before
+rollback; never replay them or restore over newer evidence. Rehearse backup
+restoration in an isolated disposable database, never against production.
+
+The earlier 0013 migration follows `20260926_0012`. It adds only
 `auth_admission_buckets` and a window index; existing customer data, RLS,
 immutable evidence, quarantines and ownership are unchanged. Apply with the
-migration role before starting the new API. Readiness requires this revision;
+migration role before starting the new API. This table is required by admission;
 authentication fails closed if the counter store is unavailable.
 
 Grant counter-table SELECT/INSERT/UPDATE/DELETE only to the API service role.

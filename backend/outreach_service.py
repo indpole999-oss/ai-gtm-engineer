@@ -321,7 +321,7 @@ async def deliver(db, command, cycle):
     return {"message_id": str(message.id), "provider_message_id": message.provider_message_id}
 
 
-async def record_delivery_event(db, message_id, provider_message_id, event_id, kind):
+async def record_delivery_event(db, message_id, provider_message_id, event_id, kind, *, commit=True):
     """Trusted adapter entry point only; never accept unauthenticated webhooks."""
     if kind not in {"delivered", "bounce", "complaint", "unsubscribe"}:
         raise ValueError("Unsupported delivery event")
@@ -341,5 +341,8 @@ async def record_delivery_event(db, message_id, provider_message_id, event_id, k
         email = draft.envelope["recipient"]
         if not await db.scalar(select(Suppression.id).where(Suppression.email == email)):
             db.add(Suppression(email=email, reason=kind))
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     return row

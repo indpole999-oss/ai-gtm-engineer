@@ -58,7 +58,7 @@ async def for_sender(db, sender, message):
     return ResendTransport(row, credentials, message)
 
 
-async def reconcile_receipt(db, sender, data):
+async def reconcile_receipt(db, sender, data, *, commit=True):
     """Authenticate via provider GET first. This records facts; it never sends."""
     from backend.outreach_models import Message, MessageDraft, DeliveryEvent
     from backend.research_service import scoped_record
@@ -104,5 +104,8 @@ async def reconcile_receipt(db, sender, data):
             raise HTTPException(409, "RFC message identity conflict")
         if not existing:
             db.add(DeliveryEvent(message_id=message.id, provider_event_id=alias, kind="rfc_message_id"))
-    await db.commit()
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     return message

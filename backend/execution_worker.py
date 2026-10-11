@@ -157,6 +157,8 @@ async def perform(workspace_id, claim):
 async def finish(workspace_id, claim, result=None, error=None):
     async with AsyncSessionLocal() as db:
         bind(db, workspace_id)
+        from backend.outreach_service import lock_workspace
+        await lock_workspace(db)
         command = await db.scalar(select(ActionCommand).where(ActionCommand.id == claim["id"]))
         if not command:
             return

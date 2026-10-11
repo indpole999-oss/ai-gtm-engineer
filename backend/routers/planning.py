@@ -137,6 +137,8 @@ async def cycle(cycle_id: UUID, db=Depends(get_workspace_db)):
 @router.post("/cycles/{cycle_id}/control")
 async def control(cycle_id: UUID, body: ControlInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
     ctx.require("owner", "admin")
+    from backend.outreach_service import lock_workspace
+    await lock_workspace(db)
     row = await db.scalar(select(ExecutionCycle).where(ExecutionCycle.id == cycle_id).with_for_update())
     if not row:
         raise HTTPException(404, "Cycle not found")

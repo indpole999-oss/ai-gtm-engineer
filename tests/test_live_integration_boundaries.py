@@ -115,6 +115,62 @@ def test_signed_inbound_persistence_dedup_suppression_and_isolation(client, boun
     assert send_event(client, path.replace(a["X-Workspace-ID"], b["X-Workspace-ID"])).status_code == 404
 
 
+def test_invalid_webhook_never_acquires_mutation_locks(client, boundaries, monkeypatch):
+    _, _, _, path = mailbox(client, boundaries)
+    monkeypatch.setattr(settings, "MAILBOX_INGESTION_ENABLED", True)
+    from backend import integration_service
+    original = integration_service.connection
+    locks = []
+    async def tracked(db, integration_id, lock=False):
+        if lock:
+            locks.append(integration_id)
+        return await original(db, integration_id, lock=lock)
+    monkeypatch.setattr(integration_service, "connection", tracked)
+    raw, headers = signed()
+    headers["svix-signature"] = "v1,invalid"
+    assert client.post(path, content=raw, headers=headers).status_code == 401
+    assert locks == []
+
+
+def test_receipt_failure_rolls_back_acceptance_audit_and_suppression(client, fake_research, boundaries, monkeypatch):
+    from fastapi import HTTPException
+    from backend import outreach_service
+    a, data, integration = prepare_resend(client, fake_research, boundaries)
+    reviewed = approve_draft(client, a, data)
+    approve(client, a, reviewed["plan"])
+    monkeypatch.setattr(settings, "OUTBOUND_EMAIL_ENABLED", True)
+    monkeypatch.setattr(settings, "MAILBOX_INGESTION_ENABLED", True)
+    boundaries["mode"] = "lost_ack"
+    wid = UUID(a["X-Workspace-ID"])
+    client.portal.call(execution_worker.run_once, wid)
+    boundaries["mode"] = "success"
+    path = f"/api/v1/mailbox-webhooks/resend/{wid}/{integration['id']}/{data['sender']['id']}"
+    original = outreach_service.record_delivery_event
+    async def fail_after_safety_writes(*args, **kwargs):
+        await original(*args, **kwargs)
+        raise HTTPException(503, "Synthetic transaction failure")
+    monkeypatch.setattr(outreach_service, "record_delivery_event", fail_after_safety_writes)
+    assert send_event(client, path, kind="email.bounced").status_code == 503
+    assert get_message(client, a, reviewed)["state"] == "reconciling"
+    assert client.get("/api/v1/outreach/suppressions", headers=a).json() == []
+    async def receipts():
+        async with AsyncSessionLocal() as db:
+            db.info.update(workspace_id=wid, workspace_role="owner")
+            return await db.scalar(select(func.count()).select_from(DeliveryEvent))
+    assert client.portal.call(receipts) == 0
+    audits = client.get(f"/api/v1/integrations/{integration['id']}/audit", headers=a).json()
+    assert "mail_receipt_verified" not in str(audits)
+    monkeypatch.setattr(outreach_service, "record_delivery_event", original)
+    first = send_event(client, path, kind="email.bounced")
+    second = send_event(client, path, kind="email.bounced")
+    assert first.status_code == second.status_code == 202
+    assert first.json() == second.json()
+    assert get_message(client, a, reviewed)["state"] == "sent"
+    assert len(client.get("/api/v1/outreach/suppressions", headers=a).json()) == 1
+    assert client.portal.call(receipts) == 3  # acceptance, RFC alias, bounce
+    assert len([call for call in boundaries["calls"] if call[0] == "POST"]) == 1
+
+
 @pytest.mark.parametrize("case", ["tampered", "stale", "signature", "missing", "oversize"])
 def test_webhook_rejects_before_provider_fetch(client, boundaries, monkeypatch, case):
     _, _, _, path = mailbox(client, boundaries)

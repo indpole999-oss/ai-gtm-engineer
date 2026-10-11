@@ -58,6 +58,7 @@ async def binding(db, integration):
 
 
 async def healthy(db, integration_id, kind):
+    await lock_workspace(db)
     row = await scoped_record(db, Integration, integration_id)
     await db.refresh(row, with_for_update=True)
     expected = "crm" if kind == "crm_sync" else "calendar"

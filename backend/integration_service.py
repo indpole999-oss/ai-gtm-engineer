@@ -29,7 +29,11 @@ def audit(db, integration, actor_id, action):
 async def connection(db, integration_id, lock=False):
     query = select(Integration).where(Integration.id == integration_id)
     if lock:
-        query = query.with_for_update()
+        # All tenant mutations serialize workspace first, then child rows.
+        # Never hold an integration lock while waiting for its workspace.
+        from backend.outreach_service import lock_workspace
+        await lock_workspace(db)
+        query = query.with_for_update().execution_options(populate_existing=True)
     row = await db.scalar(query)
     if row is None:
         raise HTTPException(404, "Integration not found")
@@ -149,11 +153,12 @@ async def complete_google_oauth(db, state, code):
             raise providers.ProviderError("required_scope_missing")
         # Consent/network exchange may take time. Access must still be valid
         # when credentials are saved, not only when the OAuth flow began.
+        from backend.outreach_service import lock_workspace
+        await lock_workspace(db)
         membership = await db.scalar(membership_query.with_for_update().execution_options(populate_existing=True))
         if membership is None:
             raise HTTPException(403, "Workspace access changed; restart connection")
         db.info["workspace_role"] = membership.role
-        await db.scalar(select(Workspace).where(Workspace.id == attempt.workspace_id).with_for_update())
         row = await connection(db, attempt.integration_id, lock=True) if attempt.integration_id else None
         if row is None:
             # Two consent tabs can start before either connection is saved.

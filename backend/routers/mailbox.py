@@ -25,7 +25,7 @@ def verify_signature(raw, headers, secret):
         event_id, timestamp = headers["svix-id"], headers["svix-timestamp"]
         if not 1 <= len(event_id) <= 255 or abs(time.time() - int(timestamp)) > 300:
             raise ValueError()
-        if not secret.startswith("whsec_"):
+        if not isinstance(secret, str) or not secret.startswith("whsec_"):
             raise ValueError()
         key = base64.b64decode(secret[6:], validate=True)
         if len(key) < 16:
@@ -86,13 +86,24 @@ async def resend_webhook(workspace_id: UUID, integration_id: UUID, sender_id: UU
     workspace = await db.scalar(select(Workspace).where(Workspace.id == workspace_id, Workspace.status == "active"))
     if not workspace:
         raise HTTPException(404, "Mailbox unavailable")
-    integration = await integration_service.connection(db, integration_id, lock=True)
+    # Authenticate without taking row locks; then re-read under workspace-first
+    # locking and authenticate again against the current credential generation.
+    integration = await integration_service.connection(db, integration_id)
     if ((integration.category, integration.provider) != ("email", "resend") or
         integration.status != "connected" or integration.health != "healthy" or integration.reconnect_required or
         not credentials_are_encrypted(integration.credentials)):
         raise HTTPException(409, "Mailbox connection unavailable")
     credentials = decrypt_credentials(integration.credentials)
     event_id = verify_signature(bytes(raw), request.headers, credentials.get("webhook_secret", ""))
+    integration = await integration_service.connection(db, integration_id, lock=True)
+    await db.refresh(workspace)
+    if (workspace.status != "active" or integration.status != "connected" or
+        integration.health != "healthy" or integration.reconnect_required or
+        (integration.category, integration.provider) != ("email", "resend") or
+        not credentials_are_encrypted(integration.credentials)):
+        raise HTTPException(409, "Mailbox connection unavailable")
+    credentials = decrypt_credentials(integration.credentials)
+    verify_signature(bytes(raw), request.headers, credentials.get("webhook_secret", ""))
     from backend.research_service import scoped_record
     sender = await scoped_record(db, SenderIdentity, sender_id)
     if sender.provider != "resend" or sender.integration_id != integration.id or sender.status != "connected":
@@ -119,13 +130,14 @@ async def resend_webhook(workspace_id: UUID, integration_id: UUID, sender_id: UU
         if confirmed.get("id") != email_id:
             raise providers.ProviderError("provider_identity_mismatch")
         from backend.mail_transport import reconcile_receipt
-        message = await reconcile_receipt(db, sender, confirmed)
+        message = await reconcile_receipt(db, sender, confirmed, commit=False)
         integration_service.audit(db, integration, integration.user_id, "mail_receipt_verified")
-        await db.commit()
         if kind == "email.sent":
+            await db.commit()
             return {"status": "persisted", "message_id": str(message.id)}
         receipt = await outreach_service.record_delivery_event(db, message.id, email_id,
-            str(integration.id) + ":" + event_id, kinds[kind])
+            str(integration.id) + ":" + event_id, kinds[kind], commit=False)
+        await db.commit()  # Acceptance, receipt, audit and suppression are atomic.
         return {"status": "persisted", "delivery_event_id": str(receipt.id)}
     except providers.ProviderError as error:
         integration.last_error, integration.last_error_at = error.code, datetime.utcnow()
