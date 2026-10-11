@@ -58,7 +58,7 @@ def environment_report(env, frontend=False):
     return {"presence": {name: bool(env.get(name)) for name in REQUIRED}, "checks": checks}
 
 
-def database_report(env):
+def database_report(env, expected_revision="20261011_0016"):
     """Separate probe URL: do not reinterpret asyncpg TLS settings as libpq settings."""
     from sqlalchemy.engine import make_url
     import psycopg2
@@ -83,7 +83,7 @@ def database_report(env):
                         "EXISTS (SELECT 1 FROM pg_stat_ssl WHERE pid=pg_backend_pid() AND ssl), "
                         "current_setting('server_version_num')::int / 10000 = 17", (database,))
             identity = cur.fetchone()
-            cur.execute("SELECT version_num IN ('20261009_0015','20261011_0016') FROM public.alembic_version")
+            cur.execute("SELECT version_num = %s FROM public.alembic_version", (expected_revision,))
             revisions = cur.fetchall()
             cur.execute("SELECT has_table_privilege(current_user,'public.alembic_version','SELECT') "
                         "AND NOT (has_table_privilege(current_user,'public.alembic_version','INSERT') "
@@ -101,14 +101,17 @@ def main(argv=None, env=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--frontend", action="store_true")
     parser.add_argument("--database", action="store_true")
+    parser.add_argument("--expected-revision", choices=("20261009_0015", "20261011_0016"))
     args = parser.parse_args(argv)
     if args.frontend and args.database:
         parser.error("Select API database checks or frontend checks")
+    if args.database and not args.expected_revision:
+        parser.error("Database check requires an explicit expected revision")
     env = os.environ if env is None else env
     report = environment_report(env, args.frontend)
     if args.database:
         try:
-            report["database"] = database_report(env)
+            report["database"] = database_report(env, args.expected_revision)
         except Exception:
             # Driver/URL exceptions can contain credentials; never print them.
             report["database"] = {"probe_completed": False}

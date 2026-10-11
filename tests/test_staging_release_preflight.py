@@ -49,7 +49,7 @@ def test_untrusted_origin_fails(origin):
 
 def test_connection_exception_never_discloses_secrets(monkeypatch, capsys):
     monkeypatch.setattr(probe, "database_report", Mock(side_effect=RuntimeError("secret-password-url")))
-    assert probe.main(["--database"], valid_env()) == 1
+    assert probe.main(["--database", "--expected-revision", "20261011_0016"], valid_env()) == 1
     assert "secret-password-url" not in capsys.readouterr().out
 
 
@@ -87,8 +87,16 @@ def test_readonly_database_queries_and_effective_privilege_failure(monkeypatch):
     assert report["tls_connection"] and not report["revision_select_only"]
     assert "default_transaction_read_only=on" in connect.call_args.kwargs["options"]
     assert all(call.args[0].startswith("SELECT ") for call in cursor.execute.call_args_list)
+    assert cursor.execute.call_args_list[1].args == (
+        "SELECT version_num = %s FROM public.alembic_version", ("20261011_0016",))
 
 
 def test_frontend_existing_public_origin():
     assert probe.environment_report({"VITE_API_BASE_URL": "https://" + probe.API_HOST}, True)["checks"]["staging_api_origin"]
     assert not probe.environment_report({}, True)["checks"]["staging_api_origin"]
+
+
+def test_database_cli_requires_exact_revision():
+    with pytest.raises(SystemExit) as error:
+        probe.main(["--database"], valid_env())
+    assert error.value.code == 2

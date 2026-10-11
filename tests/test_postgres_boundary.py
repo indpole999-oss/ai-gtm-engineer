@@ -38,6 +38,9 @@ def test_postgres_rls_and_composite_relationships():
         try:
             a, b, ca, cb = [str(uuid4()) for _ in range(4)]
             with db.cursor() as cursor:
+                # Exercise existing approval/evidence/tenant tests with prepared
+                # fixed function paths applied only to this generated database.
+                cursor.execute((Path(__file__).parents[1] / "scripts/staging_function_search_path.sql").read_text())
                 cursor.execute("INSERT INTO workspaces(id,name,slug,status,created_at,updated_at) VALUES(%s,'A','a','active',now(),now()),(%s,'B','b','active',now(),now())", (a,b))
                 cursor.execute("INSERT INTO companies(id,name,domain,workspace_id) VALUES(%s,'A','same.example',%s),(%s,'B','same.example',%s)",(ca,a,cb,b))
                 uid, ba, bb, va = [str(uuid4()) for _ in range(4)]

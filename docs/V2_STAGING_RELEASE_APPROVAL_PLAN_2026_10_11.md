@@ -32,7 +32,9 @@ changes are authorized by preparation alone. Existing checklist edit is excluded
    `--frontend` checks the staging API origin; run in the approved build context.
 3. For an optional connection probe, privately configure
    STAGING_PREFLIGHT_DATABASE_URL, STAGING_PREFLIGHT_EXPECTED_HOST and
-   STAGING_PREFLIGHT_EXPECTED_DATABASE; run `--database`. The probe accepts only the
+   STAGING_PREFLIGHT_EXPECTED_DATABASE; run `--database --expected-revision 20261009_0015`
+   before migration, or `--database --expected-revision 20261011_0016` after it.
+   The probe accepts only the
    exact direct staging host `db.xhjkahbtckrrhuzamysr.supabase.co`, a libpq PostgreSQL
    URL for `gaps_staging_runtime`, `sslmode=verify-full`, and `sslrootcert`.
    Do not put URLs/secrets on command lines. It enforces connection/statement timeouts,
