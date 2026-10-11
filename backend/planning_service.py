@@ -148,6 +148,9 @@ async def emit(db, cycle, kind, data):
 
 async def approve_plan(db, plan, ctx, expected_hash):
     ctx.require("owner", "admin")
+    from backend.outreach_service import lock_workspace
+    await lock_workspace(db)
+    await db.refresh(plan)
     if plan.status != "draft" or plan.content_hash != expected_hash or digest(plan.document) != expected_hash:
         raise HTTPException(409, "Review the current draft and its hash")
     goal = await scoped_record(db, Goal, plan.goal_id)

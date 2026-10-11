@@ -230,8 +230,8 @@ def test_crm_reads_permissions_audit_and_write_denial(client, boundaries, monkey
         client.portal.call(adapter.apply, "namespace", "key", {})
 
 
-def prepare_resend(client, fake_research, boundaries):
-    a, data = setup_outreach(client, fake_research, compose_draft=False)
+def prepare_resend(client, fake_research, boundaries, email="outreach@example.com"):
+    a, data = setup_outreach(client, fake_research, email=email, compose_draft=False)
     integration = connection(client, a)
     async def bind_sender():
         async with AsyncSessionLocal() as db:

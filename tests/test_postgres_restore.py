@@ -72,12 +72,12 @@ def test_populated_backup_restore_then_additive_upgrade(tmp_path):
         rollback = subprocess.run([sys.executable, "-m", "alembic", "downgrade", "-1"],
                                   env=rollback_env, capture_output=True, timeout=120)
         assert rollback.returncode != 0
-        assert b"Preserve outreach review access history" in rollback.stderr
+        assert b"Preserve cancelled approvals and replacement history" in rollback.stderr
         # A rejected destructive rollback must leave revision and data intact.
         with psycopg2.connect(service.set(database=names[1]).render_as_string(hide_password=False)) as restored:
             with restored.cursor() as cur:
                 cur.execute("SELECT version_num FROM alembic_version")
-                assert cur.fetchone() == ("20261009_0015",)
+                assert cur.fetchone() == ("20261011_0016",)
                 cur.execute("SELECT id::text,name,domain,workspace_id::text FROM companies ORDER BY id")
                 assert cur.fetchall() == expected
                 cur.execute("SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid='companies'::regclass")

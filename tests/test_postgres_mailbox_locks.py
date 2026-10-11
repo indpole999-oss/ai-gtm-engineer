@@ -13,7 +13,7 @@ from sqlalchemy.engine import make_url
 
 
 @pytest.mark.skipif(not os.environ.get("POSTGRES_TEST_URL"), reason="Disposable PostgreSQL service not configured")
-def test_postgres_original_deadlock_and_workspace_first_regression():
+def test_postgres_original_deadlock_and_workspace_first_regression(tmp_path):
     service = os.environ["POSTGRES_TEST_URL"]
     require_disposable_service(service)
     name = "gaps_lock_" + uuid4().hex
@@ -30,9 +30,13 @@ def test_postgres_original_deadlock_and_workspace_first_regression():
                    AUTO_CREATE_TABLES="false", OUTBOUND_EMAIL_ENABLED="false",
                    MAILBOX_INGESTION_ENABLED="false", CRM_READS_ENABLED="false", GTM_HOSTED_AI_ENABLED="false")
         root = Path(__file__).resolve().parents[1]
-        for arguments in (["-m", "alembic", "upgrade", "head"],
+        for arguments in (["-m", "alembic", "upgrade", "20261009_0015"],
+                          [str(Path(__file__).with_name("postgres_replacement_upgrade_probe.py")), str(tmp_path / "approval.json")],
+                          ["-m", "alembic", "upgrade", "head"],
+                          [str(Path(__file__).with_name("postgres_replacement_upgrade_probe.py")), str(tmp_path / "approval.json"), "verify"],
                           [str(Path(__file__).with_name("postgres_mailbox_lock_probe.py"))],
-                          [str(Path(__file__).with_name("postgres_signed_mailbox_probe.py"))]):
+                          [str(Path(__file__).with_name("postgres_signed_mailbox_probe.py"))],
+                          [str(Path(__file__).with_name("postgres_message_replacement_probe.py"))]):
             result = subprocess.run([sys.executable, *arguments], cwd=root, env=env,
                                     capture_output=True, text=True, timeout=120)
             assert result.returncode == 0, result.stdout + result.stderr

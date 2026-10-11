@@ -8,7 +8,7 @@ from backend.database import Contact, Workspace, WorkspaceMembership, User, Inte
 from backend.brain_models import CompanyBrainVersion, BrainClaim
 from backend.research_models import ResearchJob, ResearchClaim, EvidenceItem, SourceFetch, AccountIntelligence, ClaimVerification
 from backend.research_service import scoped_record
-from backend.planning_models import Goal, PlanVersion, ExecutionCycle, ActionCommand
+from backend.planning_models import Goal, PlanVersion, ExecutionCycle, ActionCommand, StepRun
 from backend.planning_service import digest, PlanDocument, PlanStep
 from backend.outreach_models import Campaign, Sequence, SequenceVersion, SequenceStep, SenderIdentity, Enrollment, ScheduledMessage, MessageDraft, Message, Suppression, DeliveryEvent
 
@@ -66,7 +66,7 @@ async def compose(db, scheduled, actor):
         integration = await scoped_record(db, Integration, sender.integration_id)
         if existing.envelope.get("sender_connection_binding") == await binding(db, integration):
             return existing
-        if await db.scalar(select(Message.id).where(Message.scheduled_id == scheduled.id)):
+        if await db.scalar(select(Message.id).where(Message.scheduled_id == scheduled.id, Message.state != "cancelled")):
             raise HTTPException(409, "Approved delivery requires cancellation or reconciliation before recomposition")
         # Explicit compose after reconnect creates a new immutable, unapproved draft.
     report = await db.scalar(select(AccountIntelligence).where(AccountIntelligence.job_id == job.id))
@@ -96,6 +96,10 @@ async def compose(db, scheduled, actor):
         "campaign_id": str(campaign.id), "sequence_id": str(sequence.id), "sequence_version_id": str(version.id),
         "sequence_hash": version.content_hash, "sequence_step_id": str(step.id), "sender_id": str(sender.id),
         "due_at": scheduled.due_at.isoformat(), "composition_method": "evidence_template"}
+    cancelled = await db.scalar(select(Message).where(Message.scheduled_id == scheduled.id,
+        Message.state == "cancelled").order_by(Message.created_at.desc(), Message.id.desc()).limit(1))
+    if cancelled:
+        envelope["replacement_for_message_id"] = str(cancelled.id)
     if sender.provider == "resend":
         from backend.outcome_service import binding
         integration = await scoped_record(db, Integration, sender.integration_id)
@@ -114,7 +118,7 @@ async def approve_message(db, draft, ctx, expected_hash, expected_revision=None,
     await lock_workspace(db)
     if draft.content_hash != expected_hash or digest(draft.envelope) != expected_hash:
         raise HTTPException(409, "Review the exact current draft")
-    existing = await db.scalar(select(Message).where(Message.scheduled_id == draft.scheduled_id))
+    existing = await db.scalar(select(Message).where(Message.scheduled_id == draft.scheduled_id, Message.state != "cancelled"))
     if existing:
         if existing.draft_id != draft.id:
             raise HTTPException(409, "Another draft is already approved for this step")
@@ -161,6 +165,8 @@ async def approve_message(db, draft, ctx, expected_hash, expected_revision=None,
 
 
 async def valid_message(db, message, plan_id):
+    if message.state == "cancelled":
+        raise HTTPException(409, "Message was cancelled; review its replacement")
     draft = await scoped_record(db, MessageDraft, message.draft_id)
     if message.plan_id != plan_id or message.approved_hash != draft.content_hash or digest(draft.envelope) != message.approved_hash:
         raise HTTPException(409, "Message approval does not match the plan")
@@ -194,7 +200,7 @@ async def schedule_ready(db, scheduled):
     step = await scoped_record(db, SequenceStep, scheduled.sequence_step_id)
     earlier = (await db.scalars(select(ScheduledMessage).join(SequenceStep, SequenceStep.id == ScheduledMessage.sequence_step_id).where(ScheduledMessage.enrollment_id == scheduled.enrollment_id, SequenceStep.position < step.position))).all()
     for previous in earlier:
-        prior = await db.scalar(select(Message).where(Message.scheduled_id == previous.id))
+        prior = await db.scalar(select(Message).where(Message.scheduled_id == previous.id, Message.state != "cancelled"))
         if not prior or prior.state != "sent" or datetime.utcnow() < prior.accepted_at + timedelta(seconds=step.delay_seconds):
             return False
     return True
@@ -270,7 +276,7 @@ async def deliver(db, command, cycle):
                     raise HTTPException(409, "Sender connection invalid")
             earlier = (await db.scalars(select(ScheduledMessage).join(SequenceStep, SequenceStep.id == ScheduledMessage.sequence_step_id).where(ScheduledMessage.enrollment_id == enrollment.id, SequenceStep.position < step.position))).all()
             for previous in earlier:
-                prior = await db.scalar(select(Message).where(Message.scheduled_id == previous.id))
+                prior = await db.scalar(select(Message).where(Message.scheduled_id == previous.id, Message.state != "cancelled"))
                 if not prior or prior.state != "sent" or datetime.utcnow() < prior.accepted_at + timedelta(seconds=step.delay_seconds):
                     raise HTTPException(409, "Previous sequence step has not completed its delay")
             # Count all persisted attempts, including uncertain/failing outcomes.
@@ -359,3 +365,51 @@ async def record_delivery_event(db, message_id, provider_message_id, event_id, k
     else:
         await db.flush()
     return row
+
+
+async def replace_after_reconnect(db, message, ctx, expected_hash):
+    """Cancel only provably unattempted delivery and require a fresh review."""
+    ctx.require("owner", "admin")
+    await lock_workspace(db)
+    await db.refresh(message)
+    if message.approved_hash != expected_hash:
+        raise HTTPException(409, "Review the exact approved message before replacing")
+    scheduled = await scoped_record(db, ScheduledMessage, message.scheduled_id)
+    if message.state == "cancelled":
+        # A replay never cancels a newer approval or composes another generation.
+        replacement = await db.scalar(select(MessageDraft).where(
+            MessageDraft.scheduled_id == scheduled.id,
+            MessageDraft.envelope["replacement_for_message_id"].as_string() == str(message.id)
+        ).order_by(MessageDraft.created_at, MessageDraft.id).limit(1))
+        if not replacement:
+            raise HTTPException(409, "Replacement history is incomplete; operator review required")
+        return replacement
+    if message.attempted_at or message.accepted_at or message.provider_message_id or message.state == "sent":
+        raise HTTPException(409, "Attempted delivery requires reconciliation; replacement could duplicate a send")
+    *_, contact, sender, job, brain = await context(db, scheduled)
+    await unsuppressed(db, contact.email)
+    if sender.provider != "resend":
+        raise HTTPException(409, "Reconnect replacement requires a Resend sender")
+    integration = await scoped_record(db, Integration, sender.integration_id)
+    if integration.status != "connected" or integration.health != "healthy" or integration.reconnect_required:
+        raise HTTPException(409, "Reconnect and verify the sender before replacement")
+    from backend.outcome_service import binding
+    draft = await scoped_record(db, MessageDraft, message.draft_id)
+    if draft.envelope.get("sender_connection_binding") == await binding(db, integration):
+        raise HTTPException(409, "Sender connection has not changed")
+    cycle = await db.scalar(select(ExecutionCycle).where(ExecutionCycle.plan_id == message.plan_id).with_for_update())
+    message.state, message.error_code = "cancelled", "replaced_after_reconnect"
+    if cycle:
+        cycle.status, cycle.stop_reason = "cancelled", "message_replaced_after_reconnect"
+        commands = (await db.scalars(select(ActionCommand).where(ActionCommand.cycle_id == cycle.id))).all()
+        for command in commands:
+            command.status, command.lease_token, command.lease_until = "cancelled", None, None
+            step = await scoped_record(db, StepRun, command.step_id)
+            step.status = "cancelled"
+        from backend.planning_service import emit
+        await emit(db, cycle, "outreach_cancelled_for_reconnect", {"message_id": str(message.id), "actor": str(ctx.user_id)})
+    db.add(DeliveryEvent(message_id=message.id,
+        provider_event_id=f"{message.workspace_id}:{message.id}:cancelled", kind="cancelled"))
+    await db.flush()
+    # compose commits cancellation, audit and new draft as one transaction.
+    return await compose(db, scheduled, ctx.user_id)

@@ -27,7 +27,7 @@ type Version = {
   number: number;
   definition: { steps: { delay_seconds: number; purpose: string }[] };
 };
-type Enrollment = { id: string; contact_id: string; version_id: string; status: string };
+type Enrollment = { id: string; contact_id: string; sender_id: string; version_id: string; status: string };
 type Scheduled = { id: string; enrollment_id: string; sequence_step_id: string; due_at: string };
 type Draft = DraftSnapshot & { review?: Pick<ReviewState, "status" | "revision" | "current_draft_id"> };
 type Message = {
@@ -35,6 +35,8 @@ type Message = {
   draft_id: string;
   scheduled_id: string;
   state: string;
+  approved_hash: string;
+  attempted_at: string | null;
   provider_message_id: string | null;
   accepted_at: string | null;
   plan_id: string;
@@ -51,7 +53,7 @@ export function OutreachPage() {
     drafts = useData<Draft[]>(base + "/review-queue"),
     messages = useData<Message[]>(base + "/messages"),
     suppressions = useData<{ id: string; email: string; reason: string }[]>(base + "/suppressions"),
-    senders = useData<{ id: string; email: string; status: string }[]>(base + "/senders"),
+    senders = useData<{ id: string; email: string; status: string; provider: string }[]>(base + "/senders"),
     contacts = useData<Contact[]>("/api/v1/contacts/"),
     jobs = useData<{ id: string; company_id: string; status: string }[]>("/api/v1/research/jobs"),
     delivery = useData<{ id: string; message_id: string; kind: string; created_at: string }[]>(
@@ -91,8 +93,8 @@ export function OutreachPage() {
         body: body === undefined ? null : JSON.stringify(body),
       });
       await cache.invalidateQueries({ queryKey: ["customer"] });
-      after?.(result);
       setMessage("Saved. No send is inferred from this action.");
+      after?.(result);
     } catch (e) {
       setMessage(friendlyError(e));
     } finally {
@@ -154,8 +156,9 @@ export function OutreachPage() {
                   {(scheduled.data ?? []).filter((s) => tab !== "Approval queue" || drafts.data?.some(d => d.scheduled_id === s.id && d.review?.status === "submitted")).map((s) => {
                     const enrollment = enrollments.data?.find((e) => e.id === s.enrollment_id);
                     const contact = contacts.data?.find((c) => c.id === enrollment?.contact_id);
+                    const sender = senders.data?.find((item) => item.id === enrollment?.sender_id);
                     const draft = drafts.data?.find((d) => d.scheduled_id === s.id);
-                    const sent = messages.data?.find((m) => m.scheduled_id === s.id);
+                    const sent = messages.data?.find((m) => m.scheduled_id === s.id && m.state !== "cancelled");
                     const blocked = contact?.email ? suppressed(contact.email) : false;
                     return (
                       <Panel key={s.id}>
@@ -228,6 +231,20 @@ export function OutreachPage() {
                               catch (error) { setMessage(friendlyError(error)); }
                               finally { setBusy(false); }
                             }}>Review separate delivery authorization</button>
+                          )}
+                          {sent && sender?.provider === "resend" && !sent.attempted_at && sent.state !== "sent" && canApprove && (
+                            <button
+                              className="g-button g-button-secondary"
+                              disabled={busy || blocked}
+                              onClick={() => void act(`/messages/${sent.id}/replacement`,
+                                { content_hash: sent.approved_hash }, (v) => {
+                                  setSelected(v as Draft);
+                                  setPlan(null);
+                                  setMessage("Old approval cancelled. Review the replacement, then approve its delivery separately.");
+                                })}
+                            >
+                              Replace after reconnect
+                            </button>
                           )}
                           {sent?.state === "failed" && canApprove && (
                             <button

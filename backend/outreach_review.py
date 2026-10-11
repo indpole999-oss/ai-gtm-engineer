@@ -35,7 +35,7 @@ async def record(db, draft, actor, action, reason=""):
 
 async def status(db, draft):
     event = await latest_event(db, draft.scheduled_id)
-    message = await db.scalar(select(Message).where(Message.scheduled_id == draft.scheduled_id))
+    message = await db.scalar(select(Message).where(Message.scheduled_id == draft.scheduled_id, Message.state != "cancelled"))
     state = "approved" if message else "draft"
     if event and not message:
         state = "draft" if event.action in {"created", "revised"} else event.action

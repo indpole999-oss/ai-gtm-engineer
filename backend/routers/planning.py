@@ -109,6 +109,8 @@ async def revise(plan_id: UUID, body: service.PlanDocument, db=Depends(get_works
 
 @router.post("/plans/{plan_id}/approve", status_code=201)
 async def approve(plan_id: UUID, body: ApprovalInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    from backend.outreach_service import lock_workspace
+    await lock_workspace(db)
     row = await db.scalar(select(PlanVersion).where(PlanVersion.id == plan_id).with_for_update())
     if row is None:
         raise HTTPException(404, "Plan not found")

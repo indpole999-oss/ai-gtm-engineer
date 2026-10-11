@@ -276,6 +276,34 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
             assert integrations[0]["status"] == "disconnected"
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Integrations overflows the viewport"
             assert not errors, errors
+            # Exercise the actual replacement button and persisted fresh-review state.
+            from test_live_integration_boundaries import boundaries
+            from test_message_replacement import prepared, rotate
+            wire = boundaries.__wrapped__(monkeypatch)
+            recovery_headers, recovery_data, connection, old_reviewed = prepared(client, fake_research, wire)
+            rotate(client, recovery_headers, connection)
+            recovery_context = browser.new_context(viewport={"width": viewport[0], "height": viewport[1]})
+            recovery_context.route("**/*", lambda route: route.continue_() if route.request.url.startswith((api_url, web_url)) else route.abort())
+            recovery_context.add_init_script(f"if (location.origin === '{web_url}') {{ localStorage.setItem('gtm.access_token', '{recovery_headers['Authorization'][7:]}'); localStorage.setItem('gaps_ai_workspace_id', '{recovery_headers['X-Workspace-ID']}'); }}")
+            recovery_page = recovery_context.new_page()
+            try:
+                recovery_page.goto(web_url + "/outreach")
+                with recovery_page.expect_response(lambda r: r.url.endswith("/replacement")) as response:
+                    recovery_page.get_by_role("button", name="Replace after reconnect", exact=True).click()
+                assert response.value.status == 201
+                fresh = response.value.json()
+                assert get_message(client, recovery_headers, old_reviewed)["state"] == "cancelled"
+                expect(recovery_page.get_by_text("Old approval cancelled. Review the replacement, then approve its delivery separately.", exact=True)).to_be_visible()
+                recovery_page.reload()
+                recovery_page.get_by_role("button", name="Review message", exact=True).click()
+                expect(recovery_page.get_by_role("button", name="Submit for approval", exact=True)).to_be_visible()
+                expect(recovery_page.get_by_role("button", name="Review separate delivery authorization", exact=True)).to_have_count(0)
+                assert client.get("/api/v1/outreach/drafts/" + fresh["id"] + "/review", headers=recovery_headers).json()["status"] == "draft"
+                assert not any(call[0] == "POST" for call in wire["calls"])
+                recovery_page.screenshot(path=str(tmp_path / "replacement.png"), full_page=True)
+                assert recovery_page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+            finally:
+                recovery_context.close()
     finally:
         frontend.terminate()
         frontend.wait(timeout=15)

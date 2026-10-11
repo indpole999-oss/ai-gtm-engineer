@@ -331,3 +331,13 @@ async def prospect_eligibility(contact_id: UUID, db=Depends(get_workspace_db)):
     return [{"id": str(job.id), "completed_at": job.completed_at}
         for job, report in rows if report.result.get("fit") == "potential_fit"
         and buyer_supported(report.result.get("buyers", []), contact)]
+
+
+class ReplacementInput(Input):
+    content_hash: str = Field(min_length=64, max_length=64)
+
+
+@router.post("/messages/{message_id}/replacement", status_code=201)
+async def replace_message(message_id: UUID, body: ReplacementInput, ctx=Depends(get_current_workspace), db=Depends(get_workspace_db)):
+    draft = await service.replace_after_reconnect(db, await scoped_record(db, Message, message_id), ctx, body.content_hash)
+    return response(draft)

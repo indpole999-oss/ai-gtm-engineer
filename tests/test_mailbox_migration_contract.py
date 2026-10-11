@@ -10,7 +10,8 @@ from test_workspace_migrations import migrate
 
 def test_release_head_order_noop_and_preserved_data(tmp_path):
     scripts = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert scripts.get_heads() == [EXPECTED_REVISION] == ["20261009_0015"]
+    assert scripts.get_heads() == [EXPECTED_REVISION] == ["20261011_0016"]
+    assert scripts.get_revision("20261011_0016").down_revision == "20261009_0015"
     assert scripts.get_revision("20261009_0015").down_revision == "20261008_0014"
     assert scripts.get_revision("20261008_0014").down_revision == "20260928_0013"
     path = tmp_path / "release-head.db"
@@ -25,6 +26,6 @@ def test_release_head_order_noop_and_preserved_data(tmp_path):
         assert db.execute("SELECT id,name FROM workspaces").fetchall() == [(wid, "Preserved")]
         assert db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='draft_review_events'").fetchone()
         assert db.execute("PRAGMA foreign_key_check").fetchall() == []
-    for revision in ("20261008_0014", "20261009_0015"):
+    for revision in ("20261008_0014", "20261009_0015", "20261011_0016"):
         with pytest.raises(RuntimeError, match="Preserve"):
             scripts.get_revision(revision).module.downgrade()

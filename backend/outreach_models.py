@@ -1,5 +1,5 @@
 """Workspace-owned outreach snapshots and provider delivery state."""
-from sqlalchemy import Column, Uuid, String, Text, Integer, DateTime, JSON, ForeignKey, UniqueConstraint, CheckConstraint, event, inspect
+from sqlalchemy import Column, Uuid, String, Text, Integer, DateTime, JSON, ForeignKey, UniqueConstraint, CheckConstraint, event, inspect, Index, text
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from backend.database import Base
@@ -95,7 +95,7 @@ class DraftReviewEvent(ScopedExecutionRow, Base):
 class Message(ScopedExecutionRow, Base):
     __tablename__ = "messages"
     draft_id = Column(Uuid, nullable=False, unique=True)
-    scheduled_id = Column(Uuid, nullable=False, unique=True)
+    scheduled_id = Column(Uuid, nullable=False)
     approved_by = Column(Uuid, ForeignKey("users.id"), nullable=False)
     approved_hash = Column(String(64), nullable=False)
     plan_id = Column(Uuid, nullable=False, unique=True)
@@ -104,7 +104,11 @@ class Message(ScopedExecutionRow, Base):
     attempted_at = Column(DateTime)
     accepted_at = Column(DateTime)
     error_code = Column(String(80))
-    __table_args__ = (UniqueConstraint("workspace_id", "id"), parent("draft_id", "message_drafts"), parent("scheduled_id", "scheduled_messages"), parent("plan_id", "plan_versions"), CheckConstraint("state != 'sent' OR (provider_message_id IS NOT NULL AND accepted_at IS NOT NULL)"))
+    __table_args__ = (UniqueConstraint("workspace_id", "id"), parent("draft_id", "message_drafts"), parent("scheduled_id", "scheduled_messages"), parent("plan_id", "plan_versions"), CheckConstraint("state != 'cancelled' OR (attempted_at IS NULL AND accepted_at IS NULL AND provider_message_id IS NULL)"), CheckConstraint("state != 'sent' OR (provider_message_id IS NOT NULL AND accepted_at IS NOT NULL)"))
+
+
+Index("uq_messages_active_scheduled", Message.scheduled_id, unique=True,
+      postgresql_where=text("state != 'cancelled'"), sqlite_where=text("state != 'cancelled'"))
 
 
 class DeliveryEvent(ScopedExecutionRow, Base):
@@ -136,7 +140,9 @@ def preserve_outreach(session, *_):
         if isinstance(row, Message):
             history = inspect(row).attrs.state.history
             previous = history.deleted[0] if history.deleted else row.state
-            if previous == "sent":
+            if previous in {"sent", "cancelled"}:
                 raise HTTPException(409, "Provider acceptance is immutable; append delivery events")
+            if row.state == "cancelled" and (row.attempted_at or row.accepted_at or row.provider_message_id):
+                raise HTTPException(409, "Attempted delivery requires reconciliation; cancellation is unsafe")
         if isinstance(row, Enrollment) and any(inspect(row).attrs[f].history.has_changes() for f in ("version_id", "contact_id", "sender_id", "research_job_id")):
             raise HTTPException(409, "Enrollment references are immutable")

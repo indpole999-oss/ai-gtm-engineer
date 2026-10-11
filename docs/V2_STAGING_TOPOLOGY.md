@@ -226,7 +226,7 @@ Supabase auth.uid(). Reference: [Supabase roles](https://supabase.com/docs/guide
    privately; verify TLS and identities. No migration command runs until this is done.
 3. With the migration role in a separate terminal, run `python -m alembic upgrade
    head`, `python -m alembic current`, and `python -m alembic upgrade head` again.
-   Expect 20260928_0013 and a no-op second upgrade. Grant reviewed runtime access.
+   Expect 20261011_0016 (after required 0015) and a no-op second upgrade. Grant reviewed runtime access.
 4. Start API only; require /api/v1/ready=200 and runtime role constraints before
    seeding. Through application registration/workspace APIs create two synthetic
    tenants and owner/admin/member/viewer cases; never import customer records.
@@ -310,3 +310,21 @@ Dashboard/Connect flow and local secret manager, never chat. The quoted Free
 project is sufficient for bounded synthetic database tests if a slot is available.
 No creation has occurred. Later Google/email/HubSpot connections remain separate
 one-time test-account gates described in V2_STAGING_VALIDATION.md.
+
+
+### Reconnect replacement release (20261011_0016)
+
+Require ordered migrations through 20261009_0015 to 20261011_0016 before this binary.
+0016 changes scheduled-message uniqueness to one non-cancelled approval per step,
+retains all old approvals/receipts, and adds terminal cancellation guards. Quiesce
+workers and provider gates before migration; use the separate migration owner.
+Review index/constraint lock duration against a protected isolated staging clone.
+Verify messages ENABLE/FORCE RLS, composite tenant foreign keys, immutable approval
+triggers, unique active-step index and existing runtime grants after migration.
+Do not downgrade 0016: multiple historical approvals cannot fit the old constraint.
+Old binaries query one message per scheduled step and are incompatible after any
+replacement. Keep workers/provider gates paused during rollback; use a forward
+compatible rollback binary filtering cancelled messages, never deploy an old
+worker against replacement history or restore over newer provider receipts.
+Actual snapshot/key recovery and this binary rollback rehearsal require a separate
+isolated target and secured key escrow; synthetic CI restore is not that proof.

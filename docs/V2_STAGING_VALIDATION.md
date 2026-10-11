@@ -176,9 +176,27 @@ provider_cost unavailable must never be displayed as zero.
 tests/test_postgres_restore.py uses only an explicit disposable POSTGRES_TEST_URL.
 It creates two randomly named databases, migrates the source to 0012, seeds two
 synthetic tenants plus a quarantined row, creates a custom-format pg_dump archive,
-restores it into the empty target, compares rows, upgrades to 0013 twice, and
+restores it into the empty target, compares rows, upgrades to 0016 twice, and
 checks preserved isolation under a separate non-bypass runtime role. Cleanup is
-limited to resources created by that invocation. CI supplies PostgreSQL 16 tools.
+limited to resources created by that invocation. CI supplies PostgreSQL 17 tools.
 The migration connection is privileged in this CI rehearsal; least-privilege
 migration-owner deployment, full evidence-chain recovery, encrypted backups,
 realistic volume/locking and actual staging recovery remain separate gates.
+
+
+### Reconnect replacement release (20261011_0016)
+
+Require ordered migrations through 20261009_0015 to 20261011_0016 before this binary.
+0016 changes scheduled-message uniqueness to one non-cancelled approval per step,
+retains all old approvals/receipts, and adds terminal cancellation guards. Quiesce
+workers and provider gates before migration; use the separate migration owner.
+Review index/constraint lock duration against a protected isolated staging clone.
+Verify messages ENABLE/FORCE RLS, composite tenant foreign keys, immutable approval
+triggers, unique active-step index and existing runtime grants after migration.
+Do not downgrade 0016: multiple historical approvals cannot fit the old constraint.
+Old binaries query one message per scheduled step and are incompatible after any
+replacement. Keep workers/provider gates paused during rollback; use a forward
+compatible rollback binary filtering cancelled messages, never deploy an old
+worker against replacement history or restore over newer provider receipts.
+Actual snapshot/key recovery and this binary rollback rehearsal require a separate
+isolated target and secured key escrow; synthetic CI restore is not that proof.
