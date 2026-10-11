@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { API_BASE_URL, AUTH_ENDPOINTS } from "./api-config";
-import { ApiError, apiFetch, getToken, setToken } from "./api";
+import { API_BASE_URL, AUTH_ENDPOINTS, TOKEN_STORAGE_KEY } from "./api-config";
+import { ApiError, apiFetch, getToken, setToken, setWorkspaceId } from "./api";
 
 export type AuthUser = Record<string, unknown> & { email?: string; username?: string; id?: string | number };
 
@@ -147,6 +147,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("gaps:session-expired", signOut);
     return () => window.removeEventListener("gaps:session-expired", signOut);
   }, [signOut]);
+
+  useEffect(() => {
+    const syncSession = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage || (event.key !== null && event.key !== TOKEN_STORAGE_KEY)) return;
+      // Another tab changed identity. Hide the previous profile and tenant cache
+      // before validating the new token; do not delete that tab's new token.
+      setWorkspaceId(null);
+      void cache.cancelQueries();
+      cache.clear();
+      setUser(null);
+      setProfileUnavailable(false);
+      setStatus("loading");
+      void loadProfile();
+    };
+    window.addEventListener("storage", syncSession);
+    return () => window.removeEventListener("storage", syncSession);
+  }, [cache, loadProfile]);
 
   const value = useMemo(
     () => ({ status, user, profileUnavailable, signIn, signUp, signOut, refresh: loadProfile }),

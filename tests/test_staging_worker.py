@@ -13,8 +13,9 @@ from backend import main
 async def test_embedded_worker_requires_explicit_opt_in(monkeypatch, environment, enabled, starts):
     monkeypatch.setattr(main.settings, "APP_ENV", environment)
     monkeypatch.setattr(main.settings, "EMBEDDED_EXECUTION_WORKER", enabled)
+    monkeypatch.setattr(main, "WORKER_DRAIN_SECONDS", 0.01)
     entered, cancelled = asyncio.Event(), asyncio.Event()
-    async def worker():
+    async def worker(stop_event):
         entered.set()
         try:
             await asyncio.Event().wait()
@@ -53,3 +54,33 @@ async def test_staging_worker_restarts_without_logging_raw_errors(monkeypatch, c
     delay.assert_awaited_once_with(5)
     assert "staging_worker_unavailable" in caplog.text
     assert "secret-provider-payload" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_lifespan_requests_and_awaits_cooperative_drain(monkeypatch):
+    monkeypatch.setattr(main.settings, "APP_ENV", "staging")
+    monkeypatch.setattr(main.settings, "EMBEDDED_EXECUTION_WORKER", True)
+    entered, finished = asyncio.Event(), asyncio.Event()
+    async def worker(stop):
+        entered.set()
+        await stop.wait()
+        await asyncio.sleep(0)
+        finished.set()
+    monkeypatch.setattr(main, "staging_execution_loop", worker)
+    async with main.lifespan(main.app):
+        await asyncio.wait_for(entered.wait(), 1)
+        assert not finished.is_set()
+    assert finished.is_set()
+
+
+@pytest.mark.asyncio
+async def test_supervisor_does_not_restart_after_stop(monkeypatch):
+    from backend import execution_worker
+    stop = asyncio.Event()
+    calls = []
+    async def worker(event):
+        calls.append(event)
+        event.set()
+    monkeypatch.setattr(execution_worker, "main", worker)
+    await asyncio.wait_for(main.staging_execution_loop(stop), 1)
+    assert calls == [stop]

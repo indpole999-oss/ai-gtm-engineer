@@ -175,6 +175,12 @@ test('workspace headers, authentication reset, cancellation and failures', async
     await assert.rejects(()=>api.apiFetch('/api/v1/outreach/messages'),e=>e.status===403);
     globalThis.fetch=async()=>{throw new Error('offline');};
     await assert.rejects(()=>api.apiFetch('/api/v1/companies/'),e=>e.status===0);
+    const cancelled = new AbortController();
+    cancelled.abort();
+    const abortError = new DOMException('Request cancelled', 'AbortError');
+    globalThis.fetch=async()=>{throw abortError;};
+    await assert.rejects(()=>api.apiFetch('/api/v1/companies/', {signal:cancelled.signal}), e=>e===abortError);
+    assert.deepEqual(events, []);
     api.setToken('expired-test-only'); api.setWorkspaceId('workspace-a');
     globalThis.fetch=async()=>new Response('{"detail":"Token expired"}',{status:401});
     await assert.rejects(()=>api.apiFetch('/api/v1/companies/'),e=>e.status===401);

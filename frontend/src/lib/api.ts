@@ -164,7 +164,10 @@ export async function apiFetch<T>(
       ...init,
       headers,
     });
-  } catch {
+  } catch (error) {
+    if (init.signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+      throw error;
+    }
     throw new ApiError(
       0,
       `Cannot reach the API at ${API_BASE_URL}. Check that the FastAPI server is running and CORS allows this origin.`,

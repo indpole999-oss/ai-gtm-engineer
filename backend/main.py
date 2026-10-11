@@ -44,20 +44,34 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 
-async def staging_execution_loop():
+WORKER_DRAIN_SECONDS = 10
+
+
+async def staging_execution_loop(stop_event=None):
     """Restart after transient failures; retain durable leases for reconciliation."""
     from backend.execution_worker import main as execution_worker_main
 
     while True:
+        if stop_event is not None and stop_event.is_set():
+            return
         try:
-            await execution_worker_main()
+            if stop_event is None:
+                await execution_worker_main()
+            else:
+                await execution_worker_main(stop_event)
         except asyncio.CancelledError:
             raise
         except Exception as error:
             logger.error("staging_worker_unavailable", extra={"error_type": type(error).__name__})
         else:
             logger.warning("staging_worker_exited")
-        await asyncio.sleep(5)
+        if stop_event is None:
+            await asyncio.sleep(5)
+        else:
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=5)
+            except TimeoutError:
+                pass
 
 
 @asynccontextmanager
@@ -71,10 +85,11 @@ async def lifespan(app: FastAPI):
     # Staging runs the durable execution loop in the same single-instance API
     # process so approved plans can execute without a separate paid worker.
     worker_task = None
+    worker_stop = asyncio.Event()
     from backend.staging_dependency_probe import probe_enabled, run as run_source_probe
     probe_task = asyncio.create_task(run_source_probe()) if probe_enabled() else None
     if settings.EMBEDDED_EXECUTION_WORKER and settings.APP_ENV.strip().lower() != "test":
-        worker_task = asyncio.create_task(staging_execution_loop(), name="execution-worker")
+        worker_task = asyncio.create_task(staging_execution_loop(worker_stop), name="execution-worker")
         logger.info("Staging execution worker started.")
     try:
         yield
@@ -86,11 +101,22 @@ async def lifespan(app: FastAPI):
             except asyncio.CancelledError:
                 pass
         if worker_task is not None:
-            worker_task.cancel()
+            worker_stop.set()
             try:
-                await worker_task
+                await asyncio.wait_for(asyncio.shield(worker_task), timeout=WORKER_DRAIN_SECONDS)
+            except TimeoutError:
+                logger.warning("staging_worker_drain_timeout")
+                worker_task.cancel()
+                try:
+                    await worker_task
+                except asyncio.CancelledError:
+                    pass
             except asyncio.CancelledError:
-                pass
+                worker_task.cancel()
+                try:
+                    await worker_task
+                except asyncio.CancelledError:
+                    pass
             logger.info("Staging execution worker stopped.")
         logger.info("Shutting down...")
 

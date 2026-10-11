@@ -304,6 +304,15 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
                 assert recovery_page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
             finally:
                 recovery_context.close()
+            # A real cross-tab storage event must remove cached authenticated UI.
+            other_tab = context.new_page()
+            other_tab.goto(web_url + "/")
+            other_tab.evaluate("localStorage.removeItem('gtm.access_token')")
+            expect(page).to_have_url(web_url + "/login")
+            assert page.evaluate("localStorage.getItem('gtm.access_token')") is None
+            expect(page.get_by_text("Check hubspot access", exact=True)).to_have_count(0)
+            other_tab.close()
+            assert not errors, errors
     finally:
         frontend.terminate()
         frontend.wait(timeout=15)
