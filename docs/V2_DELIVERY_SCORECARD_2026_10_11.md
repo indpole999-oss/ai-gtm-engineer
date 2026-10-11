@@ -60,6 +60,13 @@ Separate later authorization required: staging write/ingress freeze, stop and pr
 Reaching 85 requires at least 11 additional **passed** points, not approval alone. Protected recovery plus fallback can earn 6; latest-version hosted auth/mobile can earn 5 only after a separately approved safe coordinated release. The necessary coordinated-release gate itself remains independently blocking. Real provider research/send/inbound/CRM verification requires separately scoped authorization, supported configuration, synthetic workspace and human approval; no hosted-provider points are currently awarded.
 # Recovery namespace evidence update
 
+Latest critical-path follow-up: a real public GitHub Linux runner could not route
+to the IPv6-only recovery endpoint. The actual probe is BLOCKED, TLS unattempted,
+and the score remains 74/100. See
+[the controlled release evidence and pinned operations](V2_CONTROLLED_RELEASE_CRITICAL_PATH_2026_10_11.md).
+Conditional staging release approval is now recorded; protected material access
+still requires separate authorization and all recovery/shutdown gates still apply.
+
 The actual Linux recovery namespace firewall/TLS job passed 12 synthetic checks
 on `af6a42be5e4461a024c373eb3b760d7ed784c66b`; see
 [evidence and remaining approvals](V2_RECOVERY_HOST_ISOLATION_2026_10_11.md).

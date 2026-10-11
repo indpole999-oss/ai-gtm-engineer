@@ -1,5 +1,11 @@
 # Disposable recovery execution boundary
 
+Latest real-target capability attempt and conditional release authorization are
+recorded in [the critical-path evidence](V2_CONTROLLED_RELEASE_CRITICAL_PATH_2026_10_11.md).
+The no-cost public Linux runner has no IPv6 route to the real recovery project.
+The evidence contract now distinguishes target TLS from full database identity:
+`actual_target_verified` remains false until independent identity evidence exists.
+
 Readiness remains **74/100, NO-GO**. No protected archive, original key, restore,
 live database modification, provider execution or staging service change is authorized.
 

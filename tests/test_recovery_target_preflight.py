@@ -1,4 +1,3 @@
-import importlib.util
 import json
 from pathlib import Path
 import sys
@@ -44,3 +43,18 @@ def test_missing_ipv6_route_blocks_before_build_or_tls(tmp_path, monkeypatch):
     assert result['actual_recovery_verified'] is False
     assert len(calls) == 1 and calls[0][0] == 'ip'
     assert 'secret' not in json.dumps(result)
+
+
+def test_reachable_tls_is_not_host_custody_or_recovery(tmp_path, monkeypatch):
+    monkeypatch.setattr(preflight.platform, 'system', lambda: 'Linux')
+    monkeypatch.setattr(preflight.os, 'geteuid', lambda: 0, raising=False)
+    monkeypatch.setattr(preflight.shutil, 'which', lambda _: '/tool')
+    monkeypatch.setattr(preflight.host, 'addresses', lambda _: ['2606:4700::1111'])
+    monkeypatch.setattr(preflight.host, 'command', lambda args: '[{"dev":"eth0"}]' if args[0] == 'ip' else 'sha256:' + 'a' * 64)
+    monkeypatch.setattr(preflight.host, 'run', lambda *args: {'target_tls_verified': True})
+    result = preflight.assess(environment(tmp_path))
+    assert result['tls_probe_attempted'] is True
+    assert result['status'] == 'BLOCKED'
+    assert result['host_isolation_verified'] is False
+    assert result['actual_target_verified'] is False
+    assert result['actual_recovery_verified'] is False
