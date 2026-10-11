@@ -65,6 +65,13 @@ def test_populated_backup_restore_then_additive_upgrade(tmp_path):
                 assert cur.fetchall() == expected
         migrate(names[1], "head")
         migrate(names[1], "head")  # Repeated release operation must be a no-op.
+        rollback_env = dict(os.environ, APP_ENV="test", DATABASE_URL=service.set(
+            database=names[1], drivername="postgresql+asyncpg").render_as_string(hide_password=False))
+        rollback = subprocess.run([sys.executable, "-m", "alembic", "downgrade", "-1"],
+                                  env=rollback_env, capture_output=True, timeout=120)
+        assert rollback.returncode != 0
+        assert b"Preserve outreach review access history" in rollback.stderr
+        # A rejected destructive rollback must leave revision and data intact.
         with psycopg2.connect(service.set(database=names[1]).render_as_string(hide_password=False)) as restored:
             with restored.cursor() as cur:
                 cur.execute("SELECT version_num FROM alembic_version")

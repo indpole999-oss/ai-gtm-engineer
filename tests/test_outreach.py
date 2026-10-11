@@ -354,5 +354,6 @@ def test_pause_between_intent_commit_and_dispatch_is_rechecked(client, fake_rese
         await real_lock(db)
     monkeypatch.setattr(service, "lock_workspace", interleaved_lock)
     client.portal.call(worker.run_once, UUID(a["X-Workspace-ID"]))
-    assert calls == 2 and provider.calls == 0
+    # Completion may reacquire the lock after delivery is blocked.
+    assert calls >= 2 and provider.calls == 0
     assert get_message(client, a, reviewed)["state"] != "sent"

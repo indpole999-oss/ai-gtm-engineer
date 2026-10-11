@@ -28,7 +28,8 @@ def test_postgres_original_deadlock_and_workspace_first_regression():
                    MAILBOX_INGESTION_ENABLED="false", CRM_READS_ENABLED="false", GTM_HOSTED_AI_ENABLED="false")
         root = Path(__file__).resolve().parents[1]
         for arguments in (["-m", "alembic", "upgrade", "head"],
-                          [str(Path(__file__).with_name("postgres_mailbox_lock_probe.py"))]):
+                          [str(Path(__file__).with_name("postgres_mailbox_lock_probe.py"))],
+                          [str(Path(__file__).with_name("postgres_signed_mailbox_probe.py"))]):
             result = subprocess.run([sys.executable, *arguments], cwd=root, env=env,
                                     capture_output=True, text=True, timeout=120)
             assert result.returncode == 0, result.stdout + result.stderr

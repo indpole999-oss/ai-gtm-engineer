@@ -330,7 +330,9 @@ def test_unsubscribe_arriving_at_dispatch_commit_gap_blocks_send(client, fake_re
         await original(db)
     monkeypatch.setattr(outreach_service, "lock_workspace", interleaved)
     client.portal.call(worker.run_once, wid)
-    assert calls == 2 and provider.calls == 0
+    # Worker completion also takes the workspace lock. The safety assertion is
+    # that the commit-gap injection ran and no provider dispatch occurred.
+    assert calls >= 2 and provider.calls == 0
     assert get_message(client, a, reviewed)["state"] != "sent"
     assert client.get("/api/v1/outreach/suppressions", headers=a).json()[0]["reason"] == "unsubscribe"
 
