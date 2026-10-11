@@ -190,7 +190,10 @@ def run(image, ca, fixture_network=None, fixture_address=None):
         return {'status': 'PASS' if all(checks.values()) else 'FAIL', 'scope': 'synthetic_ci' if fixture else 'recovery_target_tls_only', 'checks': checks,
                 'policy_sha256': digest(initial), 'deny_probe_sha256': digest({'checks': checks, 'firewall': final}),
                 'image_id': image,
-                'actual_target_verified': not fixture and all(checks.values()), 'actual_recovery_verified': False}
+                'target_tls_verified': not fixture and checks['target_tls'],
+                'network_boundary_scope': 'container_namespace',
+                # TLS cannot attest SQL project contents, credentials or host custody.
+                'actual_target_verified': False, 'actual_recovery_verified': False}
     finally:
         cleanup_failed = False
         if interface and Path('/sys/class/net', interface).exists():
