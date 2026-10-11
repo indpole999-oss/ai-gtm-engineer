@@ -37,4 +37,3 @@ def test_missing_supported_host_fails_before_commands(monkeypatch):
 def test_missing_firewall_counter_is_not_evidence():
     with pytest.raises(ValueError):
         host.dropped({'nftables': []})
-

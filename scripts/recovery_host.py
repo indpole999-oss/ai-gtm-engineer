@@ -127,8 +127,25 @@ def run(image, ca, fixture_network=None, fixture_address=None):
         if not fixture:
             own_network = name + '-net'
             command(['docker', 'network', 'create', '--ipv6', '--subnet', 'fd73:' + uuid.uuid4().hex[:4] + '::/64', '--label', LABEL + '=true', own_network])
-        command(['docker', 'network', 'connect', fixture_network or own_network, name])
         network = json.loads(command(['docker', 'network', 'inspect', fixture_network or own_network]))[0]
+        if network['Driver'] != 'bridge':
+            raise ValueError('Dedicated bridge required')
+        # Docker forbids connecting a network-none container. Attach our own veth
+        # only after nft is installed; never relax isolation to work around this.
+        bridge = network.get('Options', {}).get('com.docker.network.bridge.name') or 'br-' + network['Id'][:12]
+        if not re.fullmatch(r'[a-zA-Z0-9_.-]{1,15}', bridge):
+            raise ValueError('Unsafe bridge identity')
+        interface = 'gr' + uuid.uuid4().hex[:10]
+        peer = 'gp' + uuid.uuid4().hex[:10]
+        command(['ip', 'link', 'add', interface, 'type', 'veth', 'peer', 'name', peer])
+        command(['ip', 'link', 'set', peer, 'netns', str(pid)])
+        command(['ip', 'link', 'set', interface, 'master', bridge])
+        command(['ip', 'link', 'set', interface, 'up'])
+        command(['nsenter', '-t', str(pid), '-n', 'ip', 'link', 'set', peer, 'up'])
+        for item in network['IPAM']['Config']:
+            subnet = ipaddress.ip_network(item['Subnet'])
+            address = subnet.network_address + subnet.num_addresses - 3
+            command(['nsenter', '-t', str(pid), '-n', 'ip', 'addr', 'add', f'{address}/{subnet.prefixlen}', 'dev', peer])
         gateways = [item.get('Gateway') for item in network['IPAM']['Config'] if item.get('Gateway')]
         # Routes are installed only inside the already-firewalled namespace.
         for gateway in gateways:
