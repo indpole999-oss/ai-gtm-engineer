@@ -132,7 +132,8 @@ def test_replacement_requires_owner_or_admin(client, fake_research, boundaries):
     async def downgrade_role():
         async with AsyncSessionLocal() as db:
             db.info.update(workspace_id=UUID(a["X-Workspace-ID"]), workspace_role="owner")
-            membership = await db.scalar(select(WorkspaceMembership))
+            membership = await db.scalar(select(WorkspaceMembership).where(
+                WorkspaceMembership.workspace_id == UUID(a["X-Workspace-ID"])))
             membership.role = "member"
             await db.commit()
     client.portal.call(downgrade_role)
