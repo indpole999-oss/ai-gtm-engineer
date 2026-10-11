@@ -246,15 +246,25 @@ async def run_once(workspace_id):
     return True
 
 
-async def main():
+async def main(stop_event=None):
+    """A supervisor may stop further sweeps while in-flight run_once finishes.
+
+    Cancellation still preserves durable leases. This is not a cross-version fence
+    and cannot stop historical binaries or direct API writes. A run_once already
+    entered may still acquire its claim; quiescence requires awaiting task exit.
+    """
     logger = logging.getLogger(__name__)
     boot_id, started, last_heartbeat, polls = str(uuid4()), time.monotonic(), None, 0
     logger.info("worker_started " + json.dumps({"boot_id": boot_id}))
     try:
         while True:
+            if stop_event is not None and stop_event.is_set():
+                break
             async with AsyncSessionLocal() as db:
                 workspaces = (await db.scalars(select(Workspace.id).where(Workspace.status == "active"))).all()
             for workspace_id in workspaces:
+                if stop_event is not None and stop_event.is_set():
+                    break
                 await run_once(workspace_id)
             polls += 1
             now = time.monotonic()
@@ -264,7 +274,13 @@ async def main():
                     "completed_polls": polls, "workspaces": len(workspaces),
                     "uptime_seconds": round(now - started, 2)}))
                 last_heartbeat = now
-            await asyncio.sleep(1)
+            if stop_event is None:
+                await asyncio.sleep(1)
+            else:
+                try:
+                    await asyncio.wait_for(stop_event.wait(), timeout=1)
+                except TimeoutError:
+                    pass
     finally:
         logger.info("worker_stopped " + json.dumps({"boot_id": boot_id, "completed_polls": polls}))
 
