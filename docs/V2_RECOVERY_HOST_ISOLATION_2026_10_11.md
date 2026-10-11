@@ -67,3 +67,26 @@ Remaining prerequisites for a restore rehearsal:
 
 Docker runtime references: https://docs.docker.com/engine/containers/run/ and
 https://docs.docker.com/engine/network/drivers/none/.
+
+## Executed evidence
+
+On code commit `af6a42be5e4461a024c373eb3b760d7ed784c66b`, the
+[Linux CI isolation job](https://github.com/indpole999-oss/ai-gtm-engineer/actions/runs/38138376870/job/114466883209)
+passed all 12 checks: target TLS, wrong hostname, untrusted CA, runtime restrictions,
+no executors, staging/production address substitutes, provider HTTPS, other target
+port, TCP DNS, UDP DNS and IPv6 denial. Negative address probes used reserved
+synthetic addresses, never live staging or production endpoints. Every negative
+network probe required an actual kernel drop-counter increase.
+
+Non-secret evidence fingerprints from this run:
+
+- Policy: `cff5595dfa764105825abeb92961b38a60d4263c22f94238bacb7ec10cd00bef`
+- Denial probes: `bdd04dddde3c4c90e17f738d920b3280ce0be3f78b89a1d6f6a785539583dd10`
+- Untrusted certificate control: `0d893353ca4ae1a22e0d9394c2d907073d9624954707eca68ae6758be3f89e05`
+- Executed image: `sha256:9bdfd8d43390bd76cdfbe745ff7768cebf67b1f229cbcb9eac3ed0c71bf588d5`
+
+The result explicitly records `scope=synthetic_ci`, `actual_target_verified=false`
+and `actual_recovery_verified=false`. Initial CI failures in Docker network-none
+attachment, missing internal IPv6 routes and process-inventory formatting were
+reproduced and corrected; no failed attempt counted as acceptance. Local pure
+regressions passed 81/81; local firewall execution remained BLOCKED.

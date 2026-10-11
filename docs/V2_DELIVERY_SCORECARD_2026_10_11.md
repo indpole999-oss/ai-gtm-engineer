@@ -58,3 +58,12 @@ Separate first authorization required: named custodian/backup/escrow material ac
 Separate later authorization required: staging write/ingress freeze, stop and prevent restart of every old executor, protected final backup, migration-owner upgrade 0015→0016, prepared function hardening, explicit API `/api/v1/ready` and Web `/` health configuration, pinned API/Web start and matching worker restart after quiescence. Expected effects include downtime, schema/function/config changes and service replacement. Rollback requires the tested compatible pinned fallback or repair forward; no destructive downgrade or restoration over newer receipts. Each restart-affecting Render config action requires explicit approval before execution.
 
 Reaching 85 requires at least 11 additional **passed** points, not approval alone. Protected recovery plus fallback can earn 6; latest-version hosted auth/mobile can earn 5 only after a separately approved safe coordinated release. The necessary coordinated-release gate itself remains independently blocking. Real provider research/send/inbound/CRM verification requires separately scoped authorization, supported configuration, synthetic workspace and human approval; no hosted-provider points are currently awarded.
+# Recovery namespace evidence update
+
+The actual Linux recovery namespace firewall/TLS job passed 12 synthetic checks
+on `af6a42be5e4461a024c373eb3b760d7ed784c66b`; see
+[evidence and remaining approvals](V2_RECOVERY_HOST_ISOLATION_2026_10_11.md).
+This strengthens isolated tooling evidence but awards no new hosted recovery or
+customer acceptance points. The weighted score remains **74/100; NO-GO**. Real
+target networking, independent host provisioning, protected backup/key custody,
+approved restore and hosted acceptance remain unverified or blocked.
