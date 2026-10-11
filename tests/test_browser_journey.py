@@ -304,6 +304,36 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
                 assert recovery_page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
             finally:
                 recovery_context.close()
+            # Persist exact full batches, then exercise real HTTP empty-page recovery.
+            from uuid import UUID
+            from backend.database import AsyncSessionLocal, Company
+            from backend.inbox_models import InboxThread
+            from backend.pipeline_service import ensure
+            pipeline_count = len(saved('/api/v1/outcomes/pipeline?limit=100'))
+            thread_count = len(saved('/api/v1/inbox/threads?limit=50'))
+            async def seed_pagination():
+                async with AsyncSessionLocal() as db:
+                    db.info.update(workspace_id=UUID(headers['X-Workspace-ID']), workspace_role='owner')
+                    for number in range(100 - pipeline_count):
+                        row = Company(name=f'Pagination fixture {number}')
+                        db.add(row)
+                        await db.flush()
+                        await ensure(db, row.id)
+                    for number in range(50 - thread_count):
+                        db.add(InboxThread(sender_id=UUID(sender['id']), thread_key=f'pagination-fixture-{number}'))
+                    await db.commit()
+            client.portal.call(seed_pagination)
+            assert len(saved('/api/v1/outcomes/pipeline?limit=100')) == 100
+            assert len(saved('/api/v1/inbox/threads?limit=50')) == 50
+            for path, empty_title, visible_title in [
+                ('/inbox', 'No more conversations on this page', 'Conversations'),
+                ('/pipeline', 'No more pipeline records on this page', 'Jane Buyer'),
+            ]:
+                go(path)
+                page.get_by_role('button', name='Next', exact=True).click()
+                expect(page.get_by_text(empty_title, exact=True)).to_be_visible()
+                page.get_by_role('button', name='Previous', exact=True).click()
+                expect(page.get_by_text(visible_title, exact=True).first).to_be_visible()
             # A real cross-tab storage event must remove cached authenticated UI.
             other_tab = context.new_page()
             other_tab.goto(web_url + "/")

@@ -102,9 +102,9 @@ export function PipelinePage() {
       ) : queries.some((q) => q.isError) ? (
         <ErrorState retry={() => queries.forEach((q) => void q.refetch())} />
       ) : !rows.data?.length ? (
-        <Empty title="Progress starts with a prospect">
-          Add an account in Prospects. Research, conversations and confirmed outcomes build its
-          evidence-backed history.
+        <Empty title={offset ? "No more pipeline records on this page" : "Progress starts with a prospect"}>
+          {offset ? "Return to the previous page to continue reviewing progress." : "Add an account in Prospects. Research, conversations and confirmed outcomes build its evidence-backed history."}
+          {offset > 0 && <button className="g-button mt-4" onClick={() => setOffset(Math.max(0, offset - 100))}>Previous</button>}
         </Empty>
       ) : (
         <>

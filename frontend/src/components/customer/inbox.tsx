@@ -113,9 +113,9 @@ export function InboxPage() {
       ) : threads.isError ? (
         <ErrorState error={threads.error} retry={() => void threads.refetch()} />
       ) : !threads.data?.length ? (
-        <Empty title="Ready for the first conversation">
-          Replies linked to your outreach will appear here. Suggested responses remain drafts until
-          separately reviewed.
+        <Empty title={offset ? "No more conversations on this page" : "Ready for the first conversation"}>
+          {offset ? "Return to the previous page to continue reviewing conversations." : "Replies linked to your outreach will appear here. Suggested responses remain drafts until separately reviewed."}
+          {offset > 0 && <button className="g-button mt-4" onClick={() => setOffset(Math.max(0, offset - 50))}>Previous</button>}
         </Empty>
       ) : (
         <div className="grid items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">

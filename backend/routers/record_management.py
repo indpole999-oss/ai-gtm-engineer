@@ -1,7 +1,8 @@
 """Safe local record operations, shared by the existing V1 resource routes."""
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from typing import Annotated
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from backend.database import Company, Contact, CRMRecord, EmailLog, Meeting
@@ -12,15 +13,15 @@ router = APIRouter()
 
 class CompanyPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    name: str | None = Field(None, min_length=1, max_length=255)
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)] | None = None
     description: str | None = None
 
 
 class ContactPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
     company_id: UUID | None = None
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)] | None = None
+    last_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)] | None = None
     title: str | None = None
 
 

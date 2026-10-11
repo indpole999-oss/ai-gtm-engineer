@@ -4,7 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, StringConstraints
+from typing import Annotated
 
 from backend.database import Contact
 from backend.routers.auth import get_current_user
@@ -19,8 +20,8 @@ router = APIRouter()
 
 class ContactCreate(BaseModel):
     company_id: str
-    first_name: str
-    last_name: str
+    first_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    last_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
     email: EmailStr
     title: str | None = None
     linkedin_url: str | None = None
@@ -45,6 +46,11 @@ async def create_contact(
             detail="Invalid company_id UUID"
         )
 
+    from backend.outreach_service import lock_workspace
+    from backend.pipeline_service import ensure, qualification_for_contact
+    await lock_workspace(db)
+    if await db.scalar(select(Contact.id).where(Contact.email == str(contact.email))):
+        raise HTTPException(409, "A contact with this email already exists in this workspace")
     new_contact = Contact(
         company_id=company_uuid,
         first_name=contact.first_name,
@@ -57,9 +63,6 @@ async def create_contact(
 
     db.add(new_contact)
 
-    from backend.outreach_service import lock_workspace
-    from backend.pipeline_service import ensure, qualification_for_contact
-    await lock_workspace(db)
     await db.flush()
     await ensure(db, new_contact.company_id, new_contact.id, current_user.id)
     await qualification_for_contact(db, new_contact)

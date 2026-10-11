@@ -2,7 +2,8 @@ from backend.tenancy import get_workspace_db as get_db
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
+from typing import Annotated
 from uuid import UUID
 
 from backend.database import Company
@@ -14,7 +15,7 @@ router = APIRouter()
 # ---------- SCHEMA ----------
 
 class CompanyCreate(BaseModel):
-    name: str
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
     domain: str | None = None
     industry: str | None = None
     employee_count: int | None = None
@@ -53,6 +54,12 @@ async def create_company(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    from backend.outreach_service import lock_workspace
+    from backend.pipeline_service import ensure
+    # Serialize before any insert/autoflush, matching the worker lock order.
+    await lock_workspace(db)
+    if company.domain and await db.scalar(select(Company.id).where(Company.domain == company.domain)):
+        raise HTTPException(409, "An account with this domain already exists in this workspace")
     new_company = Company(
         name=company.name,
         domain=company.domain,
@@ -66,9 +73,6 @@ async def create_company(
 
     db.add(new_company)
 
-    from backend.outreach_service import lock_workspace
-    from backend.pipeline_service import ensure
-    await lock_workspace(db)
     await db.flush()
     await ensure(db, new_company.id, None, current_user.id)
     await db.commit()

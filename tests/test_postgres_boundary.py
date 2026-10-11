@@ -103,6 +103,9 @@ def test_postgres_rls_and_composite_relationships():
             result = subprocess.run([sys.executable, "-c", probe, a, ca, va, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
             outreach_probe = Path(__file__).with_name("postgres_outreach_probe.py").read_text()
+            prospect_probe = Path(__file__).with_name("postgres_prospect_probe.py").read_text()
+            result = subprocess.run([sys.executable, "-c", prospect_probe, a, uid], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
+            assert result.returncode == 0, result.stdout + result.stderr
             result = subprocess.run([sys.executable, "-c", outreach_probe], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
             inbox_probe = Path(__file__).with_name("postgres_inbox_probe.py").read_text()
