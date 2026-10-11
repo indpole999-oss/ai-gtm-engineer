@@ -20,6 +20,19 @@ Baseline verified commit: `dee8e80ec59611ab362897537a6e9e42854cfb3e`, CI https:/
 
 Current local API persistence/tenant validation: 26 passed. Full-batch pagination fixtures are created exclusively in each disposable browser test database. Empty inbox threads are synthetic navigation records, not fabricated inbound provider events. Existing research/delivery fixtures remain explicitly synthetic.
 
+Follow-up baseline `0dd2e82df064bac2811f9f87e9aa0fc978620da9`, CI https://github.com/indpole999-oss/ai-gtm-engineer/actions/runs/38135884394: backend 459 passed/7 skipped; frontend 17 passed plus TypeScript/build/lint; desktop/mobile 2 passed; PG17 4 passed plus restore 1 passed, zero PostgreSQL skips; empty migration reaches 0016. Local browser had 1 navigation failure (`net::ERR_ABORTED`) and 1 pass; no local PASS is inferred for both. Current follow-up tightens manifest validation and adds filtered-Pipeline empty-state recovery. These strengthen already-awarded criteria and earn **zero new points**. Score remains 74/100.
+
+## Hardened non-secret manifest contract
+
+Existing manifests must be updated before metadata can pass. Only the named recovery project `tyvqriqbfjnimtzageoj` is accepted; generic non-production targets no longer pass. No command execution or material access follows validation.
+
+- `isolation` must have exactly `host_id`, `target_project`, `default_deny`, `provider_egress_denied`, `source_production_denied`, `credentials_target_only`, `tls_verified`, `policy_sha256`, `deny_probe_sha256`. Host ID is a non-secret alphanumeric/hyphen/underscore identifier. The project must match the pinned target, restriction flags must be JSON true, and evidence hashes must be 64 lowercase hex characters. Custodians must supply real policy/probe evidence privately; hashes/flags alone do not establish enforcement.
+- `executor_inventory` must contain each of `embedded_api`, `standalone_worker`, `api_writes`, `inbound_webhooks`, `schedulers`, `render_deploys`, `external_supervisors` exactly once. Each entry has only `kind`, `instance_count`, `running_count`, `inspected`, `restart_blocked`, `evidence_sha256`. Counts are nonnegative integers (not booleans), running count must be zero, inspection/restart-block flags must be true, and evidence hash is required. Zero instances means verified absence, not an omitted search. `write_ingress_frozen` must separately be true.
+- Fallback is restricted to the two independently CI-verified 0016-compatible candidates dee8e80 and 0dd2e82 (full SHAs in the script), distinct from the candidate. `fallback_revision` must be `20261011_0016`, and the existing rehearsal attestation is still mandatory. No actual staging backup/fallback rehearsal is claimed. New fallback additions require source review and verified compatibility evidence.
+- Duplicate JSON keys, including repeated approval flags, are rejected. Unknown nested fields and truthy strings cannot satisfy the checks. Output remains redacted, and `actual_recovery_verified` remains false even for a complete manifest.
+
+Read-only recovery-project identity/emptiness was rechecked in this follow-up and is unchanged. Network restrictions, protected material custody, executor absence/restart prevention and actual fallback remain BLOCKED. This tool validates completeness and safe selection; it neither installs an egress firewall nor supplies authorization.
+
 ## Current read-only infrastructure evidence
 
 - Recovery project `tyvqriqbfjnimtzageoj`: `gaps-ai-v2-isolated-recovery-test`, ACTIVE_HEALTHY, region ap-southeast-2. Metadata engine 17; SQL server version 17.11, zero public tables, no `public.alembic_version` and no app tables. Empty **public application schema** is verified; managed schemas were not inspected for contents. No restore authorization follows from emptiness.

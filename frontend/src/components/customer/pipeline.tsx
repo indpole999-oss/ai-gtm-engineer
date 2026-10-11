@@ -108,6 +108,12 @@ export function PipelinePage() {
         </Empty>
       ) : (
         <>
+          {!rows.data.some((p) => filter === "all" || p.stage === filter) && (
+            <Empty title="No records match this stage on this page">
+              <p>Choose another stage or browse another page. No records have been removed.</p>
+              <button className="g-button mt-4" onClick={() => setFilter("all")}>Clear stage filter</button>
+            </Empty>
+          )}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {rows.data
               .filter((p) => filter === "all" || p.stage === filter)
