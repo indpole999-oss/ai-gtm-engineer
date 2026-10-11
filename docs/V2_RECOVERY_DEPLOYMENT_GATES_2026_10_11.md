@@ -80,3 +80,10 @@ Precise next approval is **protected material access and isolated rehearsal only
 after providing the archive/escrow custodian and metadata locators, PG17 target and
 isolated host, approved identities/network policy, and pinned fallback. Until those
 are provided, no safe actual restore rehearsal can run. Release remains NO-GO.
+# Disposable host verification
+
+See [the executable isolation boundary and remaining approvals](V2_RECOVERY_HOST_ISOLATION_2026_10_11.md).
+The namespace firewall workflow must pass actual kernel-counter and TLS probes.
+Synthetic CI results do not verify the real Supabase target or protected recovery.
+Local enforcement is BLOCKED without Linux Docker/nft/nsenter. Readiness remains
+74/100 and release NO-GO pending hosted and protected recovery acceptance.
