@@ -127,6 +127,21 @@ disposable local service exists. Python compilation and whitespace checks passed
 The first sandbox readiness run stalled; the completed isolated local rerun above
 is the result used. No hosted connection was used by these tests.
 
+Independent CI for `f1e2399008ab6d3589de1568f039304427fd2a72`:
+[run 38120004749](https://github.com/indpole999-oss/ai-gtm-engineer/actions/runs/38120004749),
+PostgreSQL17 job `114412586651`: **3 passed in 35.35s**, zero skips, including the
+new permission proposal regression; synthetic restore **1 passed in 5.41s**, zero
+skips. Frontend contracts, TypeScript, build and targeted lint passed. These are
+isolated/fixture results, not applied staging changes or real staging key recovery.
+All four CI jobs completed successfully; browser journey **2 passed in 94.62s**
+(412 warnings); backend **413 passed, 6 skipped, 10881 warnings in 204.27s**,
+plus empty-database migration succeeded. Its PostgreSQL/browser skips are exercised
+by the separate successful jobs. Evidence-only follow-up changes this document;
+the tested scripts, SQL, tests and CI configuration remain at the exact SHA above.
+Read-only hosted health probes: web `/` **HTTP 200**; API `/api/v1/ready` request
+failed/timed out with a 25-second bound, so hosted readiness remains **BLOCKED**.
+No response body, credentials or environment values were emitted.
+
 Remaining gates: authenticated deployed environment/runtime TLS evidence; authorized
 staging grant and health corrections with postchecks; protected recovery materials/
 independent target; actual fallback and stop/restart rehearsal; separately approved
