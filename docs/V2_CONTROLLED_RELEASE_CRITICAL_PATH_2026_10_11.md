@@ -99,6 +99,7 @@ POST https://api.render.com/v1/services/srv-daul2r0u01pc73855lig/suspend
    bounded lock timeout proven in rehearsal. Prepared commands:
 
 ```sh
+set -euo pipefail
 python scripts/recovery_release_gate.py /approved/non-secret-release-evidence.json
 python -m alembic current
 python -m alembic upgrade 20261011_0016
