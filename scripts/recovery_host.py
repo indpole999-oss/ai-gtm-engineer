@@ -78,6 +78,8 @@ def dropped(snapshot):
 def runtime_secure(value):
     host, config = value['HostConfig'], value['Config']
     return (host['ReadonlyRootfs'] is True and host['Privileged'] is False
+            and not host.get('CapAdd') and not host.get('Devices') and not config.get('Healthcheck')
+            and all(item.split('=', 1)[0] in {'PATH', 'LANG', 'GPG_KEY', 'PYTHON_VERSION', 'PYTHON_SHA256', 'PYTHONDONTWRITEBYTECODE'} for item in config.get('Env', []))
             and host['CapDrop'] == ['ALL'] and host['RestartPolicy']['Name'] == 'no'
             and 'no-new-privileges' in host['SecurityOpt'] and not host.get('PortBindings')
             and config['User'] == '65534:65534'
@@ -165,8 +167,8 @@ def run(image, ca, fixture_network=None, fixture_address=None):
             command(['nsenter', '-t', str(pid), '-n', 'ip', family, 'route', 'replace', 'default', 'via', gateway])
         if not any(ipaddress.ip_address(gateway).version == 6 for gateway in gateways):
             raise ValueError('IPv6 enforcement probes require an IPv6 route')
-        def probe(address, port, hostname=HOST, tls=False):
-            value = {'address': address, 'port': port, 'hostname': hostname, 'tls': tls}
+        def probe(address, port, hostname=HOST, tls=False, udp=False):
+            value = {'address': address, 'port': port, 'hostname': hostname, 'tls': tls, 'udp': udp}
             return json.loads(command(['docker', 'exec', '-i', name, 'python', '/opt/recovery/probe.py'], json.dumps(value)))
         checks = {'runtime_restricted': True}
         checks['target_tls'] = all(probe(address, 5432, tls=True).get('tls_verified') is True for address in allowed)
@@ -178,12 +180,16 @@ def run(image, ca, fixture_network=None, fixture_address=None):
             before = dropped(firewall(pid))
             result = probe(address, port)
             checks[label] = result.get('connected') is False and dropped(firewall(pid)) > before
+        before = dropped(firewall(pid))
+        result = probe('1.1.1.1', 53, udp=True)
+        checks['dns_udp_denied'] = result.get('connected') is False and dropped(firewall(pid)) > before
         # Recheck enforced rules after Docker network attachment, and single idle process.
-        process_lines = command(['docker', 'top', name, '-eo', 'args']).splitlines()
+        process_lines = command(['docker', 'top', name, '-eo', 'pid,args']).splitlines()
         checks['no_executors'] = len(process_lines) == 2 and 'probe.py --idle' in process_lines[1]
         final = firewall(pid)
         return {'status': 'PASS' if all(checks.values()) else 'FAIL', 'scope': 'synthetic_ci' if fixture else 'recovery_target_tls_only', 'checks': checks,
                 'policy_sha256': digest(initial), 'deny_probe_sha256': digest({'checks': checks, 'firewall': final}),
+                'image_id': image,
                 'actual_target_verified': not fixture and all(checks.values()), 'actual_recovery_verified': False}
     finally:
         cleanup_failed = False

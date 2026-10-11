@@ -10,6 +10,13 @@ import sys
 def probe(config):
     address, port = config['address'], config['port']
     try:
+        if config.get('udp'):
+            family = socket.AF_INET6 if ':' in address else socket.AF_INET
+            with socket.socket(family, socket.SOCK_DGRAM) as sock:
+                sock.settimeout(2)
+                sock.sendto(b'isolated-negative-probe', (address, port))
+                sock.recvfrom(128)
+                return {'connected': True}
         with socket.create_connection((address, port), timeout=2) as sock:
             if not config.get('tls'):
                 return {'connected': True}

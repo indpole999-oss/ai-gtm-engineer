@@ -37,3 +37,21 @@ def test_missing_supported_host_fails_before_commands(monkeypatch):
 def test_missing_firewall_counter_is_not_evidence():
     with pytest.raises(ValueError):
         host.dropped({'nftables': []})
+
+
+def runtime():
+    return {'HostConfig': {'ReadonlyRootfs': True, 'Privileged': False, 'CapDrop': ['ALL'],
+                          'RestartPolicy': {'Name': 'no'}, 'SecurityOpt': ['no-new-privileges']},
+            'Config': {'User': '65534:65534', 'Entrypoint': ['python', '/opt/recovery/probe.py', '--idle']},
+            'Mounts': [{'Destination': '/opt/recovery/ca.crt', 'RW': False}]}
+
+
+def test_runtime_restrictions():
+    assert host.runtime_secure(runtime())
+    for section, key, value in [('Config', 'Healthcheck', {'Test': ['CMD', 'worker']}),
+                               ('Config', 'Env', ['DATABASE_URL=forbidden']),
+                               ('Config', 'Cmd', ['worker']), ('HostConfig', 'CapAdd', ['NET_ADMIN']),
+                               ('HostConfig', 'PortBindings', {'80': []}), ('HostConfig', 'Devices', ['device'])]:
+        item = runtime()
+        item[section][key] = value
+        assert not host.runtime_secure(item)
