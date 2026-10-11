@@ -60,7 +60,15 @@ async def compose(db, scheduled, actor):
     await unsuppressed(db, contact.email)
     existing = await review_service.latest_draft(db, scheduled.id)
     if existing:
-        return existing
+        if sender.provider != "resend":
+            return existing
+        from backend.outcome_service import binding
+        integration = await scoped_record(db, Integration, sender.integration_id)
+        if existing.envelope.get("sender_connection_binding") == await binding(db, integration):
+            return existing
+        if await db.scalar(select(Message.id).where(Message.scheduled_id == scheduled.id)):
+            raise HTTPException(409, "Approved delivery requires cancellation or reconciliation before recomposition")
+        # Explicit compose after reconnect creates a new immutable, unapproved draft.
     report = await db.scalar(select(AccountIntelligence).where(AccountIntelligence.job_id == job.id))
     claims = (await db.scalars(select(ResearchClaim).where(ResearchClaim.job_id == job.id, ResearchClaim.kind == "provider_assertion", ResearchClaim.evidence_id.is_not(None)).order_by(ResearchClaim.id))).all()
     approved_claims = (await db.scalars(select(BrainClaim).where(BrainClaim.version_id == brain.id, BrainClaim.disposition == "approved"))).all()
@@ -123,6 +131,11 @@ async def approve_message(db, draft, ctx, expected_hash, expected_revision=None,
     scheduled = await scoped_record(db, ScheduledMessage, draft.scheduled_id)
     *_, contact, sender, job, brain = await context(db, scheduled)
     await unsuppressed(db, contact.email)
+    if sender.provider == "resend":
+        from backend.outcome_service import binding
+        integration = await scoped_record(db, Integration, sender.integration_id)
+        if draft.envelope.get("sender_connection_binding") != await binding(db, integration):
+            raise HTTPException(409, "Sender connection changed; compose and review again")
     if draft.envelope["recipient"] != address(contact.email) or draft.envelope["sender"] != address(sender.email):
         raise HTTPException(409, "Recipient/sender changed; compose and review again")
     message_id = uuid4()

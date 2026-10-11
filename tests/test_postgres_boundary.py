@@ -1,5 +1,6 @@
 """Run only against an explicitly supplied disposable PostgreSQL CI service."""
 import os
+from postgres_safety import require_disposable_service, verify_major
 from pathlib import Path
 import subprocess
 import sys
@@ -13,9 +14,11 @@ from psycopg2 import sql
 @pytest.mark.skipif(not os.environ.get("POSTGRES_TEST_URL"), reason="Disposable PostgreSQL service not configured")
 def test_postgres_rls_and_composite_relationships():
     service = os.environ["POSTGRES_TEST_URL"]
+    require_disposable_service(service)
     database = "gaps_test_" + uuid4().hex
     role = "gaps_role_" + uuid4().hex
     admin = psycopg2.connect(service)
+    verify_major(admin)
     admin.autocommit = True
     try:
         with admin.cursor() as cursor:

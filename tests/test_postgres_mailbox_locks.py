@@ -1,5 +1,6 @@
 """Only an explicitly supplied disposable PostgreSQL service may run this test."""
 import os
+from postgres_safety import require_disposable_service, verify_major
 from pathlib import Path
 import subprocess
 import sys
@@ -14,8 +15,10 @@ from sqlalchemy.engine import make_url
 @pytest.mark.skipif(not os.environ.get("POSTGRES_TEST_URL"), reason="Disposable PostgreSQL service not configured")
 def test_postgres_original_deadlock_and_workspace_first_regression():
     service = os.environ["POSTGRES_TEST_URL"]
+    require_disposable_service(service)
     name = "gaps_lock_" + uuid4().hex
     admin = psycopg2.connect(service)
+    verify_major(admin)
     admin.autocommit = True
     created = False
     try:

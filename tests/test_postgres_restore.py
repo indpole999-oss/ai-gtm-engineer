@@ -1,5 +1,6 @@
 """Synthetic backup/restore rehearsal; only an explicit disposable CI service."""
 import os
+from postgres_safety import require_disposable_service, verify_major
 from pathlib import Path
 import subprocess
 import sys
@@ -13,10 +14,11 @@ from sqlalchemy.engine import make_url
 
 @pytest.mark.skipif(not os.environ.get("POSTGRES_TEST_URL"), reason="Disposable PostgreSQL service not configured")
 def test_populated_backup_restore_then_additive_upgrade(tmp_path):
-    service = make_url(os.environ["POSTGRES_TEST_URL"])
+    service = require_disposable_service(os.environ["POSTGRES_TEST_URL"])
     names = ["gaps_restore_" + uuid4().hex for _ in range(2)]
     runtime = "gaps_runtime_" + uuid4().hex
     admin = psycopg2.connect(service.render_as_string(hide_password=False))
+    verify_major(admin)
     admin.autocommit = True
     created = []
     role_created = False

@@ -33,7 +33,7 @@ def boundaries(monkeypatch):
     state = {"calls": [], "mode": "success", "recipient": "sender@example.com", "body": "Please unsubscribe me.", "sent": None, "reply_to": None}
     async def request(method, url, **kwargs):
         state["calls"].append((method, url, kwargs))
-        if state["mode"] in {"rate_limited", "reconnect_required", "provider_unavailable"}:
+        if state["mode"] in {"rate_limited", "reconnect_required", "provider_unavailable", "provider_timeout"}:
             raise providers.ProviderError(state["mode"])
         if url.endswith("/domains"):
             return {"data": [{"name": "example.com", "status": "verified"}]}
@@ -273,7 +273,7 @@ def test_resend_approval_receipts_pause_and_no_duplicate_dispatch(client, fake_r
     assert any(r["email"] == "jane@example.com" for r in client.get("/api/v1/outreach/suppressions", headers=a).json())
 
 
-@pytest.mark.parametrize("mode", ["provider_unavailable", "malformed", "rate_limited"])
+@pytest.mark.parametrize("mode", ["provider_unavailable", "provider_timeout", "malformed", "rate_limited"])
 def test_resend_uncertainty_and_bounded_retry(client, fake_research, boundaries, monkeypatch, mode):
     a, data, _ = prepare_resend(client, fake_research, boundaries)
     reviewed = approve_draft(client, a, data)
@@ -408,3 +408,32 @@ def test_send_auth_failure_persists_reconnect_and_safe_audit(client, fake_resear
     audit = client.get("/api/v1/integrations/" + integration["id"] + "/audit", headers=a)
     assert audit.json()[0]["action"] == "mail_dispatch_failed"
     assert "synthetic-token-only" not in audit.text and SECRET not in audit.text
+
+
+def test_reconnect_before_approval_requires_new_draft_and_review(client, fake_research, boundaries):
+    a, data, integration = prepare_resend(client, fake_research, boundaries)
+    old = data["draft"]
+    changed = client.put("/api/v1/integrations/" + integration["id"], headers=a,
+        json={"credentials": {"api_key": "rotated-synthetic-only", "webhook_secret": SECRET}})
+    assert changed.status_code == 200
+    submitted = post(client, a, "/drafts/" + old["id"] + "/submit",
+        {"content_hash": old["content_hash"], "expected_revision": 1})
+    stale_approval = client.post("/api/v1/outreach/drafts/" + old["id"] + "/approve", headers=a,
+        json={"content_hash": old["content_hash"], "reviewed": True, "expected_revision": submitted["revision"]})
+    assert stale_approval.status_code == 409
+    fresh = post(client, a, "/scheduled/" + old["scheduled_id"] + "/drafts", {})
+    assert fresh["id"] != old["id"]
+    assert fresh["content_hash"] != old["content_hash"]
+    repeated = post(client, a, "/scheduled/" + old["scheduled_id"] + "/drafts", {})
+    assert repeated["id"] == fresh["id"]
+    assert not any(method == "POST" for method, _, _ in boundaries["calls"])
+
+
+    state = client.get("/api/v1/outreach/drafts/" + fresh["id"] + "/review", headers=a).json()
+    assert state["status"] == "draft"
+    assert len(state["history"]) == 3
+    stale = client.post("/api/v1/outreach/drafts/" + old["id"] + "/submit", headers=a,
+        json={"content_hash": old["content_hash"], "expected_revision": 1})
+    assert stale.status_code == 409
+    data["draft"] = fresh
+    assert approve_draft(client, a, data)["message"]["draft_id"] == fresh["id"]

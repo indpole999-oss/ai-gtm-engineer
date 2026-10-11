@@ -6,10 +6,13 @@ from datetime import datetime
 from urllib.parse import quote, urlparse
 from uuid import UUID
 
+import asyncio
 import httpx
 
 from backend.planning_service import digest
 from backend.providers import ProviderError
+
+PROVIDER_DEADLINE_SECONDS = 20
 
 
 def event_fingerprint(event):
@@ -37,10 +40,11 @@ class GoogleCalendarTransport:
         if not self.token:
             raise ProviderError("reconnect_required")
         try:
-            async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
-                response = await client.request(method, self.base + suffix,
-                    headers={"Authorization": "Bearer " + self.token}, **kwargs)
-        except httpx.HTTPError:
+            async with asyncio.timeout(PROVIDER_DEADLINE_SECONDS):
+                async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
+                    response = await client.request(method, self.base + suffix,
+                        headers={"Authorization": "Bearer " + self.token}, **kwargs)
+        except (TimeoutError, httpx.HTTPError):
             raise ProviderError("provider_outcome_unknown") from None
         if response.status_code in (401, 403):
             raise ProviderError("reconnect_required")

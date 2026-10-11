@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from urllib.parse import urlparse
 from typing import Protocol
+import asyncio
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 from backend.config import settings
@@ -81,28 +82,34 @@ def validate_connection(category, provider, auth_type, credentials, config):
     return contract
 
 
+PROVIDER_DEADLINE_SECONDS = 20
+
+
 async def provider_request(method, url, **kwargs):
     try:
-        async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
-            async with client.stream(method, url, **kwargs) as response:
-                if response.status_code in (401, 403):
-                    raise ProviderError("reconnect_required")
-                if response.status_code == 429:
-                    raise ProviderError("rate_limited")
-                if response.status_code == 404:
-                    raise ProviderError("provider_record_not_found")
-                if not 200 <= response.status_code < 300:
-                    raise ProviderError()
-                raw = bytearray()
-                async for chunk in response.aiter_bytes():
-                    raw.extend(chunk)
-                    if len(raw) > 2097152:
-                        raise ProviderError("provider_response_too_large")
-        import json
-        result = json.loads(raw) if raw else {}
-        if not isinstance(result, dict):
-            raise ProviderError("invalid_provider_response")
-        return result
+        async with asyncio.timeout(PROVIDER_DEADLINE_SECONDS):
+            async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
+                async with client.stream(method, url, **kwargs) as response:
+                    if response.status_code in (401, 403):
+                        raise ProviderError("reconnect_required")
+                    if response.status_code == 429:
+                        raise ProviderError("rate_limited")
+                    if response.status_code == 404:
+                        raise ProviderError("provider_record_not_found")
+                    if not 200 <= response.status_code < 300:
+                        raise ProviderError()
+                    raw = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        raw.extend(chunk)
+                        if len(raw) > 2097152:
+                            raise ProviderError("provider_response_too_large")
+            import json
+            result = json.loads(raw) if raw else {}
+            if not isinstance(result, dict):
+                raise ProviderError("invalid_provider_response")
+            return result
+    except (TimeoutError, httpx.TimeoutException):
+        raise ProviderError("provider_timeout") from None
     except (httpx.HTTPError, ValueError):
         raise ProviderError() from None
 
