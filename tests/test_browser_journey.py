@@ -246,6 +246,31 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
             go("/inbox")
             page.get_by_role("button", name="Conversation 1", exact=False).click()
             expect(page.get_by_text("Let's schedule a meeting.", exact=True)).to_be_visible()
+            # A newer classification must invalidate old unsaved human consent.
+            page.get_by_text('Review classification', exact=True).click()
+            page.get_by_label('Reviewed category', exact=False).select_option('positive')
+            page.get_by_label('Evidence and reason for correction', exact=True).fill('Unsaved review of an older classification')
+            inbox_consent = page.get_by_label('I reviewed the reply. This adds a new classification version and does not remove suppression.')
+            inbox_consent.check()
+            current_reply = saved('/api/v1/inbox/messages/' + incoming['id'])
+            concurrent_review = client.post('/api/v1/inbox/messages/' + incoming['id'] + '/override', headers=headers,
+                json={'category': 'question', 'reason': 'Separate synthetic reviewer found a question',
+                      'expected_number': current_reply['classification']['number'], 'reviewed': True})
+            assert concurrent_review.status_code == 201
+            with page.expect_response(lambda r: '/inbox/threads/' in r.url and r.request.method == 'GET'):
+                page.get_by_role('button', name='Refresh inbox', exact=True).click()
+            expect(page.get_by_label('Reviewed category', exact=False)).to_have_value('question')
+            expect(inbox_consent).not_to_be_checked()
+            expect(page.get_by_label('Evidence and reason for correction', exact=True)).to_have_value('')
+            assert not inbox_consent.evaluate('(el) => el.form.checkValidity()')
+            page.get_by_label('Reviewed category', exact=False).select_option('meeting_intent')
+            page.get_by_label('Evidence and reason for correction', exact=True).fill('Fresh synthetic review of explicit meeting request')
+            inbox_consent.check()
+            with page.expect_response(lambda r: r.url.endswith('/override') and r.request.method == 'POST') as reviewed_reply:
+                page.get_by_role('button', name='Save reviewed classification', exact=True).click()
+            assert reviewed_reply.value.status == 201
+            expect(inbox_consent).not_to_be_checked()
+            assert len(saved('/api/v1/inbox/messages/' + incoming['id'])['classification_history']) == 3
             page.reload()
             page.get_by_role("button", name="Conversation 1", exact=False).click()
             expect(page.get_by_text("Let's schedule a meeting.", exact=True)).to_be_visible()
@@ -257,6 +282,33 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
             expect(page.get_by_text('Jane Buyer', exact=True).first).to_be_visible()
             rows = saved("/api/v1/outcomes/pipeline")
             assert any(r["contact_id"] == contact["id"] and r["stage"] == "interested" for r in rows)
+            contact_card = page.locator('section').filter(has=page.get_by_role('heading', name='Jane Buyer', exact=True))
+            contact_card.get_by_role('button', name='View stage history →', exact=True).click()
+            page.get_by_text('Record a reviewed business outcome', exact=True).click()
+            page.get_by_role('combobox', name='Outcome', exact=True).select_option('opportunity')
+            page.get_by_label('Business evidence and reason', exact=True).fill('Synthetic reviewed opportunity for regression coverage')
+            pipeline_consent = page.get_by_label('I reviewed this outcome. Previous history will remain visible; this does not establish revenue.')
+            pipeline_consent.check()
+            # An ordinary failed request must preserve the current review draft.
+            stage_url = api_url + '/api/v1/outcomes/pipeline/' + pipeline['id'] + '/stage'
+            page.route(stage_url, lambda route: route.fulfill(status=503, content_type='application/json', body='{"detail":"Synthetic temporary failure"}'))
+            with page.expect_response(lambda r: r.url == stage_url and r.request.method == 'POST') as failed_stage:
+                page.get_by_role('button', name='Record reviewed outcome', exact=True).click()
+            assert failed_stage.value.status == 503
+            expect(page.get_by_role('button', name='Record reviewed outcome', exact=True)).to_be_enabled()
+            expect(pipeline_consent).to_be_checked()
+            expect(page.get_by_label('Business evidence and reason', exact=True)).to_have_value('Synthetic reviewed opportunity for regression coverage')
+            assert saved('/api/v1/outcomes/pipeline/' + pipeline['id'])['stage'] == 'interested'
+            page.unroute(stage_url)
+            with page.expect_response(lambda r: r.url.endswith('/stage') and r.request.method == 'POST') as reviewed_stage:
+                page.get_by_role('button', name='Record reviewed outcome', exact=True).click()
+            assert reviewed_stage.value.status == 200
+            expect(pipeline_consent).not_to_be_checked()
+            expect(page.get_by_label('Business evidence and reason', exact=True)).to_have_value('')
+            assert not pipeline_consent.evaluate('(el) => el.form.checkValidity()')
+            persisted_stage = saved('/api/v1/outcomes/pipeline/' + pipeline['id'])
+            assert persisted_stage['stage'] == 'opportunity'
+            assert len([h for h in persisted_stage['history'] if h['reason'] == 'Synthetic reviewed opportunity for regression coverage']) == 1
             go("/insights")
             expect(page.get_by_text("1 sent · 1/1 replied", exact=False)).to_be_visible()
             page.reload()

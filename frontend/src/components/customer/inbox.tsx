@@ -239,6 +239,7 @@ export function InboxPage() {
                       <details className="mt-5">
                         <summary className="text-sm font-medium">Review classification</summary>
                         <form
+                          key={`${m.id}:${m.classification?.number ?? 0}`}
                           className="mt-4 space-y-4"
                           onSubmit={(e) => {
                             e.preventDefault();

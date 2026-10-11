@@ -204,6 +204,7 @@ export function PipelinePage() {
                     Record a reviewed business outcome
                   </summary>
                   <form
+                    key={`${detail.data.id}:${detail.data.revision}`}
                     className="mt-4 space-y-4"
                     onSubmit={(e) => {
                       e.preventDefault();
