@@ -112,6 +112,7 @@ def run(image, ca, fixture_network=None, fixture_address=None):
     validate_addresses(allowed, denied, fixture)
     name = 'gaps-recovery-' + uuid.uuid4().hex
     own_network = None
+    interface = None
     try:
         command(['docker', 'run', '-d', '--name', name, '--label', LABEL + '=true',
                  '--network', 'none', '--read-only', '--cap-drop', 'ALL',
@@ -145,11 +146,22 @@ def run(image, ca, fixture_network=None, fixture_address=None):
         for item in network['IPAM']['Config']:
             subnet = ipaddress.ip_network(item['Subnet'])
             address = subnet.network_address + subnet.num_addresses - 3
-            command(['nsenter', '-t', str(pid), '-n', 'ip', 'addr', 'add', f'{address}/{subnet.prefixlen}', 'dev', peer])
-        gateways = [item.get('Gateway') for item in network['IPAM']['Config'] if item.get('Gateway')]
+            command(['nsenter', '-t', str(pid), '-n', 'ip', 'addr', 'add', f'{address}/{subnet.prefixlen}', 'dev', peer]
+                    + (['nodad'] if subnet.version == 6 else []))
+        gateways = [item.get('Gateway') or (str(ipaddress.ip_network(item['Subnet']).network_address + 1) if fixture else None)
+                    for item in network['IPAM']['Config']]
+        gateways = [gateway for gateway in gateways if gateway]
         # Routes are installed only inside the already-firewalled namespace.
         for gateway in gateways:
             family = '-6' if ipaddress.ip_address(gateway).version == 6 else '-4'
+            if family == '-6':
+                # No broad ICMPv6 exception: pin the independently inspected
+                # dedicated bridge neighbor so only allowed TCP can leave.
+                mac = Path('/sys/class/net', bridge, 'address').read_text().strip()
+                if not re.fullmatch(r'(?:[0-9a-f]{2}:){5}[0-9a-f]{2}', mac):
+                    raise ValueError('Invalid dedicated bridge neighbor')
+                command(['nsenter', '-t', str(pid), '-n', 'ip', '-6', 'neigh', 'replace', gateway,
+                         'lladdr', mac, 'dev', peer, 'nud', 'permanent'])
             command(['nsenter', '-t', str(pid), '-n', 'ip', family, 'route', 'replace', 'default', 'via', gateway])
         if not any(ipaddress.ip_address(gateway).version == 6 for gateway in gateways):
             raise ValueError('IPv6 enforcement probes require an IPv6 route')
@@ -175,6 +187,11 @@ def run(image, ca, fixture_network=None, fixture_address=None):
                 'actual_target_verified': not fixture and all(checks.values()), 'actual_recovery_verified': False}
     finally:
         cleanup_failed = False
+        if interface and Path('/sys/class/net', interface).exists():
+            try:
+                command(['ip', 'link', 'delete', interface])
+            except RuntimeError:
+                cleanup_failed = True
         for cleanup in ([['docker', 'rm', '-f', name]] + ([['docker', 'network', 'rm', own_network]] if own_network else [])):
             try:
                 command(cleanup)

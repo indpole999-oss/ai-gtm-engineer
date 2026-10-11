@@ -31,7 +31,8 @@ def main():
             os.chown(path / 'server.key', 999, 999)
             os.chmod(path / 'server.key', 0o600)
             host.command(['docker', 'network', 'create', '--internal', '--ipv6', '--subnet', '172.29.0.0/24',
-                          '--subnet', 'fd73:ca17::/64', '--label', host.LABEL + '=true', network])
+                          '--gateway', '172.29.0.1', '--subnet', 'fd73:ca17::/64', '--gateway', 'fd73:ca17::1',
+                          '--label', host.LABEL + '=true', network])
             host.command(['docker', 'run', '-d', '--name', name, '--network', network,
                           '-e', 'POSTGRES_PASSWORD=synthetic-ci-only', '--mount', f'type=bind,src={path},dst=/tls,readonly',
                           'postgres:17', '-c', 'ssl=on', '-c', 'ssl_cert_file=/tls/ca.crt', '-c', 'ssl_key_file=/tls/server.key'])
@@ -49,6 +50,15 @@ def main():
             result = host.run(image, path / 'ca.crt', network, address)
             if not all(result['checks'].values()):
                 raise RuntimeError('Isolation assertions failed')
+            host.command(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
+                          '-keyout', str(path / 'untrusted.key'), '-out', str(path / 'untrusted.crt'),
+                          '-subj', '/CN=untrusted.invalid'])
+            untrusted = host.run(image, path / 'untrusted.crt', network, address)
+            result['checks']['untrusted_ca_rejected'] = untrusted['checks']['target_tls'] is False
+            result['certificate_negative_sha256'] = host.digest(untrusted)
+            if not result['checks']['untrusted_ca_rejected']:
+                result['status'] = 'FAIL'
+                raise RuntimeError('Untrusted CA was accepted')
     finally:
         for command in (['docker', 'rm', '-f', name], ['docker', 'network', 'rm', network]):
             try:
