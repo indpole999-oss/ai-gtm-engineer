@@ -2,6 +2,11 @@ import { API_BASE_URL, TOKEN_STORAGE_KEY } from "./api-config";
 
 const WORKSPACE_STORAGE_KEY = "gaps_ai_workspace_id";
 let workspaceId: string | null = null;
+let sessionRevision = 0;
+
+export function invalidateSessionRequests() {
+  sessionRevision++;
+}
 
 export function getWorkspaceId(): string | null {
   if (workspaceId) return workspaceId;
@@ -77,6 +82,7 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null) {
+  invalidateSessionRequests();
   // A new sign-in must not inherit another user's workspace.
   // Refreshes do not call setToken, so the current workspace remains restorable.
   setWorkspaceId(null);
@@ -133,6 +139,7 @@ export async function apiFetch<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
+  const requestSession = sessionRevision;
   const headers = new Headers(init.headers);
   const activeWorkspaceId = getWorkspaceId();
   if (
@@ -194,7 +201,7 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     // A late response from a previous session must not sign out a new user.
-    if (response.status === 401 && token && getToken() === token) {
+    if (response.status === 401 && token && getToken() === token && requestSession === sessionRevision) {
       setToken(null);
       if (typeof window !== "undefined") window.dispatchEvent(new Event("gaps:session-expired"));
     }

@@ -13,12 +13,12 @@ const Context = createContext<{
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const cache = useQueryClient();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const [selected, setSelected] = useState<Workspace | null>(null);
   const [restoreChecked, setRestoreChecked] = useState(false);
 
   const list = useQuery({
-    queryKey: ["workspaces"],
+    queryKey: ["workspaces", user?.id],
     queryFn: ({ signal }) => apiFetch<Workspace[]>("/api/v1/workspaces", { signal }),
     retry: false,
     refetchInterval: 30000,
@@ -126,7 +126,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   return (
     <Context.Provider value={{ workspace: current, workspaces: list.data || [], select }}>
-      <div key={`${current.id}:${current.role}`}>{children}</div>
+      <div key={`${user?.id}:${current.id}:${current.role}`}>{children}</div>
     </Context.Provider>
   );
 }

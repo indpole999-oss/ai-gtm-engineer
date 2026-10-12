@@ -57,7 +57,7 @@ jobs:
       - run: npm run build
       - name: Targeted correctness lint
         run: |
-          npx eslint src/routes/_authenticated/crm.tsx src/routes/_authenticated/settings.tsx src/routes/_authenticated/companies.tsx src/routes/_authenticated/dashboard.tsx src/components/company-brain.tsx src/components/account-research.tsx src/components/gtm-command-center.tsx src/components/customer src/components/app-shell.tsx src/lib/workspace.tsx src/lib/api.ts src/routes/login.tsx src/routes/__root.tsx src/routes/index.tsx --no-cache --rule 'prettier/prettier: off'
+          npx eslint src/routes/_authenticated/crm.tsx src/routes/_authenticated/settings.tsx src/routes/_authenticated/companies.tsx src/routes/_authenticated/dashboard.tsx src/routes/_authenticated/route.tsx src/components/company-brain.tsx src/components/account-research.tsx src/components/gtm-command-center.tsx src/components/customer src/components/app-shell.tsx src/lib/workspace.tsx src/lib/auth.tsx src/lib/auth-session.ts src/lib/api.ts src/routes/login.tsx src/routes/__root.tsx src/routes/index.tsx --no-cache --rule 'prettier/prettier: off'
 
   browser-journey:
     runs-on: ubuntu-latest

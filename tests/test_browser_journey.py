@@ -78,7 +78,7 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
     frontend = subprocess.Popen([shutil.which("node"), "node_modules/vite/bin/vite.js", "--host", "localhost", "--port", str(web_port), "--strictPort"], cwd=ROOT / "frontend", env=env, stdout=log, stderr=log)
     try:
         import httpx
-        deadline = time.monotonic() + 90
+        deadline = time.monotonic() + 180
         while True:
             assert frontend.poll() is None, (tmp_path / "frontend.log").read_text()
             try:
@@ -95,7 +95,7 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
             evidence["context"] = context
             # Fail if the browser tries an external network request.
             context.route("**/*", lambda route: route.continue_() if route.request.url.startswith((api_url, web_url)) else route.abort())
-            context.add_init_script(f"if (location.origin === '{web_url}') {{ localStorage.setItem('gtm.access_token', '{headers['Authorization'][7:]}'); localStorage.setItem('gaps_ai_workspace_id', '{headers['X-Workspace-ID']}'); }}")
+            context.add_init_script(f"if (location.origin === '{web_url}' && !localStorage.getItem('gaps.test.bootstrapped')) {{ localStorage.setItem('gaps.test.bootstrapped', '1'); localStorage.setItem('gtm.access_token', '{headers['Authorization'][7:]}'); localStorage.setItem('gaps_ai_workspace_id', '{headers['X-Workspace-ID']}'); }}")
             page = context.new_page()
             evidence["page"] = page
             page.set_default_timeout(20000)
@@ -118,6 +118,17 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
                 response = client.get(path, headers=headers)
                 assert response.status_code == 200, response.text
                 return response.json()
+            # A stored token alone must never authorize routed customer UI.
+            profile_url = api_url + '/api/v1/auth/me'
+            for status in [404, 405, 503]:
+                page.route(profile_url, lambda route: route.fulfill(status=status, content_type='application/json', body='{"detail":"Synthetic profile unavailable"}'))
+                page.goto(web_url + '/settings')
+                expect(page.get_by_role('heading', name='Account verification unavailable', exact=True)).to_be_visible()
+                expect(page.get_by_role('button', name='Open working draft', exact=True)).to_have_count(0)
+                expect(page.get_by_role('combobox', name='Current workspace', exact=True)).to_have_count(0)
+                page.unroute(profile_url)
+                page.get_by_role('button', name='Try again', exact=True).click()
+                expect(page.get_by_role('button', name='Open working draft', exact=True)).to_be_visible()
             go("/settings")
             page.get_by_role("button", name="Open working draft", exact=True).click()
             labels = {"company": "Company", "product_service": "Product or service", "value_proposition": "Value proposition", "icp": "Ideal customer", "buyer_personas": "Buyer personas", "gtm_objectives": "GTM objectives"}
@@ -390,6 +401,32 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
                 expect(page.get_by_text(empty_title, exact=True)).to_be_visible()
                 page.get_by_role('button', name='Previous', exact=True).click()
                 expect(page.get_by_text(visible_title, exact=True).first).to_be_visible()
+            # Switch real local accounts through the login form. Previous-user
+            # data must disappear and refresh must retain only the new workspace.
+            registration = client.post('/api/v1/auth/register', json={
+                'email':'second-browser@example.com', 'password':'test-password-only',
+                'full_name':'Second Synthetic Customer'})
+            assert registration.status_code == 200
+            second_headers = {'Authorization':'Bearer ' + registration.json()['access_token']}
+            second_workspace = client.get('/api/v1/workspaces', headers=second_headers).json()[0]
+            page.get_by_role('button', name='Sign out', exact=True).click()
+            expect(page).to_have_url(web_url + '/login')
+            assert page.evaluate("localStorage.getItem('gtm.access_token')") is None
+            assert page.evaluate("localStorage.getItem('gaps_ai_workspace_id')") is None
+            expect(page.get_by_text('Jane Buyer', exact=True)).to_have_count(0)
+            page.get_by_label('Email', exact=True).fill('second-browser@example.com')
+            page.get_by_label('Password', exact=True).fill('test-password-only')
+            with page.expect_response(lambda r: r.url.endswith('/auth/login') and r.request.method == 'POST') as login_response:
+                page.get_by_role('button', name='Sign in', exact=True).click()
+            assert login_response.value.status == 200
+            expect(page.get_by_role('heading', name='Welcome, Second Synthetic Customer', exact=True)).to_be_visible()
+            assert page.evaluate("localStorage.getItem('gaps_ai_workspace_id')") == second_workspace['id']
+            page.reload()
+            expect(page.get_by_role('heading', name='Welcome, Second Synthetic Customer', exact=True)).to_be_visible()
+            go('/prospects')
+            expect(page.get_by_text('Jane Buyer', exact=True)).to_have_count(0)
+            assert client.get('/api/v1/companies/', headers=second_headers).json() == []
+            assert client.get('/api/v1/companies/' + account['id'], headers=second_headers).status_code == 404
             # A real cross-tab storage event must remove cached authenticated UI.
             other_tab = context.new_page()
             other_tab.goto(web_url + "/")

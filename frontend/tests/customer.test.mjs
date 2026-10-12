@@ -5,10 +5,148 @@ import ts from 'typescript';
 
 async function load(path, transform = s => s) {
   const source = transform(await readFile(new URL(path, import.meta.url), 'utf8'));
-  const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } });
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022, jsx: ts.JsxEmit.React } });
   return import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
 }
 const { sendLabel, canApproveRole, percent, connectionLabel } = await load('../src/components/customer/contracts.ts');
+const { createAuthSession } = await load('../src/lib/auth-session.ts');
+
+function authHarness(profile = async () => ({id:'user-a',email:'a@example.com'})) {
+  const value = {token:'stored-token',workspace:'workspace-a',cache:['private-a'],state:null};
+  const session = createAuthSession({
+    getToken:()=>value.token,
+    setToken:token=>{value.token=token;value.workspace=null;},
+    clearWorkspace:()=>{value.workspace=null;},
+    clearCache:()=>{value.cache=[];},
+    profile:()=>profile(),
+    publish:state=>{value.state=state;},
+  });
+  return {value,session};
+}
+const deferred = () => { let resolve; const promise=new Promise(done=>{resolve=done;}); return {promise,resolve}; };
+
+test('profile verification failures never authorize customer routes and can recover', async () => {
+  for (const status of [0,404,405,500,503]) {
+    let unavailable=true;
+    const {value,session}=authHarness(async()=>{if(unavailable)throw {status};return {id:'user-a',email:'a@example.com'};});
+    await session.refresh();
+    assert.equal(value.state.status,'unavailable');
+    assert.equal(value.state.user,null);
+    assert.deepEqual(value.cache,[]);
+    assert.equal(value.token,'stored-token');
+    unavailable=false;
+    await session.refresh();
+    assert.equal(value.state.status,'authenticated');
+    assert.equal(value.state.user.id,'user-a');
+  }
+  for (const payload of [null,{},[],{id:'user-a'},{email:'a@example.com'}]) {
+    const {value,session}=authHarness(async()=>payload);
+    await session.refresh();
+    assert.equal(value.state.status,'unavailable');
+  }
+});
+
+test('logout clears identity, workspace and cache and fences delayed login', async () => {
+  const pending=deferred();
+  const {value,session}=authHarness();
+  await session.refresh();
+  const login=session.authenticate(()=>pending.promise);
+  const rejected=assert.rejects(login,e=>e.name==='AbortError');
+  session.signOut();
+  pending.resolve('late-login-token');
+  await rejected;
+  assert.equal(value.token,null);
+  assert.equal(value.workspace,null);
+  assert.equal(value.state.status,'anonymous');
+  assert.equal(value.state.user,null);
+  assert.deepEqual(value.cache,[]);
+});
+
+test('latest concurrent sign-in wins and prior-user state is hidden immediately', async () => {
+  const old=deferred();
+  const {value,session}=authHarness(async()=>({id:'user-b',email:'b@example.com'}));
+  const first=session.authenticate(()=>old.promise);
+  const rejected=assert.rejects(first,e=>e.name==='AbortError');
+  assert.equal(value.state.status,'loading');
+  assert.equal(value.workspace,null);
+  assert.deepEqual(value.cache,[]);
+  await session.authenticate(async()=> 'new-user-token');
+  old.resolve('old-user-token');
+  await rejected;
+  assert.equal(value.token,'new-user-token');
+  assert.equal(value.state.user.id,'user-b');
+});
+
+test('profile responses cannot resurrect a logged-out session even when a token is reused', async () => {
+  const old=deferred();let reads=0;
+  const {value,session}=authHarness(()=>++reads===1?old.promise:Promise.resolve({id:'user-b',email:'b@example.com'}));
+  const first=session.refresh();
+  session.signOut();
+  await session.authenticate(async()=> 'stored-token');
+  old.resolve({id:'user-a',email:'a@example.com'});
+  await first;
+  assert.equal(value.state.user.id,'user-b');
+});
+
+test('cross-tab identity changes clear tenant state before verification and reject stale profiles', async () => {
+  const old=deferred();const fresh=deferred();let reads=0;
+  const {value,session}=authHarness(()=>++reads===1?old.promise:fresh.promise);
+  const first=session.refresh();
+  value.token='other-tab-token'; value.cache=['old-workspace'];
+  const synced=session.syncSession();
+  assert.equal(value.workspace,null);
+  assert.equal(value.state.user,null);
+  assert.equal(value.state.status,'loading');
+  assert.deepEqual(value.cache,[]);
+  fresh.resolve({id:'user-b',email:'b@example.com'});await synced;
+  old.resolve({id:'user-a',email:'a@example.com'});await first;
+  assert.equal(value.token,'other-tab-token');
+  assert.equal(value.state.user.id,'user-b');
+  value.token=null;await session.syncSession();
+  assert.equal(value.state.status,'anonymous');
+});
+
+test('invalid or expired identity clears the token and cache', async () => {
+  for (const status of [401,403]) {
+    const {value,session}=authHarness(async()=>{throw {status};});
+    await session.refresh();
+    assert.equal(value.state.status,'anonymous');
+    assert.equal(value.token,null);
+    assert.equal(value.workspace,null);
+    assert.deepEqual(value.cache,[]);
+  }
+});
+
+test('real auth provider fences a stale profile 401 after a newer verified refresh', async () => {
+  const originalFetch=globalThis.fetch, originalWindow=globalThis.window;
+  const originalHooks=globalThis.__authTestHooks, originalApi=globalThis.__authTestApi, originalSession=globalThis.__authTestSession;
+  const storage=new Map(), replies=[], states=[];let index=0, auth;
+  try {
+    globalThis.window={localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},dispatchEvent:()=>auth.signOut()};
+    globalThis.fetch=()=>new Promise(resolve=>replies.push(resolve));
+    const api=await load('../src/lib/api.ts',s=>s.replace('import { API_BASE_URL, TOKEN_STORAGE_KEY } from "./api-config";', 'const API_BASE_URL="http://test.invalid"; const TOKEN_STORAGE_KEY="provider-test-token";'));
+    globalThis.__authTestApi=api;
+    globalThis.__authTestSession={createAuthSession};
+    globalThis.__authTestHooks={createContext:()=>({Provider:null}),useContext:()=>null,useCallback:f=>f,useEffect:()=>{},useMemo:f=>f(),useState:v=>{const i=index++;states[i]=v;return[v,x=>{states[i]=x;}];},useQueryClient:()=>({cancelQueries:async()=>{},clear:()=>{}})};
+    const provider=await load('../src/lib/auth.tsx',s=>s
+      .replace(/import .* from "react";/,'const {createContext,useCallback,useContext,useEffect,useMemo,useState}=globalThis.__authTestHooks; const React={createElement:(_type,props)=>props.value};')
+      .replace(/import .* from "@tanstack\/react-query";/,'const {useQueryClient}=globalThis.__authTestHooks;')
+      .replace(/import .* from "\.\/api-config";/,'const API_BASE_URL="http://test.invalid"; const AUTH_ENDPOINTS={token:"/login",me:"/api/v1/auth/me"}; const TOKEN_STORAGE_KEY="provider-test-token";')
+      .replace(/import .* from "\.\/api";/,'const {ApiError,apiFetch,getToken,setToken,setWorkspaceId,invalidateSessionRequests}=globalThis.__authTestApi;')
+      .replace(/import .* from "\.\/auth-session";/,'const {createAuthSession}=globalThis.__authTestSession;'));
+    auth=provider.AuthProvider({children:null});
+    api.setToken('synthetic-current-token');
+    const old=auth.refresh(), current=auth.refresh();
+    replies[1](new Response(JSON.stringify({id:'synthetic-user',email:'synthetic@example.com'}),{status:200}));await current;
+    replies[0](new Response('{}',{status:401}));await old;
+    assert.equal(api.getToken(),'synthetic-current-token');
+    assert.equal(states[0].status,'authenticated');
+    assert.equal(states[0].user.id,'synthetic-user');
+  } finally {
+    globalThis.fetch=originalFetch;globalThis.window=originalWindow;
+    globalThis.__authTestHooks=originalHooks;globalThis.__authTestApi=originalApi;globalThis.__authTestSession=originalSession;
+  }
+});
 const {
   readExecutionSelection,
   executionSearch,
@@ -195,6 +333,15 @@ test('workspace headers, authentication reset, cancellation and failures', async
     reply(new Response('{}',{status:401}));
     await assert.rejects(()=>stale,e=>e.status===401);
     assert.equal(api.getToken(),'new-test-session');
+    assert.equal(events.length,1);
+    // JWTs can be identical when the same user signs in within one second.
+    api.setToken('same-token');
+    const reused=api.apiFetch('/api/v1/companies/');
+    api.setToken(null);
+    api.setToken('same-token');
+    reply(new Response('{}',{status:401}));
+    await assert.rejects(()=>reused,e=>e.status===401);
+    assert.equal(api.getToken(),'same-token');
     assert.equal(events.length,1);
   } finally {globalThis.fetch=originalFetch;globalThis.window=originalWindow;}
 });
