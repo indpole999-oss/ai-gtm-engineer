@@ -129,6 +129,7 @@ class LocalResearchProvider:
                 json={
                     "model": model,
                     "stream": False,
+                    "think": False,
                     "format": output_type.model_json_schema(),
                     "options": {"temperature": 0},
                     "messages": [

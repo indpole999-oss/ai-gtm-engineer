@@ -97,7 +97,7 @@ class LocalPlanner:
         url = os.environ.get("GTM_LOCAL_MODEL_URL", "http://127.0.0.1:11434").rstrip("/")
         model = os.environ.get("GTM_LOCAL_MODEL", "qwen3:4b")
         async with httpx.AsyncClient(timeout=90, follow_redirects=False) as client:
-            response = await client.post(url + "/api/chat", json={"model": model, "stream": False,
+            response = await client.post(url + "/api/chat", json={"model": model, "stream": False, "think": False,
                 "format": PlanDocument.model_json_schema(), "options": {"temperature": 0},
                 "messages": [{"role": "system", "content": PLANNING_SYSTEM_PROMPT}, {"role": "user", "content": json.dumps(context)}]})
             response.raise_for_status()
