@@ -39,6 +39,7 @@ function TokenConnection({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState<Integration | null>(null);
+  const [expanded, setExpanded] = useState(false);
   async function save() {
     setBusy(true);
     setMessage("");
@@ -65,6 +66,7 @@ function TokenConnection({
       setSecret("");
       setConfig("");
       setEditing(null);
+      setExpanded(false);
       await refreshed();
       setMessage("Credentials saved securely. Use Check access to verify the provider; no external action was performed.");
     } catch (error) {
@@ -92,14 +94,23 @@ function TokenConnection({
   }
   return (
     <section className="g-panel space-y-3" aria-label={`${provider.provider} connection`}>
-      <h2 className="text-xl font-semibold capitalize">
-        {provider.provider === "configured" ? "Supported research provider" : provider.provider}
-      </h2>
-      <p className="text-sm">{provider.reason}</p>
-      <p className="text-sm">
-        Reads: {provider.read_available ? "Available with verified access" : "Paused"} · Writes:{" "}
-        {provider.write_available ? "Reviewed approval required" : "Unavailable"}
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold capitalize">
+            {provider.provider === "configured" ? "Supported research provider" : provider.provider}
+          </h3>
+          <p className="text-xs text-muted-foreground">{connections.length ? "Saved connection" : "Not connected"}</p>
+        </div>
+        {!connections.length && canApprove && (
+          <button type="button" className="g-button g-button-secondary" aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}>
+            {expanded ? "Close" : "Configure"}
+          </button>
+        )}
+      </div>
+      {(expanded || connections.length > 0) && (
+        <p className="text-xs text-muted-foreground">{provider.reason}</p>
+      )}
       <Feedback message={message} />
       {connections.map((row) => (
         <article key={row.id} className="space-y-2">
@@ -137,7 +148,7 @@ function TokenConnection({
           )}
         </article>
       ))}
-      {(!connections.length || editing !== null) && canApprove && (
+      {((!connections.length && expanded) || editing !== null) && canApprove && (
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -466,9 +477,12 @@ export function IntegrationsPage() {
       />
       <Feedback message={message} />
       {catalog.map((group) => (
-        <section key={group.category} className="space-y-3" aria-label={`${group.title} integrations`}>
-          <h2 className="text-xl font-semibold">{group.title}</h2>
-          <div className="grid gap-3 md:grid-cols-2">
+        <section key={group.category} className="space-y-4 py-5 border-b border-white/10 last:border-b-0" aria-label={`${group.title} integrations`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">{group.title}</h2>
+            <p className="text-xs text-muted-foreground">{rows.filter((row) => row.category === group.category).length} saved · {group.options.length} options</p>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {group.options.map(([key, label], index) => {
               const provider = tokenProviders.find((p) => p.category === group.category && p.provider === key);
               if (provider) return (
