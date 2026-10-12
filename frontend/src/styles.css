@@ -229,15 +229,15 @@
     position: relative;
     display: inline-flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     gap: .55rem;
-    min-height: 2.875rem;
+    min-height: 2.75rem;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.085);
-    border-radius: .8125rem;
-    background: rgba(18, 18, 18, 0.84);
-    color: #f5f7f5;
-    padding: .72rem 3.35rem .72rem 1rem;
+    border: 1px solid rgba(105, 201, 61, 0.65);
+    border-radius: .72rem;
+    background: #69c93d;
+    color: #071007;
+    padding: .68rem 1.05rem;
     font-size: .82rem;
     font-weight: 650;
     letter-spacing: -.008em;
@@ -250,31 +250,18 @@
       box-shadow 180ms ease;
   }
 
-  .g-button::after {
-    /* Decorative arrow must not change the button's accessible name. */
-    content: "→" / "";
-    position: absolute;
-    top: .42rem;
-    right: .42rem;
-    bottom: .42rem;
-    width: 2.05rem;
-    display: grid;
-    place-items: center;
-    border-radius: .58rem;
-    background: #69c93d;
-    color: #050505;
-    font-size: .95rem;
-    font-weight: 800;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  }
+  .g-button::after { display: none; }
 
   .g-button:hover {
     transform: translateY(-1px);
-    border-color: rgba(105, 201, 61, 0.24);
-    background: rgba(22, 22, 22, 0.92);
-    box-shadow:
-      0 14px 34px rgba(0, 0, 0, 0.48),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border-color: #a5ed7e;
+    background: #87da5e;
+    box-shadow: 0 8px 22px rgba(105, 201, 61, 0.16);
+  }
+
+  .g-button:focus-visible, .g-nav:focus-visible {
+    outline: 2px solid #9bea75;
+    outline-offset: 3px;
   }
 
   .g-button:active { transform: translateY(0) scale(.994); }

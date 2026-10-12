@@ -60,7 +60,7 @@ export function Panel({
 }
 
 export function Status({ value }: { value?: string | null | undefined }) {
-  const label = value || "unknown";
+  const label = value || "Not available";
   const normalized = label.toLowerCase();
   const tone = [
     "sent",
