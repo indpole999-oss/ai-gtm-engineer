@@ -181,10 +181,12 @@ export async function apiFetch<T>(
   const responseText = await response.text();
 
   let payload: unknown = undefined;
+  let validJson = false;
 
   if (responseText) {
     try {
       payload = JSON.parse(responseText);
+      validJson = true;
     } catch {
       payload = responseText;
     }
@@ -216,6 +218,15 @@ export async function apiFetch<T>(
       response.status,
       describeDetail(detail, fallback),
       detail,
+    );
+  }
+
+  if (!validJson) {
+    // A proxy page or truncated response cannot confirm a save. Do not retry
+    // writes here: the server may already have committed the operation.
+    throw new ApiError(
+      response.status,
+      "Could not confirm the server response. Refresh to check whether your changes were saved before trying again.",
     );
   }
 

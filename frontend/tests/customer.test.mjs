@@ -200,6 +200,32 @@ test('workspace headers, authentication reset, cancellation and failures', async
 });
 
 
+test('malformed successful API responses cannot confirm customer saves', async () => {
+  const api = await load('../src/lib/api.ts', s => s.replace('import { API_BASE_URL, TOKEN_STORAGE_KEY } from "./api-config";', 'const API_BASE_URL="http://test.invalid"; const TOKEN_STORAGE_KEY="test-token";'));
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  try {
+    for (const status of [200, 201]) {
+      for (const body of ['<html>proxy page: private-diagnostic</html>', '{"saved":', '', '   ']) {
+        globalThis.fetch = async () => { requests++; return new Response(body, {status}); };
+        const before = requests;
+        await assert.rejects(() => api.apiFetch('/api/v1/outcomes/pipeline/test/stage', {
+          method: 'POST', body: JSON.stringify({reviewed:true}),
+        }), error => error instanceof api.ApiError && error.status === status
+          && /Refresh to check whether your changes were saved/.test(error.message)
+          && !error.message.includes('private-diagnostic') && error.detail === undefined);
+        assert.equal(requests, before + 1); // Never retry an uncertain write automatically.
+      }
+    }
+    globalThis.fetch = async () => new Response('{"revision":2}', {status:201});
+    assert.deepEqual(await api.apiFetch('/api/v1/example'), {revision:2});
+    globalThis.fetch = async () => new Response('null', {status:200});
+    assert.equal(await api.apiFetch('/api/v1/example'), null);
+    globalThis.fetch = async () => new Response(null, {status:204});
+    assert.equal(await api.apiFetch('/api/v1/example'), undefined);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('readiness diagnostics show paused Groq fields without exposing extra response data', async () => {
   const { readinessDetails } = await load('../src/components/customer/research-provider.ts',
     s => s.replace('import { useData } from "./ui";', 'const useData = () => { throw new Error("hook is not used by this test"); };'));
