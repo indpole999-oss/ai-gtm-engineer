@@ -62,8 +62,9 @@ def capabilities(category, provider):
                 "read_available": False, "write_available": False,
                 "reason": "Encrypted custom credentials can be saved. Provider verification and actions require an approved adapter."}
     google = (category, provider) == ("calendar", "google")
-    return {"connect_available": google and bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and settings.GOOGLE_REDIRECT_URI and encrypted),
-            "execution_available": google, "read_available": google, "write_available": google,
+    google_configured = google and bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and settings.GOOGLE_REDIRECT_URI and encrypted)
+    return {"connect_available": google_configured,
+            "execution_available": google_configured, "read_available": google_configured, "write_available": google_configured,
             "reason": "Dedicated OAuth and reviewed event approval required" if google else "Supported provider connection flow unavailable"}
 
 

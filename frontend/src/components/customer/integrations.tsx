@@ -92,7 +92,9 @@ function TokenConnection({
   }
   return (
     <section className="g-panel space-y-3" aria-label={`${provider.provider} connection`}>
-      <h2 className="text-xl font-semibold capitalize">{provider.provider}</h2>
+      <h2 className="text-xl font-semibold capitalize">
+        {provider.provider === "configured" ? "Supported research provider" : provider.provider}
+      </h2>
       <p className="text-sm">{provider.reason}</p>
       <p className="text-sm">
         Reads: {provider.read_available ? "Available with verified access" : "Paused"} · Writes:{" "}
@@ -208,9 +210,23 @@ function TokenConnection({
               />
             </label>
           )}
-          <button className="g-button" disabled={busy}>
-            Save {provider.provider} connection
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button className="g-button" disabled={busy}>
+              {editing ? `Replace ${provider.provider} credentials` : `Save ${provider.provider} connection`}
+            </button>
+            {editing && (
+              <button type="button" className="g-button g-button-secondary" disabled={busy}
+                onClick={() => {
+                  setEditing(null);
+                  setToken("");
+                  setSecret("");
+                  setConfig("");
+                  setMessage("Credential replacement cancelled; saved connection was not changed.");
+                }}>
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
       )}
       {!canApprove && <p>Ask a workspace owner or admin to manage this connection.</p>}
