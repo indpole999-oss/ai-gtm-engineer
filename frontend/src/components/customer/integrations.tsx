@@ -9,6 +9,7 @@ import { connectionLabel, type Integration } from "./contracts";
 type Provider = {
   category: string;
   provider: string;
+  auth_types: string[];
   connect_available: boolean;
   execution_available: boolean;
   read_available: boolean;
@@ -30,6 +31,9 @@ function TokenConnection({
   remove: (row: Integration) => void;
 }) {
   const [token, setToken] = useState("");
+  const [authMethod, setAuthMethod] = useState<"api_key" | "bearer">(
+    provider.auth_types.includes("api_key") ? "api_key" : "bearer",
+  );
   const [secret, setSecret] = useState("");
   const [config, setConfig] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,9 +49,9 @@ function TokenConnection({
           ...(editing ? {} : {
             category: provider.category,
             provider: provider.provider,
-            auth_type: ["salesforce", "calendly"].includes(provider.provider) ? "bearer" : "api_key",
+            auth_type: authMethod,
           }),
-          credentials: { api_key: token, ...(secret ? { webhook_secret: secret } : {}) },
+          credentials: { [authMethod === "bearer" ? "access_token" : "api_key"]: token, ...(secret ? { webhook_secret: secret } : {}) },
           config: provider.provider === "resend"
             ? { from_email: config }
             : provider.provider === "salesforce"
@@ -111,6 +115,7 @@ function TokenConnection({
             <button type="button" className="g-button g-button-secondary" disabled={busy}
               onClick={() => {
                 setEditing(row);
+                setAuthMethod(row.auth_type === "bearer" ? "bearer" : "api_key");
                 setToken("");
                 setSecret("");
                 setConfig(String(row.config?.[provider.provider === "resend" ? "from_email" : provider.provider === "salesforce" ? "instance_url" : "tool_name"] || ""));
@@ -138,8 +143,18 @@ function TokenConnection({
             void save();
           }}
         >
+          {provider.auth_types.includes("api_key") && provider.auth_types.includes("bearer") && (
+            <label className="block">
+              Authentication method
+              <select className="g-input" value={authMethod} disabled={editing !== null}
+                onChange={(event) => setAuthMethod(event.target.value as "api_key" | "bearer")}>
+                <option value="api_key">API key</option>
+                <option value="bearer">Bearer token</option>
+              </select>
+            </label>
+          )}
           <label className="block">
-            {provider.provider} API token
+            {provider.provider} {authMethod === "bearer" ? "Bearer token" : "API key"}
             <input
               className="g-input"
               type="password"

@@ -28,6 +28,7 @@ export type Integration = {
   id: string;
   provider: string;
   category: string;
+  auth_type: string;
   status: string;
   health: string;
   reconnect_required: boolean;

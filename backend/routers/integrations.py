@@ -45,10 +45,10 @@ def capabilities(category, provider):
         return {"connect_available": encrypted, "execution_available": False,
                 "read_available": False, "write_available": False,
                 "reason": "Credentials and sender verification only. Sending requires separate approval."}
-    if (category, provider) in {("calendar", "calendly"), ("enrichment", "hunter")}:
+    if (category, provider) in {("calendar", "calendly"), ("enrichment", "hunter"), ("enrichment", "apollo")}:
         return {"connect_available": encrypted, "execution_available": False,
-                "read_available": encrypted, "write_available": False,
-                "reason": "Provider account verification available; external actions disabled."}
+                "read_available": False, "write_available": False,
+                "reason": "Provider account verification available; data retrieval and external actions are not enabled."}
     if (category, provider) == ("email", "resend"):
         return {"connect_available": encrypted, "execution_available": settings.OUTBOUND_EMAIL_ENABLED and encrypted,
                 "read_available": settings.MAILBOX_INGESTION_ENABLED and encrypted, "write_available": settings.OUTBOUND_EMAIL_ENABLED and encrypted,
