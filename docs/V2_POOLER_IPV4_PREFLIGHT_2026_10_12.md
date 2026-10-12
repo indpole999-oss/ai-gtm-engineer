@@ -49,3 +49,39 @@ restore, compatible fallback rehearsal, and executor/restart-prevention evidence
 remain required. None were attempted in this task. Readiness remains **74/100,
 NO-GO; zero connectivity points awarded**. No full CI or infrastructure research
 was repeated; only the focused tests and bounded endpoint checks were run.
+
+## Explicit Supabase CA follow-up — PASS
+
+The user supplied the public CA downloaded from the recovery project's Database
+Settings. The file contains one CA certificate and no private key. It remains
+outside the repository; its bytes and local path are not in emitted evidence.
+CA SHA256: `700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7`.
+
+`python scripts/recovery_pooler_preflight.py --ca <downloaded-public-CA-path>` now
+accepts this explicitly selected trust anchor. Only bounded public certificate
+PEM is accepted, with CA BasicConstraints required. Invalid, missing, oversized,
+non-CA or private-key input blocks before DNS/socket activity. The same loaded
+bytes supply both TLS handshakes and the evidence hash, without rereading the
+file. Certificate verification is CERT_REQUIRED and hostname checking stays on.
+
+Actual observation `2026-10-12T04:58:28.066420+00:00`: **PASS**, all three IPv4
+addresses passed TCP and correct-host trusted certificate/hostname verification.
+All three incorrect-hostname handshakes failed specifically with verification
+code 62 (hostname mismatch). No authentication/StartupMessage, project selector,
+SQL or credentials were sent. This supersedes the preceding TLS trust blocker
+for this explicitly supplied CA; the platform-default trust result is retained
+as historical evidence.
+
+Redacted evidence SHA256:
+`4ba833a7ac14d0720b4a3532adb64d8291836ecd506164649c60cf1900932fc3`.
+Ignored local evidence: `.venv/pooler-explicit-ca-preflight.json`.
+Focused regression suite: **21 passed, zero skipped, 0.21 seconds**. An initial
+run had six temporary-directory setup permission errors; the workspace-local
+temporary-directory rerun passed all tests. No broad CI was manually rerun.
+
+This clears only shared-pooler TLS trust acceptance. Project identity, exclusive
+project egress, host isolation and actual recovery remain unverified and false
+in the evidence. Backup/key custody, authorized restore, fallback and release
+shutdown gates remain outstanding. Score stays **74/100; NO-GO**, with no points
+awarded for this TLS result. No restore, migration, deployment or live-service
+modification occurred.
