@@ -41,6 +41,14 @@ def integration_response(row):
 
 def capabilities(category, provider):
     encrypted = bool(settings.INTEGRATION_ENCRYPTION_KEY)
+    if (category, provider) == ("delivery", "resend"):
+        return {"connect_available": encrypted, "execution_available": False,
+                "read_available": False, "write_available": False,
+                "reason": "Credentials and sender verification only. Sending requires separate approval."}
+    if (category, provider) in {("calendar", "calendly"), ("enrichment", "hunter")}:
+        return {"connect_available": encrypted, "execution_available": False,
+                "read_available": encrypted, "write_available": False,
+                "reason": "Provider account verification available; external actions disabled."}
     if (category, provider) == ("email", "resend"):
         return {"connect_available": encrypted, "execution_available": settings.OUTBOUND_EMAIL_ENABLED and encrypted,
                 "read_available": settings.MAILBOX_INGESTION_ENABLED and encrypted, "write_available": settings.OUTBOUND_EMAIL_ENABLED and encrypted,
@@ -49,6 +57,10 @@ def capabilities(category, provider):
         return {"connect_available": encrypted, "execution_available": False,
                 "read_available": settings.CRM_READS_ENABLED and encrypted, "write_available": False,
                 "reason": "Provider-authorized reads only; safe atomic writes are unavailable"}
+    if provider in {"custom", "configured"} and category in {"calendar", "email", "crm", "enrichment", "research", "delivery"}:
+        return {"connect_available": encrypted, "execution_available": False,
+                "read_available": False, "write_available": False,
+                "reason": "Encrypted custom credentials can be saved. Provider verification and actions require an approved adapter."}
     google = (category, provider) == ("calendar", "google")
     return {"connect_available": google and bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and settings.GOOGLE_REDIRECT_URI and encrypted),
             "execution_available": google, "read_available": google, "write_available": google,

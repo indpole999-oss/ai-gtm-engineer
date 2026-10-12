@@ -34,31 +34,35 @@ function TokenConnection({
   const [config, setConfig] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState<Integration | null>(null);
   async function save() {
     setBusy(true);
     setMessage("");
     try {
-      await apiFetch("/api/v1/integrations", {
-        method: "POST",
+      await apiFetch(editing ? `/api/v1/integrations/${editing.id}` : "/api/v1/integrations", {
+        method: editing ? "PUT" : "POST",
         body: JSON.stringify({
-          category: provider.category,
-          provider: provider.provider,
-          auth_type: provider.provider === "salesforce" ? "bearer" : "api_key",
+          ...(editing ? {} : {
+            category: provider.category,
+            provider: provider.provider,
+            auth_type: ["salesforce", "calendly"].includes(provider.provider) ? "bearer" : "api_key",
+          }),
           credentials: { api_key: token, ...(secret ? { webhook_secret: secret } : {}) },
-          config:
-            provider.provider === "resend"
-              ? { from_email: config }
-              : provider.provider === "salesforce"
-                ? { instance_url: config }
+          config: provider.provider === "resend"
+            ? { from_email: config }
+            : provider.provider === "salesforce"
+              ? { instance_url: config }
+              : ["custom", "configured"].includes(provider.provider)
+                ? { tool_name: config }
                 : {},
         }),
       });
       setToken("");
       setSecret("");
+      setConfig("");
+      setEditing(null);
       await refreshed();
-      setMessage(
-        "Saved disconnected. Check provider access before use. No email or CRM write was performed.",
-      );
+      setMessage("Credentials saved securely. Use Check access to verify the provider; no external action was performed.");
     } catch (error) {
       setToken("");
       setSecret("");
@@ -104,6 +108,18 @@ function TokenConnection({
             </button>
           )}
           {canApprove && (
+            <button type="button" className="g-button g-button-secondary" disabled={busy}
+              onClick={() => {
+                setEditing(row);
+                setToken("");
+                setSecret("");
+                setConfig(String(row.config?.[provider.provider === "resend" ? "from_email" : provider.provider === "salesforce" ? "instance_url" : "tool_name"] || ""));
+                setMessage("Enter replacement credentials below. Existing access stays unchanged until saved.");
+              }}>
+              Reconnect / replace credentials
+            </button>
+          )}
+          {canApprove && (
             <button
               className="g-button g-button-secondary"
               disabled={busy}
@@ -114,7 +130,7 @@ function TokenConnection({
           )}
         </article>
       ))}
-      {!connections.length && canApprove && (
+      {(!connections.length || editing !== null) && canApprove && (
         <form
           className="space-y-3"
           onSubmit={(event) => {
@@ -133,6 +149,14 @@ function TokenConnection({
               onChange={(event) => setToken(event.target.value)}
             />
           </label>
+          {["custom", "configured"].includes(provider.provider) && (
+            <label className="block">
+              Provider or integration name
+              <input className="g-input" required value={config}
+                onChange={(event) => setConfig(event.target.value)}
+                placeholder="Name of your custom integration" />
+            </label>
+          )}
           {provider.provider === "resend" && (
             <>
               <label className="block">
@@ -376,10 +400,17 @@ export function IntegrationsPage() {
     (p) => p.category === "calendar" && p.provider === "google" && p.connect_available,
   );
   const calendars = rows.filter((r) => r.category === "calendar" && r.provider === "google");
-  const tokenProviders =
-    providers.data?.filter(
-      (p) => p.connect_available && ["resend", "hubspot", "salesforce"].includes(p.provider),
-    ) ?? [];
+  const catalog = [
+    { title: "Calendars", category: "calendar", options: [["google", "Google Calendar"], ["calendly", "Calendly"], ["custom", "Custom"]] },
+    { title: "Email", category: "email", options: [["gmail", "Gmail"], ["outlook", "Outlook"], ["custom", "Custom"]] },
+    { title: "CRM", category: "crm", options: [["hubspot", "HubSpot"], ["salesforce", "Salesforce"], ["custom", "Custom"]] },
+    { title: "Enrichment", category: "enrichment", options: [["apollo", "Apollo"], ["hunter", "Hunter.io"], ["custom", "Custom"]] },
+    { title: "Research", category: "research", options: [["configured", "Supported Provider Configuration"], ["custom", "Custom"]] },
+    { title: "Email Delivery", category: "delivery", options: [["resend", "Resend"], ["custom", "Custom"]] },
+  ];
+  const tokenProviders = providers.data?.filter(
+    (p) => p.connect_available && !(p.category === "calendar" && p.provider === "google"),
+  ) ?? [];
   const unavailable = rows.filter(
     (r) =>
       !(calendar && r.category === "calendar" && r.provider === "google") &&
@@ -403,17 +434,35 @@ export function IntegrationsPage() {
         description="Review provider access separately from permission to act. Only available connection flows are offered."
       />
       <Feedback message={message} />
-      {tokenProviders.map((provider) => (
-        <TokenConnection
-          key={`${workspace.id}:${provider.provider}`}
-          provider={provider}
-          connections={rows.filter(
-            (row) => row.provider === provider.provider && row.category === provider.category,
-          )}
-          canApprove={canApprove}
-          remove={setDisconnect}
-          refreshed={() => cache.invalidateQueries({ queryKey: ["customer", workspace.id] })}
-        />
+      {catalog.map((group) => (
+        <section key={group.category} className="space-y-3" aria-label={`${group.title} integrations`}>
+          <h2 className="text-xl font-semibold">{group.title}</h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {group.options.map(([key, label], index) => {
+              const provider = tokenProviders.find((p) => p.category === group.category && p.provider === key);
+              if (provider) return (
+                <TokenConnection
+                  key={`${workspace.id}:${group.category}:${key}:${index}`}
+                  provider={provider}
+                  connections={rows.filter((row) => row.provider === key && row.category === group.category)}
+                  canApprove={canApprove}
+                  remove={setDisconnect}
+                  refreshed={() => cache.invalidateQueries({ queryKey: ["customer", workspace.id] })}
+                />
+              );
+              return (
+                <article key={`${key}:${index}`} className="g-panel space-y-2">
+                  <h3 className="font-semibold">{label}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {key === "google" && group.category === "calendar"
+                      ? "Use the Google Calendar OAuth connection below."
+                      : "Connection is not configured on this server. No credentials are requested."}
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       ))}
       {calendar ? (
         <section className="g-panel space-y-4" aria-label="Google Calendar connection">

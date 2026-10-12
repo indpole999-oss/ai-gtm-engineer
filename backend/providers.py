@@ -35,6 +35,12 @@ class ProviderContract:
 
 CONTRACTS = {
     ("calendar", "google"): ProviderContract("calendar", "google", ("oauth2",), ("calendar_id",)),
+    ("calendar", "calendly"): ProviderContract("calendar", "calendly", ("api_key", "bearer")),
+    ("enrichment", "hunter"): ProviderContract("enrichment", "hunter", ("api_key",)),
+    ("research", "configured"): ProviderContract("research", "configured", ("api_key", "bearer"), ("tool_name",)),
+    ("research", "custom"): ProviderContract("research", "custom", ("api_key", "bearer"), ("tool_name",)),
+    ("delivery", "resend"): ProviderContract("delivery", "resend", ("api_key", "bearer"), ("from_email",)),
+    ("delivery", "custom"): ProviderContract("delivery", "custom", ("api_key", "bearer"), ("tool_name",)),
     ("crm", "hubspot"): ProviderContract("crm", "hubspot", ("oauth2", "api_key", "bearer")),
     ("crm", "salesforce"): ProviderContract("crm", "salesforce", ("oauth2", "bearer"), ("instance_url",)),
     ("email", "gmail"): ProviderContract("email", "gmail", ("oauth2",)),
@@ -130,8 +136,10 @@ class HttpProvider:
             "outlook": "https://graph.microsoft.com/v1.0/me?$select=id",
             "resend": "https://api.resend.com/domains",
             "apollo": "https://api.apollo.io/api/v1/auth/health",
+            "calendly": "https://api.calendly.com/users/me",
+            "hunter": "https://api.hunter.io/v2/account",
         }
-        if self.provider == "custom":
+        if self.provider in {"custom", "configured"}:
             return ProviderHealth(status="configured_unverified")
         if self.provider == "salesforce":
             endpoint = salesforce_origin(config.get("instance_url")) + "/services/data/v61.0/limits"
@@ -143,6 +151,9 @@ class HttpProvider:
             endpoint = endpoints[self.provider]
         if self.provider == "apollo":
             headers = {"X-Api-Key": token}
+        if self.provider == "hunter":
+            endpoint += "?api_key=" + __import__("urllib.parse", fromlist=["quote"]).quote(token, safe="")
+            headers = {}
         result = await provider_request("GET", endpoint, headers=headers)
         if self.provider == "resend":
             from backend.outreach_service import address
