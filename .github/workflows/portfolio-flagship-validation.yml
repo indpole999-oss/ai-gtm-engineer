@@ -1,0 +1,21 @@
+name: GTM Flagship Workflow Evidence
+on:
+  push:
+    branches:
+      - portfolio/gtm-engineer-20261016
+    paths:
+      - "portfolio/n8n/flagship/**"
+      - ".github/workflows/portfolio-flagship-validation.yml"
+  workflow_dispatch:
+jobs:
+  test-flagship-without-side-effects:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Execute 39 Code stages and negative cases in offline n8n-compatible harness
+        run: node portfolio/n8n/flagship/validate_flagship.mjs
