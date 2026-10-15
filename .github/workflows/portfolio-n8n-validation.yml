@@ -1,0 +1,20 @@
+name: Portfolio n8n JSON validation
+on:
+  push:
+    branches: [portfolio/gtm-engineer-20261016]
+    paths:
+      - "portfolio/n8n/**"
+      - ".github/workflows/portfolio-n8n-validation.yml"
+  workflow_dispatch:
+jobs:
+  offline-validation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate n8n workflow JSON and simulate Code nodes
+        run: node portfolio/n8n/tests/validate.mjs
