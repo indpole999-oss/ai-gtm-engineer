@@ -1,0 +1,176 @@
+{
+  "name": "Portfolio Controlled GTM Journey — Safe Offline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "10000008-0000-4000-8000-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{\"name\":\"Aster Cloud\",\"industry\":\"SaaS\",\"employees\":220,\"signal\":\"Hiring revenue operations engineers\",\"evidence\":[{\"claim\":\"B2B subscription software\",\"source\":\"fictional:sector\"},{\"claim\":\"RevOps hiring signal\",\"source\":\"fictional:signal\"}],\"contact\":\"aster@demo.example\"}}];"
+      },
+      "id": "10000008-0000-4000-8000-000000000002",
+      "name": "Fixture prospect",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;return [{json:{...d,trace:[{stage:\"research\",evidenceCount:d.evidence.length}],sourcesVerifiedRealWorld:false}}];"
+      },
+      "id": "10000008-0000-4000-8000-000000000003",
+      "name": "Research evidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;return [{json:{...d,trace:[...d.trace,{stage:\"enrichment\",source:\"fictional-fixture\"}],contactVerified:false}}];"
+      },
+      "id": "10000008-0000-4000-8000-000000000004",
+      "name": "Mock enrichment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;const score=([\"SaaS\",\"Healthtech\"].includes(d.industry)?40:0)+(d.employees>=50&&d.employees<=500?20:0)+(d.signal?25:0)+(d.evidence.length>=2?15:0);return [{json:{...d,score,trace:[...d.trace,{stage:\"qualification\",score}]}}];"
+      },
+      "id": "10000008-0000-4000-8000-000000000005",
+      "name": "Qualify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;return [{json:{...d,draft:{subject:\"Idea for \"+d.name,body:\"FICTIONAL DEMO ONLY. DO NOT SEND.\",approval:\"PENDING_REVIEW\",sent:false},trace:[...d.trace,{stage:\"draft\",result:\"PENDING_REVIEW\"}]}}];"
+      },
+      "id": "10000008-0000-4000-8000-000000000006",
+      "name": "Create review draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;return [{json:{workflow:\"gtm_orchestration\",account:d.name,score:d.score,draft:d.draft,trace:[...d.trace,{stage:\"gate\",result:\"STOP\"}],emailsSent:0,crmWrites:0,calendarWrites:0,externalCalls:0,status:\"DRY_RUN_REVIEW_REQUIRED\"}}];"
+      },
+      "id": "10000008-0000-4000-8000-000000000007",
+      "name": "Audit stopped execution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1740,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fixture prospect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fixture prospect": {
+      "main": [
+        [
+          {
+            "node": "Research evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research evidence": {
+      "main": [
+        [
+          {
+            "node": "Mock enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock enrichment": {
+      "main": [
+        [
+          {
+            "node": "Qualify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualify": {
+      "main": [
+        [
+          {
+            "node": "Create review draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create review draft": {
+      "main": [
+        [
+          {
+            "node": "Audit stopped execution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

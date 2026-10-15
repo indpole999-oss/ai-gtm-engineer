@@ -1,0 +1,101 @@
+{
+  "name": "Portfolio CRM Idempotency Mock — Safe Offline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "10000005-0000-4000-8000-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{\"events\":[{\"id\":\"lead-1\",\"stage\":\"MQL\"},{\"id\":\"lead-1\",\"stage\":\"SQL\"},{\"id\":\"lead-2\",\"stage\":\"MQL\"}]}}];"
+      },
+      "id": "10000005-0000-4000-8000-000000000002",
+      "name": "Fixture duplicate leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;const records={};let merged=0;for(const row of d.events){if(records[row.id])merged++;records[row.id]={...row,status:\"IN_MEMORY_ONLY\"};}return [{json:{workflow:\"crm_deduplication\",records:Object.values(records),merged,externalWrites:0,externalCalls:0}}];"
+      },
+      "id": "10000005-0000-4000-8000-000000000003",
+      "name": "Deduplicate records",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;return [{json:{...d,recordCount:d.records.length,providerReceipt:null,realCRMVerified:false}}];"
+      },
+      "id": "10000005-0000-4000-8000-000000000004",
+      "name": "Audit local results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fixture duplicate leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fixture duplicate leads": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate records": {
+      "main": [
+        [
+          {
+            "node": "Audit local results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "name": "Portfolio GTM Activity Reporting — Safe Offline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "10000007-0000-4000-8000-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{\"events\":[{\"id\":\"e1\",\"stage\":\"research\"},{\"id\":\"e2\",\"stage\":\"qualification\"},{\"id\":\"e3\",\"stage\":\"qualification\"},{\"id\":\"e3\",\"stage\":\"qualification\"},{\"id\":\"e4\",\"stage\":\"draft\"}]}}];"
+      },
+      "id": "10000007-0000-4000-8000-000000000002",
+      "name": "Fixture event log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;const ids=new Set(),counts={};for(const e of d.events){if(ids.has(e.id))continue;ids.add(e.id);counts[e.stage]=(counts[e.stage]||0)+1;}return [{json:{workflow:\"activity_reporting\",uniqueEvents:ids.size,duplicateEvents:d.events.length-ids.size,stages:counts,externalCalls:0}}];"
+      },
+      "id": "10000007-0000-4000-8000-000000000003",
+      "name": "Aggregate unique events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;return [{json:{...d,verifiedRevenue:null,verifiedMeetings:null,scope:\"FICTIONAL_EVENTS_ONLY\"}}];"
+      },
+      "id": "10000007-0000-4000-8000-000000000004",
+      "name": "No invented revenue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fixture event log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fixture event log": {
+      "main": [
+        [
+          {
+            "node": "Aggregate unique events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate unique events": {
+      "main": [
+        [
+          {
+            "node": "No invented revenue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

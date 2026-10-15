@@ -1,0 +1,101 @@
+{
+  "name": "Portfolio Human-Reviewed Outbound Draft — Safe Offline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "10000004-0000-4000-8000-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{\"name\":\"Aster Cloud\",\"industry\":\"SaaS\",\"employees\":220,\"signal\":\"Hiring revenue operations engineers\",\"evidence\":[{\"claim\":\"B2B subscription software\",\"source\":\"fictional:sector\"},{\"claim\":\"RevOps hiring signal\",\"source\":\"fictional:signal\"}],\"contact\":\"aster@demo.example\"}}];"
+      },
+      "id": "10000004-0000-4000-8000-000000000002",
+      "name": "Fixture approved research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;return [{json:{workflow:\"outreach\",to:d.contact,subject:\"Idea for \"+d.name,body:\"FICTIONAL SAMPLE: \"+d.signal+\"; would a conversation help? NEVER SEND.\",evidence:d.evidence,approval:\"PENDING_REVIEW\",sent:false,externalCalls:0}}];"
+      },
+      "id": "10000004-0000-4000-8000-000000000003",
+      "name": "Create safe draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;if(d.sent||d.approval!==\"PENDING_REVIEW\")throw Error(\"unsafe state\");return [{json:{...d,status:\"DRAFT_ONLY_NO_SEND\",providerReceipt:null}}];"
+      },
+      "id": "10000004-0000-4000-8000-000000000004",
+      "name": "Stop before send",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fixture approved research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fixture approved research": {
+      "main": [
+        [
+          {
+            "node": "Create safe draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create safe draft": {
+      "main": [
+        [
+          {
+            "node": "Stop before send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

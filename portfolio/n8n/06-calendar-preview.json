@@ -1,0 +1,101 @@
+{
+  "name": "Portfolio Calendar UTC Preview — Safe Offline",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "10000006-0000-4000-8000-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{\"account\":\"MiraCare Analytics\",\"start\":\"2026-10-20T14:00:00Z\",\"minutes\":30}}];"
+      },
+      "id": "10000006-0000-4000-8000-000000000002",
+      "name": "Fixture meeting request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;const start=new Date(d.start);if(!Number.isFinite(start.getTime())||d.minutes<=0)throw Error(\"invalid date\");return [{json:{workflow:\"calendar_preview\",account:d.account,startUTC:start.toISOString(),endUTC:new Date(start.getTime()+d.minutes*60000).toISOString(),eventCreated:false,approval:\"PENDING_REVIEW\",externalCalls:0}}];"
+      },
+      "id": "10000006-0000-4000-8000-000000000003",
+      "name": "Normalize UTC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=$input.all()[0].json;if(d.eventCreated)throw Error(\"real event not allowed\");return [{json:{...d,status:\"PREVIEW_ONLY_NO_BOOKING\"}}];"
+      },
+      "id": "10000006-0000-4000-8000-000000000004",
+      "name": "Stop before booking",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fixture meeting request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fixture meeting request": {
+      "main": [
+        [
+          {
+            "node": "Normalize UTC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize UTC": {
+      "main": [
+        [
+          {
+            "node": "Stop before booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
