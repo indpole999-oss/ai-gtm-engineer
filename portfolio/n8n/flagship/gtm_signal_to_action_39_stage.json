@@ -1,0 +1,1284 @@
+{
+  "name": "FLAGSHIP | Signal-to-Action GTM Engine · Evidence / Suppression / Approval [SAFE DRY RUN]",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b0fd8c01-eeee-4000-8000-000000000000",
+      "name": "Manual run (no schedule)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const scenario='baseline';\nconst accounts=[\n {id:'a1',name:'Northstar Cloud',domain:'northstar.example',industry:'SaaS',employees:480,country:'US',owner:null,source:'fictional:firmographics'},\n {id:'a1dup',name:'Northstar Cloud Incorporated',domain:'www.northstar.example',industry:'SaaS',employees:480,country:'US',owner:null,source:'fictional:firmographics'},\n {id:'a2',name:'Helio Health Analytics',domain:'heliohealth.example',industry:'Healthtech',employees:180,country:'US',owner:'maria',source:'fictional:firmographics'},\n {id:'a3',name:'Quarry Logistics',domain:'quarry.example',industry:'Logistics',employees:1500,country:'US',owner:null,source:'fictional:firmographics'},\n {id:'a4',name:'Brightpath AI',domain:'brightpath.example',industry:'SaaS',employees:25,country:'US',owner:null,source:'fictional:firmographics'},\n {id:'a5',name:'Dovetail Fintech',domain:'dovetail.example',industry:'Fintech',employees:340,country:'US',owner:null,source:'fictional:firmographics'},\n {id:'a6',name:'Northstar Partner Agency',domain:'northstar-partner.example',industry:'Services',employees:70,country:'US',owner:null,source:'fictional:firmographics'}\n];\nconst contacts=[\n {id:'c01',account:'a1',name:'Avery Morgan',email:'Avery@northstar.example',title:'VP Revenue Operations',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:90},\n {id:'c01dup',account:'a1dup',name:'Avery Morgan',email:'avery@NORTHSTAR.example ',title:'VP RevOps',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:90},\n {id:'c02',account:'a1',name:'Parker Lee',email:'parker@northstar.example',title:'Director of Sales',unsubscribe:false,dnc:false,activeDeal:true,customer:false,privacyOk:true,lastContactedDays:75},\n {id:'c03',account:'a1',name:'Jamie Ruiz',email:'jamie@northstar.example',title:'Chief Revenue Officer',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:180},\n {id:'c04',account:'a2',name:'Taylor Brooks',email:'taylor@heliohealth.example',title:'Head of Demand Generation',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:45},\n {id:'c05',account:'a2',name:'Jordan Reed',email:'jordan@heliohealth.example',title:'VP Marketing',unsubscribe:true,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:25},\n {id:'c06',account:'a2',name:'Casey Smith',email:'casey@heliohealth.example',title:'RevOps Manager',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:false,lastContactedDays:130},\n {id:'c07',account:'a3',name:'Morgan Gray',email:'morgan@quarry.example',title:'VP of Sales',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:120},\n {id:'c08',account:'a4',name:'Robin Kim',email:'robin@brightpath.example',title:'Revenue Operations Manager',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:60},\n {id:'c09',account:'a5',name:'Sam Patel',email:'sam@dovetail.example',title:'Revenue Operations Director',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:61},\n {id:'c10',account:'a5',name:'Riley Chen',email:'riley@dovetail.example',title:'Sales Operations Analyst',unsubscribe:false,dnc:true,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:67},\n {id:'c11',account:'a6',name:'Alex Rivers',email:'alex@northstar-partner.example',title:'VP of Sales',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:200},\n {id:'c12',account:'a5',name:'Kai Jordan',email:'kai@dovetail.example',title:'Head of RevOps',unsubscribe:false,dnc:false,activeDeal:false,customer:true,privacyOk:true,lastContactedDays:75},\n {id:'c13',account:'a1',name:'Skylar Noel',email:'not-an-email',title:'RevOps Lead',unsubscribe:false,dnc:false,activeDeal:false,customer:false,privacyOk:true,lastContactedDays:100}\n];\nconst signals=[\n {id:'s01',accountDomain:'northstar.example',kind:'revops_hiring',observed:'2026-10-12',source:'fictional:signal-jobs',confidence:0.95},\n {id:'s02',accountDomain:'heliohealth.example',kind:'expansion',observed:'2026-10-09',source:'fictional:signal-news',confidence:0.8},\n {id:'s03',accountDomain:'quarry.example',kind:'funding',observed:'2026-07-01',source:'fictional:signal-news',confidence:0.7},\n {id:'s04',accountDomain:'dovetail.example',kind:'revops_hiring',observed:'2026-10-14',source:'fictional:signal-jobs',confidence:0.9},\n {id:'s04dup',accountDomain:'www.dovetail.example',kind:'revops_hiring',observed:'2026-10-14',source:'fictional:signal-jobs',confidence:0.9},\n {id:'s05',accountDomain:'brightpath.example',kind:'product_launch',observed:'2026-10-10',source:'fictional:signal-news',confidence:0.7}\n];\nreturn [{json:{meta:{project:'GTM Signal-to-Action Engine',runId:'gtm-fixture-20261016',now:'2026-10-16T12:00:00Z',scenario,mode:'OFFLINE_FIXTURE',liveWritesAllowed:false},policy:{maxActions:3,minAccountScore:60,minPersonaScore:55,minIntentScore:25,cooldownDays:21,minConfidence:0.7,perRunCreditLimit:0,suppressedDomains:['competitor.example'],ownerMap:{'heliohealth.example':'maria'},territoryOwners:{US:['alex','maria'],EU:['ravi']},suppressedContactIds:['c10']},accounts,contacts,signals,clean:{},quality:[],work:[],plans:[],audit:[],execution:{calls:0,emails:0,crmWrites:0,calendarWrites:0,creditsSpent:0},stats:{}}}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000001",
+      "name": "01 · Seed synthetic GTM workspace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nif(d.meta.mode!=='OFFLINE_FIXTURE'||d.meta.liveWritesAllowed!==false||d.policy.perRunCreditLimit!==0)throw Error('Unsafe environment: external actions not permitted');\nd.audit.push({phase:'policy',decision:'OFFLINE_ONLY',reason:'External provider operations disabled at source'});\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000002",
+      "name": "02 · Fail closed on execution policy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nif(!Array.isArray(d.accounts)||!Array.isArray(d.contacts)||!Array.isArray(d.signals))throw Error('Invalid input arrays');\nif(!d.meta.now||!d.meta.runId||!d.policy.maxActions)throw Error('Missing execution context');\nd.stats.ingested={accounts:d.accounts.length,contacts:d.contacts.length,signals:d.signals.length};\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000003",
+      "name": "03 · Validate input contracts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nd.meta.clockMs=new Date(d.meta.now).getTime();\nif(!Number.isFinite(d.meta.clockMs))throw Error('Invalid run clock');\nd.meta.currentDay=d.meta.now.slice(0,10);\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000004",
+      "name": "04 · Pin deterministic run clock",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst normalize=x=>String(x||'').toLowerCase().replace(/^https?:\\/\\//,'').replace(/^www\\./,'').replace(/\\/.*$/,'').trim();\nd.accounts=d.accounts.map(a=>({...a,canonicalDomain:normalize(a.domain)}));\nd.stats.invalidAccountDomains=d.accounts.filter(a=>!a.canonicalDomain.includes('.')).length;\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000005",
+      "name": "05 · Canonicalize account domains",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst by={};const idMap={};\nfor(const a of d.accounts){if(by[a.canonicalDomain]){idMap[a.id]=by[a.canonicalDomain].id;d.quality.push({type:'duplicate_account',droppedId:a.id,keptId:idMap[a.id],reason:'exact canonical domain'});}else{by[a.canonicalDomain]=a;idMap[a.id]=a.id;}}\nd.clean.accounts=Object.values(by);d.clean.accountMap=idMap;\nd.stats.accountsAfterDedup=d.clean.accounts.length;\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000006",
+      "name": "06 · Exact-domain entity resolution",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const a of d.clean.accounts){for(const b of d.clean.accounts){if(a.id!==b.id&&a.canonicalDomain!==b.canonicalDomain&&a.canonicalDomain.startsWith(b.canonicalDomain.split('.')[0]))d.audit.push({phase:'identity',decision:'KEEP_SEPARATE',domains:[a.canonicalDomain,b.canonicalDomain],reason:'similar names are not exact domains'});}}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000007",
+      "name": "07 · Detect sibling brand false positives",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2060,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nd.contacts=d.contacts.map(c=>({...c,normalizedEmail:String(c.email||'').toLowerCase().trim(),canonicalAccount:d.clean.accountMap[c.account]||null}));\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000008",
+      "name": "08 · Normalize contact identity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst saved={};for(const c of d.contacts){const key=c.normalizedEmail&&c.normalizedEmail.includes('@')?c.normalizedEmail:'id:'+c.id;\nif(saved[key]){const original=saved[key];for(const flag of ['unsubscribe','dnc','activeDeal','customer'])original[flag]=Boolean(original[flag]||c[flag]);original.privacyOk=Boolean(original.privacyOk&&c.privacyOk);d.quality.push({type:'duplicate_contact',droppedId:c.id,keptId:original.id,reason:'exact normalized email'});}else saved[key]=c;}\nd.clean.contacts=Object.values(saved);d.stats.contactsAfterDedup=d.clean.contacts.length;\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000009",
+      "name": "09 · Merge duplicate contacts safely",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2580,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst accountIds=new Set(d.clean.accounts.map(a=>a.id));\nfor(const c of d.clean.contacts){c.quarantineReasons=[];if(!accountIds.has(c.canonicalAccount))c.quarantineReasons.push('ACCOUNT_NOT_RESOLVED');}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000010",
+      "name": "10 · Quarantine broken contact references",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2840,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst seen=new Set();const all=[];for(const s of d.signals){const domain=String(s.accountDomain).toLowerCase().replace(/^www\\./,'');const key=domain+'|'+s.kind+'|'+s.observed;if(seen.has(key)){d.quality.push({type:'duplicate_signal',id:s.id});continue;}seen.add(key);if(!s.source?.startsWith('fictional:')||s.confidence<d.policy.minConfidence){d.quality.push({type:'signal_rejected',id:s.id});continue;}all.push({...s,domain});}\nd.clean.signals=all;d.stats.uniqueSignals=all.length;\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000011",
+      "name": "11 · Validate and deduplicate signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const s of d.clean.signals){s.ageDays=Math.floor((d.meta.clockMs-new Date(s.observed+'T00:00:00Z').getTime())/86400000);s.isFresh=s.ageDays>=0&&s.ageDays<=30;if(!s.isFresh)d.quality.push({type:'stale_or_future_signal',id:s.id,ageDays:s.ageDays});}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000012",
+      "name": "12 · Reject stale and future signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const a of d.clean.accounts){const raw=d.clean.signals.filter(s=>s.domain===a.canonicalDomain);a.sourceEvidence=raw.map(s=>({id:s.id,source:s.source,ageDays:s.ageDays,kind:s.kind,validFixtureSource:s.source.startsWith('fictional:')}));a.hasFreshSignal=raw.some(s=>s.isFresh);}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000013",
+      "name": "13 · Validate source evidence provenance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3620,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nd.providers={primary:{id:'fixture-primary',costCredits:0,coverage:['northstar.example','heliohealth.example','dovetail.example']},fallback:{id:'fixture-fallback',costCredits:0,coverage:['brightpath.example']}};\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000014",
+      "name": "14 · Define mock enrichment provider contracts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3880,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const a of d.clean.accounts){a.enrichmentTrail=[];for(const name of ['primary','fallback']){const p=d.providers[name];const found=p.coverage.includes(a.canonicalDomain);a.enrichmentTrail.push({provider:p.id,found,credits:0});if(found){a.enrichmentStatus='FIXTURE_DATA_PRESENT';break;}}if(!a.enrichmentStatus)a.enrichmentStatus='UNAVAILABLE';}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000015",
+      "name": "15 · Mock enrichment waterfall with zero spend",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4140,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst segments={SaaS:'SOFTWARE',Healthtech:'HEALTHTECH',Fintech:'FINTECH',Logistics:'OTHER',Services:'OTHER'};\nfor(const a of d.clean.accounts){a.segment=segments[a.industry]||'UNKNOWN';a.employees=Number(a.employees||0);a.country=String(a.country||'').toUpperCase();}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000016",
+      "name": "16 · Normalize firmographic taxonomy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4400,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){const t=String(c.title||'').toLowerCase();c.function=(t.includes('revops')||t.includes('revenue operations')||t.includes('sales operations'))?'REVOPS':(t.includes('sales')?'SALES':(t.includes('marketing')||t.includes('demand generation')?'MARKETING':'OTHER'));c.seniority=(t.includes('chief')||t.includes('cro')||t.includes('ceo'))?'EXEC':(t.includes('vp')||t.includes('head'))?'VP_HEAD':(t.includes('director')?'DIRECTOR':(t.includes('manager')||t.includes('lead')?'MANAGER':'OTHER'));}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000017",
+      "name": "17 · Normalize title taxonomy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4660,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst fn={REVOPS:45,SALES:25,MARKETING:15,OTHER:0};const senior={EXEC:50,VP_HEAD:42,DIRECTOR:35,MANAGER:20,OTHER:0};\nfor(const c of d.clean.contacts){c.personaScore=Math.min(100,fn[c.function]+senior[c.seniority]);c.personaReasons=[c.function,c.seniority];}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000018",
+      "name": "18 · Compute persona scores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4920,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const a of d.clean.accounts){const checks={industry:['SOFTWARE','HEALTHTECH','FINTECH'].includes(a.segment),size:a.employees>=100&&a.employees<=1000,country:a.country==='US',enriched:a.enrichmentStatus==='FIXTURE_DATA_PRESENT'};a.icpScore=(checks.industry?40:0)+(checks.size?30:0)+(checks.country?15:0)+(checks.enriched?15:0);a.icpChecks=checks;}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000019",
+      "name": "19 · Compute 100-point account ICP fit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5180,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst weight={revops_hiring:100,expansion:80,product_launch:60,funding:70};\nfor(const a of d.clean.accounts){const values=d.clean.signals.filter(s=>s.domain===a.canonicalDomain&&s.isFresh).map(s=>({id:s.id,score:Math.round((weight[s.kind]||20)*s.confidence*Math.max(0,1-s.ageDays/30)),kind:s.kind,ageDays:s.ageDays}));a.signalBreakdown=values;a.intentScore=Math.min(100,values.reduce((m,s)=>Math.max(m,s.score),0));}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000020",
+      "name": "20 · Score signal types and decay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5440,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst ac=Object.fromEntries(d.clean.accounts.map(a=>[a.id,a]));for(const c of d.clean.contacts){const a=ac[c.canonicalAccount];c.accountIcpScore=a?a.icpScore:0;c.intentScore=a?a.intentScore:0;c.priorityScore=Math.round(c.accountIcpScore*.4+c.personaScore*.35+c.intentScore*.25);c.play=a&&a.intentScore>=50?'TIMELY_SIGNAL':'RESEARCH_NEEDED';}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000021",
+      "name": "21 · Calculate overall priority and play",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5700,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst ac=Object.fromEntries(d.clean.accounts.map(a=>[a.id,a]));for(const c of d.clean.contacts){c.suppress=[];const a=ac[c.canonicalAccount];if(a&&d.policy.suppressedDomains.includes(a.canonicalDomain))c.suppress.push('BLOCKED_DOMAIN');if(c.customer)c.suppress.push('EXISTING_CUSTOMER');}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000022",
+      "name": "22 · Protect blocked domains and customers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5960,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){if(c.activeDeal)c.suppress.push('OPEN_OPPORTUNITY');if(c.unsubscribe)c.suppress.push('UNSUBSCRIBED');if(c.dnc||d.policy.suppressedContactIds.includes(c.id))c.suppress.push('DNC');}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000023",
+      "name": "23 · Protect active deals and unsubscribes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6220,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){if(!c.privacyOk)c.suppress.push('CONSENT_NOT_CONFIRMED');if(c.lastContactedDays<d.policy.cooldownDays)c.suppress.push('COOLDOWN');}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000024",
+      "name": "24 · Enforce privacy and outreach cooldown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){const valid=/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(c.normalizedEmail);c.emailSyntaxValid=valid;if(!valid)c.suppress.push('INVALID_EMAIL');if(c.quarantineReasons?.length)c.suppress.push('UNRESOLVED_ACCOUNT');}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000025",
+      "name": "25 · Validate syntax and consent suitability",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6740,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){if(c.seniority==='EXEC')c.suppress.push('EXECUTIVE_FOUNDER_REVIEW');}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000026",
+      "name": "26 · Hold executive relationship owners",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7000,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){if(c.suppress.length){c.suppress=[...new Set(c.suppress)];d.audit.push({phase:'suppress',contactId:c.id,decision:'HOLD',reasons:c.suppress});}}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000027",
+      "name": "27 · Explain suppressions in audit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7260,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){c.qualificationFailures=[];if(c.accountIcpScore<d.policy.minAccountScore)c.qualificationFailures.push('LOW_ICP');if(c.personaScore<d.policy.minPersonaScore)c.qualificationFailures.push('LOW_PERSONA');if(c.intentScore<d.policy.minIntentScore)c.qualificationFailures.push('LOW_OR_STALE_SIGNAL');c.eligible=c.suppress.length===0&&c.qualificationFailures.length===0;}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000028",
+      "name": "28 · Gate on ICP, persona, and intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7520,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst ac=Object.fromEntries(d.clean.accounts.map(a=>[a.id,a]));for(const c of d.clean.contacts){const a=ac[c.canonicalAccount];const key=a?.canonicalDomain||'';const existing=a?.owner||d.policy.ownerMap[key];const pool=d.policy.territoryOwners[a?.country||'US']||['queue'];const hash=key.split('').reduce((s,ch)=>s+ch.charCodeAt(0),0);c.owner=existing||pool[hash%pool.length];c.ownerReason=existing?'EXISTING_OWNER':'DETERMINISTIC_TERRITORY_HASH';}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000029",
+      "name": "29 · Resolve owners via CRM and territory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7780,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const c of d.clean.contacts){c.slaTier=c.priorityScore>=80?'P1_4H':c.priorityScore>=65?'P2_1DAY':'P3_3DAY';c.nextAction=c.suppress.length?'DO_NOT_CONTACT':c.eligible?'DRAFT_PENDING_APPROVAL':'RESEARCH_OR_REVIEW';}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000030",
+      "name": "30 · Assign priority and SLA tiers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8040,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst seen=new Set();for(const c of d.clean.contacts){c.actionKey=d.meta.currentDay+'|'+c.normalizedEmail+'|'+c.play;if(seen.has(c.actionKey)){c.eligible=false;c.qualificationFailures.push('DUPLICATE_ACTION_KEY');}seen.add(c.actionKey);}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000031",
+      "name": "31 · Create idempotent action keys",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8300,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst eligible=d.clean.contacts.filter(c=>c.eligible).sort((a,b)=>b.priorityScore-a.priorityScore||a.id.localeCompare(b.id));\nd.clean.selected=eligible.slice(0,d.policy.maxActions).map((c,i)=>({...c,queuePosition:i+1,delaySeconds:i*15}));d.stats.quotaDeferred=Math.max(0,eligible.length-d.policy.maxActions);\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000032",
+      "name": "32 · Apply batch pacing and action cap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8560,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst ac=Object.fromEntries(d.clean.accounts.map(a=>[a.id,a]));for(const c of d.clean.selected){const a=ac[c.canonicalAccount];const fresh=a.sourceEvidence.filter(s=>s.ageDays>=0&&s.ageDays<=30);d.plans.push({actionKey:c.actionKey,contactId:c.id,owner:c.owner,slaTier:c.slaTier,account:a.name,accountDomain:a.canonicalDomain,priorityScore:c.priorityScore,play:c.play,to:c.normalizedEmail,subject:'A relevant GTM operations idea for '+a.name,draftText:'Hi '+c.name.split(' ')[0]+', our fictional sample includes a recent '+(fresh[0]?.kind||'research')+' signal. Would it be useful to explore a human-approved GTM workflow? [FICTIONAL DRAFT — NOT SENT]',evidence:fresh.map(s=>({source:s.source,signalId:s.id,ageDays:s.ageDays})),approval:'PENDING_HUMAN_REVIEW',sent:false});}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000033",
+      "name": "33 · Build evidence-backed draft payloads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        8820,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const p of d.plans){if(p.evidence.length===0){p.approval='BLOCKED_NO_EVIDENCE';d.audit.push({phase:'draft',decision:'REJECT',actionKey:p.actionKey,reason:'No source-tagged fresh signal'});}}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000034",
+      "name": "34 · Reject unsupported personalization claims",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9080,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const p of d.plans){if(p.approval==='PENDING_HUMAN_REVIEW')d.audit.push({phase:'approval',actionKey:p.actionKey,decision:'AWAIT_REVIEW'});p.canSend=false;p.canWriteCRM=false;p.canBook=false;}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000035",
+      "name": "35 · Enforce human approval with no bypass",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9340,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const p of d.plans){p.crmPreview={recordKey:p.actionKey,stage:'REVIEW_REQUIRED',owner:p.owner,externalWrite:false};p.taskPreview={owner:p.owner,slaTier:p.slaTier,body:'Review '+p.account+' and its evidence sources',externalNotification:false};}\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000036",
+      "name": "36 · Simulate CRM and task handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9600,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nfor(const p of d.plans)d.audit.push({phase:'handoff',actionKey:p.actionKey,decision:'PLANNED_ONLY',owner:p.owner,externalReceipt:null});\nd.audit.push({phase:'system',decision:'NO_EXTERNAL_ACTIONS',runId:d.meta.runId});\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000037",
+      "name": "37 · Record audit and dry-run receipts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9860,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nconst cs=d.clean.contacts;d.stats={...d.stats,duplicateAccounts:d.accounts.length-d.clean.accounts.length,duplicateContacts:d.contacts.length-cs.length,duplicateSignals:d.signals.length-d.clean.signals.length,blockedContacts:cs.filter(c=>c.suppress.length).length,lowFitContacts:cs.filter(c=>!c.suppress.length&&c.qualificationFailures.length).length,eligibleContacts:cs.filter(c=>c.eligible).length,plannedDrafts:d.plans.length,approvalPending:d.plans.filter(p=>p.approval==='PENDING_HUMAN_REVIEW').length,externalCalls:d.execution.calls,emailsSent:d.execution.emails,crmWrites:d.execution.crmWrites,calendarWrites:d.execution.calendarWrites,creditsSpent:d.execution.creditsSpent};\nreturn [{json:d}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000038",
+      "name": "38 · Reconcile quality and outcome metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10120,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const d=JSON.parse(JSON.stringify($input.all()[0].json));\nif(d.execution.calls!==0||d.execution.emails!==0||d.execution.crmWrites!==0||d.execution.calendarWrites!==0||d.execution.creditsSpent!==0)throw Error('Side effects detected');\nif(d.plans.some(p=>p.sent||p.canSend||p.canWriteCRM||p.canBook))throw Error('Approval control bypass');\nif(d.plans.length>d.policy.maxActions)throw Error('Quota overflow');\nif(d.plans.some(p=>!p.evidence.length))throw Error('Plan without evidence');\nconst report={name:d.meta.project,runId:d.meta.runId,mode:d.meta.mode,syntheticFixtures:true,generated:d.meta.now,metrics:d.stats,topPlans:d.plans.map(p=>({contactId:p.contactId,account:p.account,owner:p.owner,score:p.priorityScore,approval:p.approval,actionKey:p.actionKey,sourceCount:p.evidence.length})),holds:d.audit.filter(x=>x.phase==='suppress'),qualityFindings:d.quality,proof:{actionBoundary:'NO_EXTERNAL_ACTIONS',auditEntries:d.audit.length,liveIntegrationsValidated:false,benchmarkScope:'Fictional fixtures; no revenue claims'}};\nreturn [{json:report}];"
+      },
+      "id": "b0fd8c01-eeee-4000-8000-000000000039",
+      "name": "39 · Final invariants and executive report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10380,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "07f8b410-7552-4444-8000-000000000001",
+              "leftValue": "={{ $json.metrics.plannedDrafts }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c8cd0a00-0000-4000-8000-000000000001",
+      "name": "Review queue has candidates?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        10640,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const r=JSON.parse(JSON.stringify($input.all()[0].json));r.branch='REVIEW_QUEUE_PREPARED_NO_EXTERNAL_SEND';r.nextStep='Human reviews the staged evidence and drafts outside this offline fixture';return [{json:r}];"
+      },
+      "id": "c8cd0a00-0000-4000-8000-000000000002",
+      "name": "Ready for human review (NO SEND)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const r=JSON.parse(JSON.stringify($input.all()[0].json));r.branch='EMPTY_QUEUE_AUDITED';r.nextStep='No outreach drafted, do not override suppression or data quality gates';return [{json:r}];"
+      },
+      "id": "c8cd0a00-0000-4000-8000-000000000003",
+      "name": "No eligible leads — report only",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10900,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### SOURCE \n1 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 420,
+        "color": 1
+      },
+      "id": "8abde110-0000-4000-8000-000000000001",
+      "name": "SOURCE · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### CONTROL \n3 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 780,
+        "color": 2
+      },
+      "id": "8abde110-0000-4000-8000-000000000002",
+      "name": "CONTROL · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### IDENTITY \n5 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 1300,
+        "color": 3
+      },
+      "id": "8abde110-0000-4000-8000-000000000003",
+      "name": "IDENTITY · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### QUALITY \n4 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 1040,
+        "color": 4
+      },
+      "id": "8abde110-0000-4000-8000-000000000004",
+      "name": "QUALITY · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2780,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### ENRICH \n3 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 780,
+        "color": 5
+      },
+      "id": "8abde110-0000-4000-8000-000000000005",
+      "name": "ENRICH · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3820,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### PERSONA \n2 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 520,
+        "color": 6
+      },
+      "id": "8abde110-0000-4000-8000-000000000006",
+      "name": "PERSONA · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4600,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### SCORE \n3 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 780,
+        "color": 1
+      },
+      "id": "8abde110-0000-4000-8000-000000000007",
+      "name": "SCORE · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5120,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### SUPPRESS \n6 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 1560,
+        "color": 2
+      },
+      "id": "8abde110-0000-4000-8000-000000000008",
+      "name": "SUPPRESS · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        5900,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### QUALIFY \n1 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 420,
+        "color": 3
+      },
+      "id": "8abde110-0000-4000-8000-000000000009",
+      "name": "QUALIFY · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        7460,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### ROUTE \n4 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 1040,
+        "color": 4
+      },
+      "id": "8abde110-0000-4000-8000-000000000010",
+      "name": "ROUTE · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        7720,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### ACTION \n4 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 1040,
+        "color": 5
+      },
+      "id": "8abde110-0000-4000-8000-000000000011",
+      "name": "ACTION · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        8760,
+        90
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### OBSERVE \n3 real processing steps. Synthetic fixtures, no live providers.\n\nActions are **always blocked** without human review.",
+        "height": 155,
+        "width": 780,
+        "color": 6
+      },
+      "id": "8abde110-0000-4000-8000-000000000012",
+      "name": "OBSERVE · system boundary",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        9800,
+        90
+      ]
+    }
+  ],
+  "connections": {
+    "Manual run (no schedule)": {
+      "main": [
+        [
+          {
+            "node": "01 · Seed synthetic GTM workspace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "01 · Seed synthetic GTM workspace": {
+      "main": [
+        [
+          {
+            "node": "02 · Fail closed on execution policy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 · Fail closed on execution policy": {
+      "main": [
+        [
+          {
+            "node": "03 · Validate input contracts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 · Validate input contracts": {
+      "main": [
+        [
+          {
+            "node": "04 · Pin deterministic run clock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 · Pin deterministic run clock": {
+      "main": [
+        [
+          {
+            "node": "05 · Canonicalize account domains",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 · Canonicalize account domains": {
+      "main": [
+        [
+          {
+            "node": "06 · Exact-domain entity resolution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "06 · Exact-domain entity resolution": {
+      "main": [
+        [
+          {
+            "node": "07 · Detect sibling brand false positives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "07 · Detect sibling brand false positives": {
+      "main": [
+        [
+          {
+            "node": "08 · Normalize contact identity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "08 · Normalize contact identity": {
+      "main": [
+        [
+          {
+            "node": "09 · Merge duplicate contacts safely",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "09 · Merge duplicate contacts safely": {
+      "main": [
+        [
+          {
+            "node": "10 · Quarantine broken contact references",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10 · Quarantine broken contact references": {
+      "main": [
+        [
+          {
+            "node": "11 · Validate and deduplicate signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11 · Validate and deduplicate signals": {
+      "main": [
+        [
+          {
+            "node": "12 · Reject stale and future signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12 · Reject stale and future signals": {
+      "main": [
+        [
+          {
+            "node": "13 · Validate source evidence provenance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13 · Validate source evidence provenance": {
+      "main": [
+        [
+          {
+            "node": "14 · Define mock enrichment provider contracts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "14 · Define mock enrichment provider contracts": {
+      "main": [
+        [
+          {
+            "node": "15 · Mock enrichment waterfall with zero spend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "15 · Mock enrichment waterfall with zero spend": {
+      "main": [
+        [
+          {
+            "node": "16 · Normalize firmographic taxonomy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "16 · Normalize firmographic taxonomy": {
+      "main": [
+        [
+          {
+            "node": "17 · Normalize title taxonomy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "17 · Normalize title taxonomy": {
+      "main": [
+        [
+          {
+            "node": "18 · Compute persona scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "18 · Compute persona scores": {
+      "main": [
+        [
+          {
+            "node": "19 · Compute 100-point account ICP fit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "19 · Compute 100-point account ICP fit": {
+      "main": [
+        [
+          {
+            "node": "20 · Score signal types and decay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20 · Score signal types and decay": {
+      "main": [
+        [
+          {
+            "node": "21 · Calculate overall priority and play",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "21 · Calculate overall priority and play": {
+      "main": [
+        [
+          {
+            "node": "22 · Protect blocked domains and customers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "22 · Protect blocked domains and customers": {
+      "main": [
+        [
+          {
+            "node": "23 · Protect active deals and unsubscribes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "23 · Protect active deals and unsubscribes": {
+      "main": [
+        [
+          {
+            "node": "24 · Enforce privacy and outreach cooldown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "24 · Enforce privacy and outreach cooldown": {
+      "main": [
+        [
+          {
+            "node": "25 · Validate syntax and consent suitability",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "25 · Validate syntax and consent suitability": {
+      "main": [
+        [
+          {
+            "node": "26 · Hold executive relationship owners",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "26 · Hold executive relationship owners": {
+      "main": [
+        [
+          {
+            "node": "27 · Explain suppressions in audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "27 · Explain suppressions in audit": {
+      "main": [
+        [
+          {
+            "node": "28 · Gate on ICP, persona, and intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "28 · Gate on ICP, persona, and intent": {
+      "main": [
+        [
+          {
+            "node": "29 · Resolve owners via CRM and territory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "29 · Resolve owners via CRM and territory": {
+      "main": [
+        [
+          {
+            "node": "30 · Assign priority and SLA tiers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "30 · Assign priority and SLA tiers": {
+      "main": [
+        [
+          {
+            "node": "31 · Create idempotent action keys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "31 · Create idempotent action keys": {
+      "main": [
+        [
+          {
+            "node": "32 · Apply batch pacing and action cap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "32 · Apply batch pacing and action cap": {
+      "main": [
+        [
+          {
+            "node": "33 · Build evidence-backed draft payloads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "33 · Build evidence-backed draft payloads": {
+      "main": [
+        [
+          {
+            "node": "34 · Reject unsupported personalization claims",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "34 · Reject unsupported personalization claims": {
+      "main": [
+        [
+          {
+            "node": "35 · Enforce human approval with no bypass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "35 · Enforce human approval with no bypass": {
+      "main": [
+        [
+          {
+            "node": "36 · Simulate CRM and task handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "36 · Simulate CRM and task handoff": {
+      "main": [
+        [
+          {
+            "node": "37 · Record audit and dry-run receipts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "37 · Record audit and dry-run receipts": {
+      "main": [
+        [
+          {
+            "node": "38 · Reconcile quality and outcome metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "38 · Reconcile quality and outcome metrics": {
+      "main": [
+        [
+          {
+            "node": "39 · Final invariants and executive report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "39 · Final invariants and executive report": {
+      "main": [
+        [
+          {
+            "node": "Review queue has candidates?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review queue has candidates?": {
+      "main": [
+        [
+          {
+            "node": "Ready for human review (NO SEND)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No eligible leads — report only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
