@@ -1,6 +1,6 @@
 # Signal-to-Action GTM Engine — Enterprise-Style Portfolio Case Study
 
-**Status:** Fully designed and independently tested as an **offline n8n Code-node simulation**. The actual imported n8n runtime, Clay, HubSpot, Google Calendar and real business outcomes remain **unverified**. Built on an isolated portfolio branch; GAPS AI production is untouched.
+**Status:** Offline test suite passes, and **two real n8n 2.25.7 CLI executions passed** in a separate, inactive Windows test database (baseline and all-DNC negative path). Clay, HubSpot, Google Calendar and real business outcomes remain **unverified**. Built on an isolated portfolio branch; GAPS AI production is untouched. [See local runtime evidence](./LOCAL_N8N_RUNTIME_EVIDENCE_2026-10-16.md).
 
 ## Why this is different from toy automations
 
