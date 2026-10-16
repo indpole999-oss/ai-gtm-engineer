@@ -1,10 +1,12 @@
+from backend.tenancy import get_workspace_db as get_db
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
+from typing import Annotated
 from uuid import UUID
 
-from backend.database import Company, get_db
+from backend.database import Company
 from backend.routers.auth import get_current_user
 
 router = APIRouter()
@@ -13,7 +15,7 @@ router = APIRouter()
 # ---------- SCHEMA ----------
 
 class CompanyCreate(BaseModel):
-    name: str
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
     domain: str | None = None
     industry: str | None = None
     employee_count: int | None = None
@@ -52,6 +54,12 @@ async def create_company(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
+    from backend.outreach_service import lock_workspace
+    from backend.pipeline_service import ensure
+    # Serialize before any insert/autoflush, matching the worker lock order.
+    await lock_workspace(db)
+    if company.domain and await db.scalar(select(Company.id).where(Company.domain == company.domain)):
+        raise HTTPException(409, "An account with this domain already exists in this workspace")
     new_company = Company(
         name=company.name,
         domain=company.domain,
@@ -65,6 +73,8 @@ async def create_company(
 
     db.add(new_company)
 
+    await db.flush()
+    await ensure(db, new_company.id, None, current_user.id)
     await db.commit()
     await db.refresh(new_company)
 
@@ -106,60 +116,5 @@ async def get_company(
             status_code=404,
             detail="Company not found",
         )
-
-    return company_response(company)
-    new_company = Company(
-        name=company.name,
-        domain=company.domain,
-        industry=company.industry,
-        employee_count=company.employee_count,
-        revenue=company.revenue,
-        location=company.location,
-        description=company.description,
-        extra_data=company.extra_data,
-    )
-
-    db.add(new_company)
-
-    await db.commit()
-    await db.refresh(new_company)
-
-    return company_response(new_company)
-
-
-# ---------- LIST COMPANIES ----------
-
-@router.get("/")
-async def list_companies(
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    result = await db.execute(select(Company))
-    companies = result.scalars().all()
-
-    return [
-        company_response(company)
-        for company in companies
-    ]
-
-
-# ---------- GET COMPANY BY ID ----------
-
-@router.get("/{company_id}")
-async def get_company(
-    company_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    result = await db.execute(
-        select(Company).where(Company.id == company_id)
-    )
-
-    company = result.scalar_one_or_none()
-
-    if not company:
-        return {
-            "error": "Company not found"
-        }
 
     return company_response(company)

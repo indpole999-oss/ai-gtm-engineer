@@ -10,12 +10,12 @@ import bcrypt
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import settings
-from backend.database import User, get_db
+from backend.database import User, Workspace, WorkspaceMembership, get_db
 
 
 router = APIRouter()
@@ -31,8 +31,15 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8, max_length=72)
     full_name: Optional[str] = None
+
+    @field_validator("password")
+    @classmethod
+    def bounded_password(cls, value):
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password exceeds supported UTF-8 length")
+        return value
 
 
 class Token(BaseModel):
@@ -96,6 +103,8 @@ async def get_current_user(
             algorithms=[settings.ALGORITHM],
         )
 
+        if payload.get("purpose") is not None:
+            raise HTTPException(401, "Invalid authentication token")
         user_id = payload.get("sub")
 
         if not user_id:
@@ -120,7 +129,7 @@ async def get_current_user(
 
         user = result.scalar_one_or_none()
 
-        if not user:
+        if not user or not user.is_active:
             raise HTTPException(
                 status_code=401,
                 detail="User not found",
@@ -185,6 +194,12 @@ async def register(
 
     await db.flush()
 
+    workspace = Workspace(name=f"{user.full_name or 'My'} workspace", slug=f"workspace-{user.id.hex}")
+    db.add(workspace)
+    await db.flush()
+    db.add(WorkspaceMembership(workspace_id=workspace.id, user_id=user.id, role="owner"))
+    await db.flush()
+
     token = create_access_token(
         {"sub": str(user.id)}
     )
@@ -210,7 +225,7 @@ async def login(
 
     user = result.scalar_one_or_none()
 
-    if not user:
+    if not user or not user.is_active:
         raise HTTPException(
             status_code=401,
             detail="Invalid credentials",

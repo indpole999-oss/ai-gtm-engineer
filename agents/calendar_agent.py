@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import Integration, AsyncSessionLocal
 from backend.security import decrypt_credentials
+from backend.config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -220,7 +221,7 @@ class CalendarAgent:
                 )
 
             # Legacy service-account fallback.
-            if self.google_creds:
+            if self.google_creds and settings.ALLOW_LEGACY_ENV_CREDENTIALS:
                 import json
                 from google.oauth2 import service_account
 

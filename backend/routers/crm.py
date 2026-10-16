@@ -1,3 +1,5 @@
+from backend.tenancy import require_approved_execution
+from backend.tenancy import get_workspace_db as get_db
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -7,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
-from backend.database import get_db, CRMRecord, Contact, Company
+from backend.database import CRMRecord, Contact, Company
 from backend.routers.auth import get_current_user
 from agents.crm_agent import CRMAgent
 
@@ -42,7 +44,7 @@ CRMDealCreate.model_rebuild()
 CRMActivityCreate.model_rebuild()
 
 
-@router.post("/deal")
+@router.post("/deal", dependencies=[Depends(require_approved_execution)])
 async def create_crm_deal(
     payload: CRMDealCreate,
     current_user=Depends(get_current_user),
@@ -145,7 +147,7 @@ async def create_crm_deal(
     }
 
 
-@router.post("/activity")
+@router.post("/activity", dependencies=[Depends(require_approved_execution)])
 async def create_crm_activity(
     payload: CRMActivityCreate,
     current_user=Depends(get_current_user),
@@ -287,7 +289,7 @@ async def list_crm(
     return data
 
 
-@router.post("/")
+@router.post("/", dependencies=[Depends(require_approved_execution)])
 async def create_crm_record(
     payload: CRMCreate,
     db: AsyncSession = Depends(get_db),
@@ -527,7 +529,7 @@ async def create_crm_record(
     }
 
 
-@router.post("/company")
+@router.post("/company", dependencies=[Depends(require_approved_execution)])
 async def create_crm_company(
     payload: CRMCompanyCreate,
     db: AsyncSession = Depends(get_db),

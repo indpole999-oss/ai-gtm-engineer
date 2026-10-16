@@ -1,0 +1,25 @@
+name: Real recovery target preflight
+
+on:
+  push:
+    branches: [codex/ai-gtm-engineer-v2-full-build]
+    paths:
+      - scripts/recovery_target_preflight.py
+      - scripts/recovery_host.py
+      - recovery/**
+      - .github/workflows/recovery-target-preflight.yml
+
+permissions:
+  contents: read
+
+jobs:
+  no-cost-target-capability:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect actual route and attempt only isolated credential-free TLS
+        run: sudo --preserve-env=GITHUB_ACTIONS,GITHUB_REPOSITORY,GITHUB_REF,GITHUB_EVENT_PATH,RUNNER_ENVIRONMENT,GITHUB_STEP_SUMMARY python3 scripts/recovery_target_preflight.py

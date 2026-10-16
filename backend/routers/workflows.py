@@ -1,3 +1,4 @@
+from backend.tenancy import require_approved_execution
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
@@ -48,7 +49,7 @@ async def get_workflow(
     }
 
 
-@router.post("/run")
+@router.post("/run", dependencies=[Depends(require_approved_execution)])
 async def run_workflow(
     request: WorkflowRequest,
     current_user=Depends(get_current_user),

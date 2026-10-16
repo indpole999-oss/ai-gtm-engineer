@@ -13,6 +13,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional, Dict, Any, List
+from backend.config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -517,6 +518,13 @@ Do not create an empty name in the greeting or subject.
         subject: str,
         body: str
     ) -> Dict:
+
+        if not settings.ALLOW_LEGACY_ENV_CREDENTIALS:
+            logger.warning("Environment email credential fallback is disabled")
+            return {
+                "status": "not_sent",
+                "reason": "Workspace email integration required",
+            }
 
         if (
             self.provider == "resend"

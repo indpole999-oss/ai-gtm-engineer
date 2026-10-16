@@ -1,5 +1,41 @@
 import { API_BASE_URL, TOKEN_STORAGE_KEY } from "./api-config";
 
+const WORKSPACE_STORAGE_KEY = "gaps_ai_workspace_id";
+let workspaceId: string | null = null;
+let sessionRevision = 0;
+
+export function invalidateSessionRequests() {
+  sessionRevision++;
+}
+
+export function getWorkspaceId(): string | null {
+  if (workspaceId) return workspaceId;
+  if (typeof window === "undefined") return null;
+
+  try {
+    workspaceId = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  } catch {
+    workspaceId = null;
+  }
+
+  return workspaceId;
+}
+
+export function setWorkspaceId(id: string | null) {
+  workspaceId = id;
+  if (typeof window === "undefined") return;
+
+  try {
+    if (id) {
+      window.localStorage.setItem(WORKSPACE_STORAGE_KEY, id);
+    } else {
+      window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+    }
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 export type Json =
   | string
   | number
@@ -46,6 +82,10 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null) {
+  invalidateSessionRequests();
+  // A new sign-in must not inherit another user's workspace.
+  // Refreshes do not call setToken, so the current workspace remains restorable.
+  setWorkspaceId(null);
   if (typeof window === "undefined") return;
 
   try {
@@ -99,7 +139,16 @@ export async function apiFetch<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const token = getToken();
+  const requestSession = sessionRevision;
   const headers = new Headers(init.headers);
+  const activeWorkspaceId = getWorkspaceId();
+  if (
+    activeWorkspaceId &&
+    !path.startsWith("/api/v1/auth/") &&
+    path !== "/api/v1/workspaces"
+  ) {
+    headers.set("X-Workspace-ID", activeWorkspaceId);
+  }
 
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
@@ -122,7 +171,10 @@ export async function apiFetch<T>(
       ...init,
       headers,
     });
-  } catch {
+  } catch (error) {
+    if (init.signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+      throw error;
+    }
     throw new ApiError(
       0,
       `Cannot reach the API at ${API_BASE_URL}. Check that the FastAPI server is running and CORS allows this origin.`,
@@ -136,16 +188,23 @@ export async function apiFetch<T>(
   const responseText = await response.text();
 
   let payload: unknown = undefined;
+  let validJson = false;
 
   if (responseText) {
     try {
       payload = JSON.parse(responseText);
+      validJson = true;
     } catch {
       payload = responseText;
     }
   }
 
   if (!response.ok) {
+    // A late response from a previous session must not sign out a new user.
+    if (response.status === 401 && token && getToken() === token && requestSession === sessionRevision) {
+      setToken(null);
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("gaps:session-expired"));
+    }
     const detail =
       payload &&
       typeof payload === "object" &&
@@ -166,6 +225,15 @@ export async function apiFetch<T>(
       response.status,
       describeDetail(detail, fallback),
       detail,
+    );
+  }
+
+  if (!validJson) {
+    // A proxy page or truncated response cannot confirm a save. Do not retry
+    // writes here: the server may already have committed the operation.
+    throw new ApiError(
+      response.status,
+      "Could not confirm the server response. Refresh to check whether your changes were saved before trying again.",
     );
   }
 

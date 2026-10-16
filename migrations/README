@@ -1,0 +1,5 @@
+This directory contains the authoritative Alembic migration history.
+
+The first revision is a baseline that creates the V1 schema on an empty database.
+It must be stamped, not executed, on an existing database after the operator verifies
+that its schema matches the SQLAlchemy V1 models. See docs/OPERATIONS.md.
