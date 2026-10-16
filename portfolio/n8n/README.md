@@ -4,7 +4,7 @@ These are eight genuine n8n-shaped JSON workflow definitions using **Manual Trig
 
 Import the JSON in n8n using **Workflow menu → Import from File**. Official guidance: https://docs.n8n.io/build/manage-workflows/export-and-import
 
-**No claim of tested n8n execution yet**: the files require import/runtime acceptance in the user's n8n workspace. Preflight CI evaluates the JavaScript steps in a Node-based test harness, which is not a substitute for n8n itself. No credentials required.
+**Actual local runtime verified:** all eight exports were imported and executed successfully on n8n 2.25.7 in a fresh isolated Windows database on 16 October 2026. [Runtime evidence](./RUNTIME_EVIDENCE_2026-10-16.md) records outputs, timings and limits. Malformed-input and replay cases are Node-harness tests, not additional n8n executions. No live provider integration is claimed. No credentials required.
 
 See [the demonstration runbook](./DEMO_RUNBOOK.md) for per-workflow inputs, expected outputs, errors, replay limitations and a recording script. Run `node portfolio/n8n/tests/safety.mjs` for malformed input and approval-boundary cases.
 
