@@ -329,7 +329,7 @@ def test_browser_customer_journey(client, fake_research, provider, monkeypatch, 
             assert saved("/api/v1/gtm/plans/" + plan["id"])["content_hash"] == plan["content_hash"]
             assert provider.calls == 1
             go("/integrations")
-            page.get_by_label("hubspot API token", exact=True).fill("browser-synthetic-token-only")
+            page.get_by_label("hubspot API key", exact=True).fill("browser-synthetic-token-only")
             with page.expect_response(lambda r: r.url.endswith("/api/v1/integrations") and r.request.method == "POST") as response:
                 page.get_by_role("button", name="Save hubspot connection", exact=True).click()
             assert response.value.status == 200
