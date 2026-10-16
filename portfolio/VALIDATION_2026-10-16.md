@@ -1,5 +1,7 @@
 # Portfolio continuation verification — 16 October 2026
 
+Follow-up: browser and six actual n8n negative cases are now verified; see [milestone acceptance](./MILESTONE_ACCEPTANCE_2026-10-16.md). Earlier BLOCKED notes below describe the initial checkpoint.
+
 Base commit: `20cf67a7c22eada3b354e4e201b00f2acb593e72`.
 
 ## Observed hosting and source

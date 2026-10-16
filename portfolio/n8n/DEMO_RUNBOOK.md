@@ -53,3 +53,5 @@ The Node harness evaluates Code-node JavaScript in a restricted simulation. It i
 7. End with limitations: synthetic evaluation, no customer outcomes, no verified external integrations (10 seconds).
 
 This is a recording script, not a claim that a video was recorded. Review screenshots for tokens and personal data before sharing.
+
+Actual negative-case and browser results: [milestone acceptance](../MILESTONE_ACCEPTANCE_2026-10-16.md).
