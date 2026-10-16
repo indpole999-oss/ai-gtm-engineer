@@ -30,7 +30,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const d=$input.all()[0].json;return [{json:{...d,trace:[{stage:\"research\",evidenceCount:d.evidence.length}],sourcesVerifiedRealWorld:false}}];"
+        "jsCode": "const d=$input.all()[0].json;if(typeof d.name!==\"string\"||!d.name.trim()||!Array.isArray(d.evidence)||!Number.isFinite(d.employees)||d.employees<0)throw Error(\"invalid prospect input\");if(d.evidence.some(e=>!e||typeof e.claim!==\"string\"||!e.claim.trim()||typeof e.source!==\"string\"||!e.source.trim()))throw Error(\"evidence requires claim and source\");return [{json:{...d,trace:[{stage:\"research\",evidenceCount:d.evidence.length}],sourcesVerifiedRealWorld:false}}];"
       },
       "id": "10000008-0000-4000-8000-000000000003",
       "name": "Research evidence",
@@ -86,7 +86,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const d=$input.all()[0].json;return [{json:{workflow:\"gtm_orchestration\",account:d.name,score:d.score,draft:d.draft,trace:[...d.trace,{stage:\"gate\",result:\"STOP\"}],emailsSent:0,crmWrites:0,calendarWrites:0,externalCalls:0,status:\"DRY_RUN_REVIEW_REQUIRED\"}}];"
+        "jsCode": "const d=$input.all()[0].json;if(d.draft?.sent!==false||d.draft?.approval!==\"PENDING_REVIEW\")throw Error(\"unsafe draft state\");return [{json:{workflow:\"gtm_orchestration\",account:d.name,score:d.score,draft:d.draft,trace:[...d.trace,{stage:\"gate\",result:\"STOP\"}],emailsSent:0,crmWrites:0,calendarWrites:0,externalCalls:0,status:\"DRY_RUN_REVIEW_REQUIRED\"}}];"
       },
       "id": "10000008-0000-4000-8000-000000000007",
       "name": "Audit stopped execution",

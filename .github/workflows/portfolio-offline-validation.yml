@@ -17,6 +17,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify browser demo state transitions without external calls
+        run: node portfolio/tests/demo-state.cjs
+      - name: Validate offline n8n pack and safety cases
+        run: |
+          node portfolio/n8n/tests/validate.mjs
+          node portfolio/n8n/tests/safety.mjs
       - name: Run offline workflow unit tests
         run: python -m unittest discover -s portfolio -p 'test_*.py' -v
       - name: Check static portfolio artifacts

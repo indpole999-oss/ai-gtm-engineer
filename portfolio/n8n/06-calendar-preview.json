@@ -30,7 +30,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const d=$input.all()[0].json;const start=new Date(d.start);if(!Number.isFinite(start.getTime())||d.minutes<=0)throw Error(\"invalid date\");return [{json:{workflow:\"calendar_preview\",account:d.account,startUTC:start.toISOString(),endUTC:new Date(start.getTime()+d.minutes*60000).toISOString(),eventCreated:false,approval:\"PENDING_REVIEW\",externalCalls:0}}];"
+        "jsCode": "const d=$input.all()[0].json;if(typeof d.start!==\"string\"||!/(Z|[+-]\\d{2}:\\d{2})$/.test(d.start)||!Number.isInteger(d.minutes)||d.minutes<=0||d.minutes>480)throw Error(\"explicit timezone and integer duration 1-480 required\");const start=new Date(d.start);if(!Number.isFinite(start.getTime()))throw Error(\"invalid date\");return [{json:{workflow:\"calendar_preview\",account:d.account,startUTC:start.toISOString(),endUTC:new Date(start.getTime()+d.minutes*60000).toISOString(),eventCreated:false,approval:\"PENDING_REVIEW\",externalCalls:0}}];"
       },
       "id": "10000006-0000-4000-8000-000000000003",
       "name": "Normalize UTC",

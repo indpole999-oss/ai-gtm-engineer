@@ -30,7 +30,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const d=$input.all()[0].json;const records={};let merged=0;for(const row of d.events){if(records[row.id])merged++;records[row.id]={...row,status:\"IN_MEMORY_ONLY\"};}return [{json:{workflow:\"crm_deduplication\",records:Object.values(records),merged,externalWrites:0,externalCalls:0}}];"
+        "jsCode": "const d=$input.all()[0].json;if(!Array.isArray(d.events))throw Error(\"events must be an array\");const records=new Map();let merged=0;for(const row of d.events){if(!row||typeof row.id!==\"string\"||!row.id.trim()||![\"MQL\",\"SQL\"].includes(row.stage))throw Error(\"invalid lead event\");const id=row.id.trim();if(records.has(id))merged++;records.set(id,{id,stage:row.stage,status:\"IN_MEMORY_ONLY\"});}return [{json:{workflow:\"crm_deduplication\",records:Array.from(records.values()),merged,externalWrites:0,externalCalls:0}}];"
       },
       "id": "10000005-0000-4000-8000-000000000003",
       "name": "Deduplicate records",

@@ -17,6 +17,13 @@ const draft=document.getElementById("result-draft");
 const status=document.getElementById("trace-status");
 const note=document.getElementById("approval-note");
 let current=null;
+sel.addEventListener("change",function(){
+ current=null;
+ body.hidden=true;empty.hidden=false;approve.disabled=true;
+ trace.replaceChildren();draft.textContent="";
+ status.textContent="AWAITING RUN";
+ note.textContent="Account changed. Execute a new sample before reviewing it.";
+});
 function evaluate(item){
  const sectorFit=item.industry==="SaaS"||item.industry==="Healthtech";
  const sizeFit=item.employees>=50&&item.employees<=500;

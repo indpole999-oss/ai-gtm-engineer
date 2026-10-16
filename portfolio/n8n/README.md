@@ -6,6 +6,8 @@ Import the JSON in n8n using **Workflow menu → Import from File**. Official gu
 
 **No claim of tested n8n execution yet**: the files require import/runtime acceptance in the user's n8n workspace. Preflight CI evaluates the JavaScript steps in a Node-based test harness, which is not a substitute for n8n itself. No credentials required.
 
+See [the demonstration runbook](./DEMO_RUNBOOK.md) for per-workflow inputs, expected outputs, errors, replay limitations and a recording script. Run `node portfolio/n8n/tests/safety.mjs` for malformed input and approval-boundary cases.
+
 ## Workflows
 
 1. [Account Intelligence](./01-account-research.json) — 3 Code nodes; offline example
